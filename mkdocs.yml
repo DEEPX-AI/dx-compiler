@@ -1,0 +1,139 @@
+site_name: DXNN Compiler (DX-COM) User Manual
+use_directory_urls: false
+docs_dir: source # markdown 원문 폴더
+site_dir: docs # html로 변환된 폴더
+theme: 
+  name : material
+  language: en
+  font:
+    text: Noto Sans Display
+    #text: Noto Serif
+    #code: Noto Sans 
+    code: Roboto Mono 
+  logo: ./img/deepx.png
+  favicon: ./img/favicon.png
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      primary: black
+      toggle:
+        icon: material/brightness-7 
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+     - toc.integrate
+     - content.code.annotate
+     - navigation.tabs
+     - navigation.tabs.sticky
+     - content.tabs.link
+     - content.code.copy
+nav:
+  - DXNN SDK Overview: docs/01_DXNN_Compiler_Overview.md
+  - Installation and Configuration:
+      - System Requirements of DX-COM: docs/02_01_System_Requirements_of_DX-COM.md
+      - Installation of DX-COM: docs/02_02_Installation_of_DX-COM.md
+      - Source File Structure of DX-COM: docs/02_03_Source_File_Structure_of_DX-COM.md
+      - ONNX File Configuration: docs/02_04_ONNX_File_Configuration.md
+      - JSON File Configuration: docs/02_05_JSON_File_Configuration.md
+      - Execution of DX-COM: docs/02_06_Execution_of_DX-COM.md
+  - Building Models: docs/03_Building_Models.md
+  - Development Tools:
+      - Simulator_DX-SIM: docs/04_01_Simulator_DX-SIM.md
+      - Model Viewer_DX-TRON: docs/04_02_Model_Viewer_DX-TRON.md
+  - Change Log: docs/Appendix_Change_Log.md
+
+plugins:
+  - search
+  - with-pdf:
+      author: DEEPX.ai
+      copyright: ⓒ Copyright 2025 DEEPX All Rights Reserved.
+      #
+      #cover: false
+      cover_title: DXNN Compiler (DX-COM) User Manual
+      cover_subtitle: 2025/05/18
+      cover_logo: img/deepx.png
+      custom_template_path: docs/stylesheets
+      #back_cover: true
+      #
+      #toc_title: TOC TITLE TEXT
+      #heading_shift: false
+      #toc_level: 3
+      #ordered_chapter_level: 2
+      #excludes_children:
+      #    - 'release-notes/:upgrading'
+      #    - 'release-notes/:changelog'
+      #
+      #exclude_pages:
+      #    - 'bugs/'
+      #    - 'appendix/contribute/'
+      #convert_iframe:
+      #    - src: IFRAME SRC
+      #      img: POSTER IMAGE URL
+      #      text: ALTERNATE TEXT
+      #    - src: ...
+      #two_columns_level: 3
+      #
+      #render_js: true
+      #headless_chrome_path: headless-chromium
+      #
+      output_path: ../DEEPX_DX-COM_UM_250518.pdf
+      #enabled_if_env: ENABLE_PDF_EXPORT
+      #
+      #debug_html: true
+      #show_anchors: true
+      #verbose: true
+#  - mkdocs-video
+extra:
+#  version:
+#    provider: mike
+#    default: stable
+  generator: false
+  social:
+#     - icon: fontawesome/brands/github
+#       link: https://github.com/deepx-ai
+     - icon: fontawesome/brands/linkedin
+       link: https://www.linkedin.com/company/deepx-corporation/
+#  alternate:
+#    - name: English
+#      link: /en/    
+#      lang: en
+#    - name: Korean
+#      link: /kr/
+#      lang: kr
+extra_css: 
+  - stylesheets/extra.css
+markdown_extensions:
+  - admonition
+  - def_list
+  - toc:
+        permalink: "true"
+        baselevel: 1
+        separator: ">_"
+        toc_depth: 3
+  - pymdownx.critic
+  - pymdownx.caret
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.tilde
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true 
+  - attr_list
+  - md_in_html
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+copyright: ⓒ Copyright 2025 <a href="http://deepx.ai">DEEPX</a>. All Rights Reserved.
