@@ -1,0 +1,12 @@
+.git
+.github/scripts/
+.github/workflows/
+.gitignore
+.gitattribute
+.gitmodules
+CHANGELOG.md
+dx_codegen/
+dx_com/
+dx_common/
+dx_simulator/
+dx_*/
