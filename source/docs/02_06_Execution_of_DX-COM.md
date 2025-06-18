@@ -19,20 +19,22 @@ Use the following commands to generate the NPU Command Set and weights from a ta
  
 **Command Format**
 ```
-dx_com -m <MODEL_PATH> -c <CONFIG_PATH> -o <OUTPUT_DIR> (--shrink)
+dx_com -m <MODEL_PATH> -c <CONFIG_PATH> -o <OUTPUT_DIR>
 ```
 
-- `-m or --model_path <MODEL_PATH>`: Path to the ONNX model file `[.onnx]`
-- `-c or --config_path <CONFIG_PATH>`: Path to the model configuration file `[.json]`
-- `-o or --output_dir <OUTPUT_PATH>`: Directory path where the compiled output is saved
-- `--shrink (Optional)`: Generate a minimal output by including only the data essential for running on the NPU
+- `-m or --model_path MODEL_PATH`: Path to the ONNX Model file `(*.onnx)`.
+- `-c or --config_path CONFIG_PATH`: Path to the Model Configuration JSON file `(*.json)`.
+- `-o or --output_dir OUTPUT_DIR`: Directory to save the compiled model data.
+- `-i or --info`(optional): Print internal module version information and exit.
+- `-v or --version`(optional): Print compiler module version and exit.
+- `--shrink`(optional): Generate a minimal output by including only the data essential for running on the NPU
 
 If you want to reduce the file size of the compiled output, use the --shrink option. This ensures the output file contains only the components required for running the NPU execution, excluding debug and intermediate files.
 
 **Note.** Despite using the same ONNX file in the same PC environment, dx_com may produce different outputs due to internal kernel behavior during optimization and compilation.
 
 
-`Command Examples`
+**Command Examples**
 
 Basic Command
 ```
