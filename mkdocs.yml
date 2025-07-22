@@ -44,8 +44,7 @@ nav:
       - Execution of DX-COM: docs/02_06_Execution_of_DX-COM.md
   - Building Models: docs/03_Building_Models.md
   - Development Tools:
-      - Simulator_DX-SIM: docs/04_01_Simulator_DX-SIM.md
-      - Model Viewer_DX-TRON: docs/04_02_Model_Viewer_DX-TRON.md
+      - Model Viewer_DX-TRON: docs/04_01_Model_Viewer_DX-TRON.md
   - Change Log: docs/Appendix_Change_Log.md
 
 plugins:
