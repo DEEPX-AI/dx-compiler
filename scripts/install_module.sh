@@ -115,6 +115,32 @@ if [ -z "$DX_USERNAME" ] || [ -z "$DX_PASSWORD" ]; then
     exit 1
 fi
 
+# --- Function to intelligently extract archives ---
+# Checks for a top-level directory and uses --strip-components=1 if found.
+extract_archive() {
+    local archive_file="$1"
+    local target_dir="$2"
+
+    if [ ! -f "$archive_file" ]; then
+        print_colored "ERROR: Archive file for extraction not found at '$archive_file'." "ERROR"
+        return 1
+    fi
+
+    # Check the internal structure of the tar file to see if it has a top-level directory
+    local first_entry
+    first_entry=$(tar -tf "$archive_file" | head -n 1)
+
+    # Determine if a top-level directory exists by checking for a slash in the first entry
+    if [[ "$first_entry" == */* ]]; then
+        print_colored "INFO: Detected top-level directory in archive. Using --strip-components=1 for extraction." "INFO"
+        tar -xzf "$archive_file" --strip-components=1 -C "$target_dir"
+    else
+        print_colored "INFO: No top-level directory detected in archive. Extracting as-is." "INFO"
+        tar -xzf "$archive_file" -C "$target_dir"
+    fi || { print_colored "ERROR: Failed to extract archive '$archive_file' to '$target_dir'." "ERROR"; return 1; }
+
+    return 0
+}
 
 # --- generate_output (Move, (Optionally) Download, (Optionally) Extract, and handle final file placement) ---
 # This function's return values:
@@ -324,10 +350,8 @@ generate_output() {
             print_colored "Extracted directory '$final_module_output_path' already exists. Skipping extraction." "WARNING"
         else
             mkdir -p "$final_module_output_path" || { print_colored "ERROR: Failed to create output directory for extraction '$final_module_output_path'." "ERROR"; return 1; }
-            tar -xzf "$actual_downloaded_file_from_downloader" -C "$final_module_output_path" || {
-                print_colored "Failed to extract archive '$actual_downloaded_file_from_downloader'." "ERROR"
-                return 1
-            }
+            # Use the new function to intelligently extract the archive
+            extract_archive "$actual_downloaded_file_from_downloader" "$final_module_output_path" || return 1
             print_colored "Extraction complete." "INFO"
         fi
     else # ARCHIVE_MODE is 'y'
