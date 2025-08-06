@@ -1,15 +1,15 @@
 The source structure of **DX-COM** is organized as follows. 
 
 ```
-  dx_com <br>
+  dx_com 
     ├── calibration_dataset       # Dataset used to optimize model accuracy <br>
-    ├── dx_com <br>
+    ├── dx_com 
     │  ├── cv2/                   # Third party shared libraries (e.g., OpenCV) <br>
     │  ├── google/                # Third party shared libraries (e.g., protobuf) <br>
     │  ├── numpy/                 # Third party  shared libraries (e.g., NumPy) <br>
     │  ├── ...                    # Other dependencies <br>
     │  └── dx_com                 # Core compiler implementation <br>
-    ├── sample <br>
+    ├── sample 
     │  ├── MobilenetV1.json       # Sample configuration file <br>
     │  └── MobilenetV1.onnx       # Sample ONNX model
     └── Makefile                  # Build script for compiling the sample model  <br>

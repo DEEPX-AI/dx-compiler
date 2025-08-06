@@ -24,53 +24,66 @@ The following ONNX operators are supported by the compiler.
 ### Normal Operations
 
 | **Operator** | **Supported Conditions** |
-| :----------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Add | Supports one of the following: <br> - Bias addition (e.g., from Gemm or Conv) <br> - Element-wise addition between tensors <br> - As part of input tensor normalization <br> - Constant scalar addition |
-| ArgMax | Only supported when all of the following conditions are met: <br> - It is the last operation of the network. <br> - The preceding layer has a 2 or 4-dimensional output. <br> - Operates along the channel dimension. |
-| AveragePool | `kernel_shape`: Height & Width < 32x32 |
-| BatchNormalization | Fully supported. |
-| Clip | Only supported as an activation function (e.g., ReLU6). |
-| Concat | Fully supported. |
-| Constant | Not supported if the constant is not a numeric data type. |
-| ConstantOfShape | Fully supported. |
-| Conv | **Common:** <br> - `dilations`: < 64 <br> - `pads`: < 64 <br> - `strides`: < 16 <br> **Standard Conv:** <br> - `kernel_shape`: Height & Width < 16 <br> **Depth-wise Conv:** <br> - `kernel_shape`: 3x3, 5x5 <br> Only constant weights are supported. |
-| Div | Only one of the following: <br> - Constant scalar division <br> - As part of input tensor normalization |
-| Dropout | Removed during inference. |
-| Erf | Only supported as part of GELU. |
-| Flatten | Only supported for reshaping Conv output into Dense input. |
-| Gemm | Fully supported. |
-| GlobalAveragePool | Fully supported. |
-| Identity | Fully supported. |
-| MatMul | Fully supported. |
-| MaxPool | `kernel_shape`, `strides`: < 16 |
-| Mul | Supports one of the following: <br> - Element-wise multiplication layer <br> - Constant scalar multiplication <br> - As part of input tensor normalization |
-| Pad | `mode`: Only `constant` mode is supported. <br> Must be used before Pooling and Convolution. |
-| ReduceMean | Only supported along the following dimensions: <br> - Channel <br> - Width, Height |
-| ReduceSum | Only supported along the channel dimension. |
-| Reshape | Only supported for squeeze-like operations. |
-| Resize | Only supported with the following operator attributes: <br> - `coordinate_transformation_mode`: `pytorch_half_pixel` <br> - `mode`: `nearest` and `linear` <br> - `scales`: integer |
-| Shape | This node cannot be specified as an output of the model. |
-| Sigmoid | Fully supported. |
-| Split | Input rank must be 4. |
-| Squeeze | Fully supported. |
-| Sub | Supports one of the following: <br> - Element-wise subtraction layer <br> - Constant scalar subtraction <br> - As part of input tensor normalization |
-| Upsample (deprecated) | The scale in the N and C directions can only be 1. |
+| :----------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Add | Supported as: <br> - Bias addition (e.g., as part of `Gemm` or `Conv`) <br> - Element-wise addition <br> - Used for input normalization <br> - Constant scalar addition |
+| ArgMax | Only supported if all of the following hold: <br> - It is the final operation in the network <br> - The preceding output is 2D or 4D <br> - It operates along the channel dimension |
+| AveragePool | - `kernel_shape` < 32 <br> - `strides` < 32 |
+| BatchNormalization | No restrictions |
+| Clip | Only supported as an activation function (e.g., ReLU6) |
+| Concat | No restrictions |
+| Constant | Only numeric constants are supported |
+| ConstantOfShape | No restrictions |
+| Conv | **Common constraints:** <br> - `dilations` < 64 <br> - `pads` < 64 <br> - `strides` < 16 <br> **Standard Conv:** <br> - `kernel_shape` < 16 <br> **Depth-wise Conv:** <br> - `kernel_shape` ∈ {[3, 3], [5, 5]} <br> - Only constant weights are supported |
+| ConvTranspose | - `dilations` = [1, 1] <br> - `pads` ≤ 14 <br> - `strides` ∈ [2, 8] <br> - `kernel_shape` < 16 <br> - `group` = 1 |
+| Div | Supported as: <br> - Constant scalar division <br> - Input normalization <br> - Part of `Softmax` <br> - Part of `LayerNorm` |
+| Dropout | Removed during inference |
+| Erf | Only supported as part of `GELU` |
+| Flatten | Only supported for reshaping `Conv` output into `Dense` input |
+| Gemm | No restrictions |
+| GlobalAveragePool | No restrictions |
+| Identity | No restrictions |
+| MatMul | No restrictions |
+| MaxPool | - `kernel_shape` < 16 <br> - `strides` < 16 |
+| Mul | Supported as: <br> - Element-wise multiplication <br> - Constant scalar multiplication <br> - Input normalization |
+| Pad | - Only `mode=constant` is supported <br> - Must precede a `Pool` or `Conv` operation |
+| ReduceMean | Only supported when reducing along: <br> - Channel dimension <br> - (Width, Height) dimensions |
+| ReduceSum | Only supported when reducing along the channel dimension |
+| Reshape | Supported as: <br> - Squeeze-like transformations <br> - As part of the attention mechanism |
+| Resize | Only supported with the following attributes: <br> - `coordinate_transformation_mode` = `pytorch_half_pixel` <br> - `mode` ∈ {`nearest`, `linear`} <br> - Scale values ∈ ℤ (integers) |
+| Shape | Cannot be used as a model output |
+| Slice | Only supported when slicing along the height dimension |
+| Softmax | Only supported if the size of the input along the specified `axis` is ≤ 4080 |
+| Split | Input tensor must have rank 4 |
+| Squeeze | No restrictions |
+| Sub | Supported as: <br> - Element-wise subtraction <br> - Constant scalar subtraction <br> - Input normalization |
+| Transpose | Only supported as part of the attention mechanism |
+---
+### Deprecated Operations
 
-**Note:** Support for operations may vary depending on their combination within a model. Please use this document for general reference only. For specific use cases, please consult our technical support team.
+The following operations are deprecated in ONNX and maintained here only for backward compatibility.  
+Their usage is discouraged in new models and may be removed in future versions.  
+Please use alternative operators where possible.
 
+| **Operator** | **Supported Conditions** |
+| :----------- | :-------------------------------------------------------------------------- |
+| Upsample | Only supported when scale values in the N and C dimensions are 1 |
 ---
 
 ### Activation Functions
 
 | **Operator** | **Supported Conditions** |
 | :----------- | :----------------------- |
-| HardSwish | Fully supported. |
-| HardSigmoid | Fully supported. |
-| LeakyRelu | Fully supported. |
-| Mish | Fully supported. |
-| PRelu | Fully supported. |
-| Relu | Fully supported. |
-| Sigmoid | Fully supported. |
-| Silu (Swish) | Fully supported. |
-| Softplus | Fully supported. |
-| Tanh | Fully supported. |
+| HardSwish | No restrictions |
+| HardSigmoid | No restrictions |
+| LeakyRelu | No restrictions |
+| Mish | No restrictions |
+| PRelu | No restrictions |
+| Relu | No restrictions |
+| Sigmoid | No restrictions |
+| Silu (Swish) | No restrictions |
+| Softplus | No restrictions |
+| Tanh | No restrictions |
+
+---
+
+**Note:** Operator support may vary depending on how operations are combined within a model. This document is intended as a general guideline. For validation of specific use cases, please contact our technical support team.
