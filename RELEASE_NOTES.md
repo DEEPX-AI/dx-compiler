@@ -1,5 +1,22 @@
 # RELEASE_NOTES
 
+## v2.0.0 / 2025-08-29
+### 1. Changed
+- Compatibility with DX-RT versions earlier than v3.0.0 is not guaranteed.
+- The `DXQ` option has been removed and will be reintroduced in a future release.
+### 2. Fixed
+- None
+### 3. Added
+- Re-enabled support for the following operators:
+    - `Softmax`
+    - `Slice`
+- Newly added support for the `ConvTranspose` operator.
+- Partial support for Vision Transformer (ViT) models, including:
+    - Google ViT (via Hugging Face)
+    - OpenCLIP Model
+
+---
+
 ## v1.0.0 / 2025-07-28
 ### 1. Changed
 - None
