@@ -5,9 +5,11 @@
 - Newly added support for the following operator:
   - `ConvTranspose`
 - Partial support for Vision Transformer (ViT) models:
-    - Google ViT (via Hugging Face)
-    - [OpenCLIP Model](https://github.com/mlfoundations/open_clip)
-- Compatibility is not guaranteed with versions of DX-RT earlier than v3.0.0.
+    - Verified with the following [OpenCLIP](https://github.com/mlfoundations/open_clip) models:
+        - ViT-L-14, ViT-L-14-336, ViT-L-14-quickgelu
+        - RN50x64, RN50x16
+        - ViT-B-16, ViT-B-32-256, ViT-B-16-quickgelu
+- Compatibility with DX-RT versions earlier than v3.0.0 is not guaranteed.
 - The `DXQ` option has been removed and will be reintroduced in a future release.
 
 ---
