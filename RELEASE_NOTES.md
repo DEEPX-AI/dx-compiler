@@ -1,6 +1,6 @@
 # RELEASE_NOTES
 
-## v2.0.0 / 2025-08-29
+## v2.0.0 / August 2025
 ### 1. Changed
 - Compatibility with DX-RT versions earlier than v3.0.0 is not guaranteed.
 - The `DXQ` option has been removed and will be reintroduced in a future release.
@@ -11,13 +11,15 @@
     - `Softmax`
     - `Slice`
 - Newly added support for the `ConvTranspose` operator.
-- Partial support for Vision Transformer (ViT) models, including:
-    - Google ViT (via Hugging Face)
-    - OpenCLIP Model
+- Partial support for Vision Transformer (ViT) models:
+    - Verified with the following OpenCLIP models:
+        - ViT-L-14, ViT-L-14-336, ViT-L-14-quickgelu
+        - RN50x64, RN50x16
+        - ViT-B-16, ViT-B-32-256, ViT-B-16-quickgelu
 
 ---
 
-## v1.0.0 / 2025-07-28
+## v1.60.1 / June 2025
 ### 1. Changed
 - None
 ### 2. Fixed
