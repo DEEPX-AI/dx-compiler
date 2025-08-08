@@ -56,7 +56,7 @@ plugins:
       cover_subtitle: August 2025 - Version 2.0.0
       cover_logo: img/deepx.png
       custom_template_path: docs/stylesheets
-      output_path: ../DEEPX_DX-COM_UM_v2.0.0.pdf
+      output_path: ../DEEPX_DX-COM_UM_v2.0.0_2025_08.pdf
 extra:
   generator: false
   social:
