@@ -10,6 +10,6 @@ This section describes the hardware and software requirements for running **DX-C
 
 **Note.** To check your LDD version, run `ldd --version` in the terminal.  
 
-![](./../resources/02_DX-M1_M.2_LPDDR5x2.png){ width=700px }
+![](./../resources/02_DX-M1_M.2_LPDDR5x2_PCP.png){ width=700px }
 
  ---

@@ -41,7 +41,7 @@ Execute the AppImage.
 ./DXTron-0.0.8.AppImage
 ```
 
-![Figure. DX-Tron GUI Window](img/dx-tron_GUI_window.png)
+![Figure. DX-Tron GUI Window](../resources/dx-tron_GUI_window.png)
 
 Once launched, a GUI window will appear, enabling DXNN model visualization. 
 
@@ -69,7 +69,7 @@ C:\Users\YourUsername\AppData\Local\Programs\DXTron\
 **Step 3. Launching DX-TRON**  
 - Search for DX-TRON in the Start Menu and run it, or  
 - Double-click the Desktop shortcut (if created).  
-![Figure. DX-Tron Icon](img/dx-tron_icon.png)
+![Figure. DX-Tron Icon](../resources/dx-tron_icon.png)
 
 ### Troubleshooting
 
