@@ -57,12 +57,18 @@ The following ONNX operators are supported by the compiler.
 | Squeeze | No restrictions |
 | Sub | Supported as: <br> - Element-wise subtraction <br> - Constant scalar subtraction <br> - Input normalization |
 | Transpose | Only supported as part of the attention mechanism |
+
 ---
+
 ### Deprecated Operations
 
 The following operations are deprecated in ONNX and maintained here only for backward compatibility.  
 Their usage is discouraged in new models and may be removed in future versions.  
 Please use alternative operators where possible.
+
+| **Operator** | **Supported Conditions** |
+| :----------- | :-------------------------------------------------------------------------- |
+| Upsample | Only supported when scale values in the N and C dimensions are 1 |
 
 | **Operator** | **Supported Conditions** |
 | :----------- | :-------------------------------------------------------------------------- |
