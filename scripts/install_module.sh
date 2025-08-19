@@ -116,7 +116,7 @@ if [ -z "$DX_USERNAME" ] || [ -z "$DX_PASSWORD" ]; then
 fi
 
 # --- Function to intelligently extract archives ---
-# Checks for a top-level directory and uses --strip-components=1 if found.
+# Checks for a top-level directory and uses appropriate --strip-components option.
 extract_archive() {
     local archive_file="$1"
     local target_dir="$2"
@@ -130,10 +130,18 @@ extract_archive() {
     local first_entry
     first_entry=$(tar -tf "$archive_file" | head -n 1)
 
-    # Determine if a top-level directory exists by checking for a slash in the first entry
-    if [[ "$first_entry" == */* ]]; then
-        print_colored "INFO: Detected top-level directory in archive. Using --strip-components=1 for extraction." "INFO"
-        tar -xzf "$archive_file" --strip-components=1 -C "$target_dir"
+    # Normalize the first entry by removing leading ./ if present
+    local normalized_entry="${first_entry#./}"
+    
+    # Extract based on the structure detected
+    if [[ "$normalized_entry" == */* ]]; then
+        if [[ "$first_entry" == ./* ]]; then
+            print_colored "INFO: Detected top-level directory with ./ prefix. Using --strip-components=2 for extraction." "INFO"
+            tar -xzf "$archive_file" --strip-components=2 -C "$target_dir"
+        else
+            print_colored "INFO: Detected top-level directory. Using --strip-components=1 for extraction." "INFO"
+            tar -xzf "$archive_file" --strip-components=1 -C "$target_dir"
+        fi
     else
         print_colored "INFO: No top-level directory detected in archive. Extracting as-is." "INFO"
         tar -xzf "$archive_file" -C "$target_dir"
