@@ -15,13 +15,13 @@ PROJECT_NAME="dx-compiler"
 CLI_USERNAME=""
 CLI_PASSWORD=""
 ARCHIVE_MODE="n"
-FORCE_ARGS="" # Will be "--force" if --force is passed
+FORCE_ARGS="--force"
 VERBOSE_ARGS=""
 ENABLE_DEBUG_LOGS=0   # New flag for debug logging
 DOCKER_VOLUME_PATH=${DOCKER_VOLUME_PATH}
-USE_FORCE=0
-REUSE_VENV=1
-FORCE_REMOVE_VENV=0
+USE_FORCE=1
+REUSE_VENV=0
+FORCE_REMOVE_VENV=1
 VENV_SYSTEM_SITE_PACKAGES_ARGS=""
 
 # Global variables for script configuration
@@ -58,20 +58,18 @@ show_help() {
     echo -e ""
     echo -e "  ${COLOR_GREEN}[--docker_volume_path=<path>]${COLOR_RESET}         Set Docker volume path (required in container mode)"
     echo -e ""
+    echo -e "  ${COLOR_GREEN}[--verbose]${COLOR_RESET}                           Enable verbose (debug) logging."
+    echo -e "  ${COLOR_GREEN}[--help]${COLOR_RESET}                              Display this help message and exit."
+    echo -e ""
+    echo -e "Virtual Environment Options:"
     echo -e "  ${COLOR_GREEN}[--venv_path=<path>]${COLOR_RESET}                  Set virtual environment path (default: PROJECT_ROOT/venv-${PROJECT_NAME})"
     echo -e "  ${COLOR_GREEN}[--venv_symlink_target_path=<dir>]${COLOR_RESET}    Set symlink target path for venv (ex: PROJECT_ROOT/../workspace/venv/${PROJECT_NAME})"
     echo -e ""
-    echo -e "  ${COLOR_GREEN}[--system-site-packages]${COLOR_RESET}              Set venv '--system-site-packages' option."    
-    echo -e "                                          - This option is applied only when venv is created. If you use '-venv-reuse', it is ignored. "
-    echo -e ""
-    echo -e "  ${COLOR_GREEN}[-f | --venv-force-remove]${COLOR_RESET}            If specified, force remove existing virtual environment at --venv_path before creation."
-    echo -e "  ${COLOR_GREEN}[-r | --venv-reuse]${COLOR_RESET}                   If specified, reuse existing virtual environment at --venv_path if it's valid, skipping creation."
-    echo -e ""
-    echo -e "  ${COLOR_GREEN}[--force]${COLOR_RESET}                             Force overwrite if the file already exists"
-    echo -e "                                          - This option is applied. --venv-force-remove option is enabled automatically."
-    echo -e ""
-    echo -e "  ${COLOR_GREEN}[--verbose]${COLOR_RESET}                           Enable verbose (debug) logging."
-    echo -e "  ${COLOR_GREEN}[--help]${COLOR_RESET}                              Display this help message and exit."
+    echo -e "Virtual Environment Sub-Options:"
+    echo -e "  ${COLOR_GREEN}  [--system-site-packages]${COLOR_RESET}              Set venv '--system-site-packages' option."    
+    echo -e "                                            - This option is applied only when venv is created. If you use '-venv-reuse', it is ignored. "
+    echo -e "  ${COLOR_GREEN}  [-f | --venv-force-remove]${COLOR_RESET}            (Default ON) Force remove existing virtual environment at --venv_path before creation."
+    echo -e "  ${COLOR_GREEN}  [-r | --venv-reuse]${COLOR_RESET}                   (Default OFF) Reuse existing virtual environment at --venv_path if it's valid, skipping creation."
     echo -e ""
     echo -e "${COLOR_BOLD}Examples:${COLOR_RESET}"
     echo -e "  export DX_USERNAME=username; export DX_PASSWORD=password; ${COLOR_YELLOW}$0"
@@ -350,12 +348,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --system-site-packages)
             VENV_SYSTEM_SITE_PACKAGES_ARGS="--system-site-packages"
-            ;;
-        --force)
-            USE_FORCE=1
-            FORCE_REMOVE_VENV=1
-            REUSE_VENV=0
-            FORCE_ARGS="--force"
             ;;
         --verbose)
             ENABLE_DEBUG_LOGS=1

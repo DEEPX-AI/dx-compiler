@@ -31,27 +31,27 @@ sudo apt install -y libfuse2 libxss1 libxtst6 libappindicator1 libgconf-2-4 libn
 Make the AppImage executable.  
 
 ```
-chmod +x DXTron-0.0.8.AppImage
+chmod +x DXTron-x.y.z.AppImage
 ```
 
 **Step 3. Run DX-TRON**   
 Execute the AppImage.  
 
 ```
-./DXTron-0.0.8.AppImage
+./DXTron-x.y.z.AppImage
 ```
 
 ![Figure. DX-Tron GUI Window](../resources/dx-tron_GUI_window.png)
 
 Once launched, a GUI window will appear, enabling DXNN model visualization. 
 
-**WARNING.** Running DX-TRON with `sudo` may require the `--no-sandbox` flag, but this is **not recommended** for security reasons.  
+>**WARNING.** Running DX-TRON with `sudo` may require the `--no-sandbox` flag, but this is **not recommended** for security reasons.  
 
 ### Installation on Windows
 This section explains how to install and launch DX-TRON on Windows using the provided setup file.
 
 **Step 1. Installation File**  
-- File Name: `DXTron Setup 0.0.9.exe`
+- File Name: `DXTron Setup x.y.z.exe`
 
 **Step 2. Installation Steps**  
   1) Save the provided .exe file to your PC.  
@@ -84,7 +84,7 @@ Perform the following checks in order.
   - Ensure the file is executable.  
 
 ```
-chmod +x DXTron-0.0.8.AppImage
+chmod +x DXTron-x.y.z.AppImage
 ```
 
   2) Verify Required Libraries (Linux)  
