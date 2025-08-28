@@ -21,8 +21,7 @@ This section explains how to install and run DX-TRON on Ubuntu using the .AppIma
 DX-TRON requires several system libraries to run. Run the following commands to install dependencies.  
 
 ``` 
-sudo apt update
-sudo apt install -y libfuse2 libxss1 libxtst6 libappindicator1 libgconf-2-4 libnss3
+./scripts/install_prerequisites.sh
 ```
 
 **NOTE.** `libfuse2` is mandatory for AppImage execution and may not be installed by default on Ubuntu 22.04 or later.

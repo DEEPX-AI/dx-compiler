@@ -15,7 +15,8 @@ sudo apt-get install -y --no-install-recommends libgl1-mesa-glx libglib2.0-0 mak
 
 **Install DX-COM**
 
-**DX-COM** supports the Target OS of Ubuntu 18.04, Ubuntu 20.04, Ubuntu 22.04, and Ubuntu 24.04.  
+**DX-COM** supports the Target OS of Ubuntu 20.04, Ubuntu 22.04, and Ubuntu 24.04.  
+- P.S. Ubuntu 18.04 is **NOT** supported
 
 - After downloading the compiler archive, extract it using the following command.  
 ```

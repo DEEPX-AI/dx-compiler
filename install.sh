@@ -33,6 +33,8 @@ VENV_SYMLINK_TARGET_PATH=""
 # User override options
 VENV_PATH_OVERRIDE=""
 VENV_SYMLINK_TARGET_PATH_OVERRIDE=""
+# Target package for installation
+TARGET_PKG="all"
 
 # Properties file path
 VERSION_FILE="$PROJECT_ROOT/compiler.properties"
@@ -52,6 +54,7 @@ show_help() {
     echo -e "Usage: ${COLOR_CYAN}$(basename "$0") [--username=<user>] [--password=<pass>] [OPTIONS]${COLOR_RESET}"
     echo -e ""
     echo -e "Options:"
+    echo -e "  ${COLOR_GREEN}[--target=<module_name>]${COLOR_RESET}              Install specific module (dx_com | dx_tron | all) (default: all)"
     echo -e "  ${COLOR_GREEN}[--username=<user>]${COLOR_RESET}                   Your DEEPX Portal username/email."
     echo -e "  ${COLOR_GREEN}[--password=<pass>]${COLOR_RESET}                   Your DEEPX Portal password."
     echo -e "  ${COLOR_GREEN}[--archive_mode=<y|n>]${COLOR_RESET}                Set archive mode (default: n)."
@@ -72,8 +75,13 @@ show_help() {
     echo -e "  ${COLOR_GREEN}  [-r | --venv-reuse]${COLOR_RESET}                   (Default OFF) Reuse existing virtual environment at --venv_path if it's valid, skipping creation."
     echo -e ""
     echo -e "${COLOR_BOLD}Examples:${COLOR_RESET}"
-    echo -e "  export DX_USERNAME=username; export DX_PASSWORD=password; ${COLOR_YELLOW}$0"
-    echo -e "  ${COLOR_YELLOW}$0 --username=username --password=password"
+    echo -e "  ${COLOR_YELLOW}${COLOR_BOLD}export DX_USERNAME=username; export DX_PASSWORD=password; ${COLOR_RESET}${COLOR_YELLOW}${0}${COLOR_RESET}"
+    echo -e "  ${COLOR_YELLOW}${0}${COLOR_RESET}"
+    echo -e "  ${COLOR_YELLOW}$0 --target=all --username=username --password=password${COLOR_RESET}"
+
+    echo -e "  ${COLOR_YELLOW}$0 --target=dx_com --username=username --password=password${COLOR_RESET}"
+    echo -e "  ${COLOR_YELLOW}$0 --target=dx_tron --username=username --password=password${COLOR_RESET}"
+    echo -e ""
     echo -e "  ${COLOR_YELLOW}$0 --docker_volume_path=/path/to/docker/volume${COLOR_RESET}"
     echo -e ""
     echo -e "  ${COLOR_YELLOW}$0 --venv_path=./my_venv # Installs default Python, creates venv${COLOR_RESET}"
@@ -140,7 +148,26 @@ validate_environment() {
         exit 1
     fi
 
+    if [ -z "$TRON_VERSION" ] || [ -z "$TRON_DOWNLOAD_URL" ]; then
+        print_colored "TRON_VERSION or TRON_DOWNLOAD_URL not defined in '$VERSION_FILE'." "ERROR"
+        popd >&2
+        exit 1
+    fi
+
     echo -e "=== validate_environment() ${TAG_DONE} ==="
+}
+
+install_prerequisites() {
+    print_colored "--- Install Prerequisites..... ---" "INFO"
+
+    local install_prerequisites_cmd="${PROJECT_ROOT}/scripts/install_prerequisites.sh"
+    echo "CMD: ${install_prerequisites_cmd}"
+    ${install_prerequisites_cmd} || {
+        print_colored "Failed to Install Prerequisites. Exiting." "ERROR"
+        exit 1
+    }
+
+    print_colored "[OK] Completed to Install Prerequisites." "INFO"
 }
 
 install_python_and_venv() {
@@ -232,7 +259,7 @@ activate_venv() {
     source ${VENV_PATH}/bin/activate
     if [ $? -ne 0 ]; then
         print_colored_v2 "ERROR" "Activate Virtual environment(${VENV_PATH}) failed! Please try installing again with the '--force' option. "
-        print_colored_v2 "HINT" "Please run 'setup.sh --force' to set up and activate the environment first."
+        print_colored_v2 "HINT" "Please run 'insatll.sh --force' to set up and activate the environment first."
         exit 1
     fi
 
@@ -308,19 +335,79 @@ install_dx_com() {
     echo -e "=== install_dx_com() ${TAG_DONE} ==="
 }
 
+install_dx_tron() {
+    echo -e "=== install_dx_tron() ${TAG_START} ==="
 
+    # Check if archive mode is enabled
+    if [ "$ARCHIVE_MODE" = "y" ]; then
+        print_colored "ARCHIVE_MODE is ON." "INFO"
+        ARCHIVE_MODE_ARGS="--archive_mode=y" # Pass this to install_module.sh
+    fi
+
+    # Install dx-tron
+    print_colored "Installing dx-tron (Version: $TRON_VERSION)..." "INFO"
+    # Pass all relevant args to install_module.sh
+    INSTALL_TRON_CMD="$PROJECT_ROOT/scripts/install_module.sh --module_name=dx_tron --version=$TRON_VERSION --download_url=$TRON_DOWNLOAD_URL $ARCHIVE_MODE_ARGS $FORCE_ARGS $VERBOSE_ARGS"
+    print_colored "Executing: $INSTALL_TRON_CMD" "DEBUG" # Debug line
+    $INSTALL_TRON_CMD
+    if [ $? -ne 0 ]; then
+        print_colored "Installing dx-tron failed!" "ERROR"
+        popd >&2
+        exit 1
+    fi
+
+    echo -e "=== install_dx_tron() ${TAG_DONE} ==="
+}
 
 main() {
-    validate_environment
-    install_python_and_venv
-    setup_project
-    install_dx_com
+    # this function is defined in scripts/common_util.sh
+    # Usage: os_check "supported_os_names" "ubuntu_versions" "debian_versions"
+    os_check "ubuntu" "20.04 22.04 24.04" ""
 
-    print_colored "All installations completed successfully." "INFO"
+    # this function is defined in scripts/common_util.sh
+    # Usage: arch_check "supported_arch_names"
+    arch_check "amd64 x86_64"
+
+    case $TARGET_PKG in
+        dx_com)
+            print_colored "Installing dx-com..." "INFO"
+            validate_environment
+            install_prerequisites
+            install_python_and_venv
+            setup_project
+            install_dx_com
+            print_colored "[OK] Installing dx-com completed successfully." "INFO"
+            ;;
+        dx_tron)
+            print_colored "Installing dx-tron..." "INFO"
+            validate_environment
+            install_prerequisites
+            install_python_and_venv
+            setup_project
+            install_dx_tron
+            print_colored "[OK] Installing dx-tron completed successfully." "INFO"
+            ;;
+        all)
+            print_colored "Installing all compiler modules..." "INFO"
+            validate_environment
+            install_prerequisites
+            install_python_and_venv
+            setup_project
+            install_dx_com
+            install_dx_tron
+            print_colored "[OK] Installing all compiler modules completed successfully." "INFO"
+            ;;
+        *)
+            show_help "error" "Invalid target '$TARGET_PKG'. Valid targets are: dx_com, dx_tron, all"
+            ;;
+    esac
 }
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --target=*)
+            TARGET_PKG="${1#*=}"
+            ;;
         --username=*)
             CLI_USERNAME="${1#*=}"
             ;;

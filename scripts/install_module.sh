@@ -19,7 +19,7 @@ ENABLE_DEBUG_LOGS=0   # New flag for debug logging
 
 # --- Define OUTPUT_DIR and EXTRACT_ARGS based on ARCHIVE_MODE ---
 OUTPUT_DIR=""
-EXTRACT_ARGS="" # This will now be primarily a logical flag, not directly passed to tar
+EXTRACT_ARGS=""
 
 # Function to display help message
 show_help() {
@@ -87,10 +87,8 @@ fi
 # Set OUTPUT_DIR and EXTRACT_ARGS based on ARCHIVE_MODE here (as per original logic)
 if [ "$ARCHIVE_MODE" = "y" ]; then
     OUTPUT_DIR="${DX_AS_PATH}/archives" # Final location for archive files
-    EXTRACT_ARGS="" # Logical flag: no extraction
 else
     OUTPUT_DIR="${COMPILER_PATH}/${MODULE_NAME}" # Final installation path for extracted module files
-    EXTRACT_ARGS="--extract" # Logical flag: perform extraction
 fi
 
 # Ensure the determined OUTPUT_DIR exists (main installation target for both modes)
@@ -359,12 +357,40 @@ generate_output() {
         else
             mkdir -p "$final_module_output_path" || { print_colored "ERROR: Failed to create output directory for extraction '$final_module_output_path'." "ERROR"; return 1; }
             # Use the new function to intelligently extract the archive
-            extract_archive "$actual_downloaded_file_from_downloader" "$final_module_output_path" || return 1
+            if [[ "$actual_downloaded_file_from_downloader" == *.tar.gz ]] || [[ "$actual_downloaded_file_from_downloader" == *.tgz ]]; then
+                extract_archive "$actual_downloaded_file_from_downloader" "$final_module_output_path" || {
+                    print_colored "ERROR: Failed to extract archive '$actual_downloaded_file_from_downloader' to '$final_module_output_path'." "ERROR"
+                    return 1
+                }
+            elif [[ "$actual_downloaded_file_from_downloader" == *.AppImage ]]; then
+                print_colored "INFO: file format is App Image: '$actual_downloaded_file_from_downloader'." "INFO"
+                print_colored "INFO: add permission to execute" "INFO"
+                sudo chmod +x "$actual_downloaded_file_from_downloader" || {
+                    print_colored "ERROR: Failed to add permission to execute." "ERROR"
+                    return 1
+                }
+                cp "$actual_downloaded_file_from_downloader" "$final_module_output_path" || {
+                    print_colored "ERROR: Failed to move file to '$final_module_output_path'." "ERROR"
+                    return 1
+                }
+            else
+                print_colored "ERROR: Unsupported file format: '$actual_downloaded_file_from_downloader'." "ERROR"
+                return 1
+            fi
             print_colored "Extraction complete." "INFO"
         fi
     else # ARCHIVE_MODE is 'y'
         # In archive mode, no extraction takes place. The file is already in its final location.
         print_colored "Skipping archive extraction in archive mode. File directly saved to '$final_module_output_path'." "INFO"
+        
+        if [[ "$final_module_output_path" == *.AppImage ]]; then
+            print_colored "INFO: file format is App Image: '$final_module_output_path'." "INFO"
+            print_colored "INFO: add permission to execute" "INFO"
+            sudo chmod +x "$final_module_output_path" || {
+                print_colored "ERROR: Failed to add permission to execute." "ERROR"
+                return 1
+            }
+        fi
     fi
 
     # Return paths for the final module symlink
