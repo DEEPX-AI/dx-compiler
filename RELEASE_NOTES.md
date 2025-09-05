@@ -14,9 +14,11 @@
     - `Softmax`
     - `Slice`
 - Newly added support for the `ConvTranspose` operator.
-- Partial support for Vision Transformer (ViT) models, including:
-    - Google ViT (via Hugging Face)
-    - OpenCLIP Model
+- Partial support for Vision Transformer (ViT) models:
+    - Verified with the following OpenCLIP models:
+        - ViT-L-14, ViT-L-14-336, ViT-L-14-quickgelu
+        - RN50x64, RN50x16
+        - ViT-B-16, ViT-B-32-256, ViT-B-16-quickgelu
 
 ---
 
