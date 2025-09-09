@@ -7,6 +7,7 @@
 ### 1. Changed
 - Compatibility with DX-RT versions earlier than v3.0.0 is not guaranteed.
 - The `DXQ` option has been removed and will be reintroduced in a future release.
+- `PPU(Post-Processing Unit)` is no longer supported, and there are no current plans to reinstate it.
 ### 2. Fixed
 - None
 ### 3. Added
