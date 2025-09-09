@@ -11,6 +11,7 @@
         - ViT-B-16, ViT-B-32-256, ViT-B-16-quickgelu
 - Compatibility with DX-RT versions earlier than v3.0.0 is not guaranteed.
 - The `DXQ` option has been removed and will be reintroduced in a future release.
+- `PPU(Post-Processing Unit)` is no longer supported, and there are no current plans to reinstate it.
 
 ---
 
