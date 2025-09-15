@@ -17,7 +17,7 @@ Only models with a single input can be compiled.
 ### How to Compile 
 Use the following commands to generate the NPU Command Set and weights from a target ONNX model and configuration file.
  
-**Command Format**
+#### Command Format
 ```
 dx_com -m <MODEL_PATH> -c <CONFIG_PATH> -o <OUTPUT_DIR>
 ```
