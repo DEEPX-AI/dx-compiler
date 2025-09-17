@@ -52,50 +52,14 @@ plugins:
   - with-pdf:
       author: DEEPX.ai
       copyright: ⓒ Copyright 2025 DEEPX All Rights Reserved.
-      #
-      #cover: false
       cover_title: DXNN Compiler (DX-COM) User Manual
-      cover_subtitle: 2025/05/18
+      cover_subtitle: August 2025 - Version 2.0.0
       cover_logo: img/deepx.png
       custom_template_path: docs/stylesheets
-      #back_cover: true
-      #
-      #toc_title: TOC TITLE TEXT
-      #heading_shift: false
-      #toc_level: 3
-      #ordered_chapter_level: 2
-      #excludes_children:
-      #    - 'release-notes/:upgrading'
-      #    - 'release-notes/:changelog'
-      #
-      #exclude_pages:
-      #    - 'bugs/'
-      #    - 'appendix/contribute/'
-      #convert_iframe:
-      #    - src: IFRAME SRC
-      #      img: POSTER IMAGE URL
-      #      text: ALTERNATE TEXT
-      #    - src: ...
-      #two_columns_level: 3
-      #
-      #render_js: true
-      #headless_chrome_path: headless-chromium
-      #
-      output_path: ../DEEPX_DX-COM_UM_250518.pdf
-      #enabled_if_env: ENABLE_PDF_EXPORT
-      #
-      #debug_html: true
-      #show_anchors: true
-      #verbose: true
-#  - mkdocs-video
+      output_path: ../DEEPX_DX-COM_UM_v2.0.0_2025_08.pdf
 extra:
-#  version:
-#    provider: mike
-#    default: stable
   generator: false
   social:
-#     - icon: fontawesome/brands/github
-#       link: https://github.com/deepx-ai
      - icon: fontawesome/brands/linkedin
        link: https://www.linkedin.com/company/deepx-corporation/
 #  alternate:

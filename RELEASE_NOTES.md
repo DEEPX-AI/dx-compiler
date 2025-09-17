@@ -1,6 +1,30 @@
 # RELEASE_NOTES
 
-## v1.0.0 / 2025-07-28
+## DX-Compiler v2.0.0 / 2025-08-11
+- DX-COM: v2.0.0
+- DX-TRON: v0.0.8
+
+### 1. Changed
+- Compatibility with DX-RT versions earlier than v3.0.0 is not guaranteed.
+- The `DXQ` option has been removed and will be reintroduced in a future release.
+- `PPU(Post-Processing Unit)` is no longer supported, and there are no current plans to reinstate it.
+### 2. Fixed
+- None
+### 3. Added
+- Re-enabled support for the following operators:
+    - `Softmax`
+    - `Slice`
+- Newly added support for the `ConvTranspose` operator.
+- Partial support for Vision Transformer (ViT) models:
+    - Verified with the following OpenCLIP models:
+        - ViT-L-14, ViT-L-14-336, ViT-L-14-quickgelu
+        - RN50x64, RN50x16
+        - ViT-B-16, ViT-B-32-256, ViT-B-16-quickgelu
+
+---
+
+## DX-COM v1.60.1 / 2025-07-23
+
 ### 1. Changed
 - None
 ### 2. Fixed
@@ -11,9 +35,11 @@
 
 ---
 
-# DX-Compiler v1.0.0 Initial Release
+# DX-Compiler v1.0.0 Initial Release / 2025-07-23
+- DX-COM : v1.60.1
+- DX-TRON : v0.0.8
 
-We're excited to announce the **initial release of DX-Compiler (DX-COM v1.60.1) v1.0.0!**
+We're excited to announce the **initial release of DX-Compiler v1.0.0!**
 
 DX-COM is a core component of the DEEPX SDK, designed to streamline your AI development workflow by efficiently converting pre-trained ONNX models into highly optimized `.dxnn` binaries for DEEPX NPUs. This initial release marks a significant step towards enabling low-latency and high-efficiency inference on DEEPX NPU hardware.
 
