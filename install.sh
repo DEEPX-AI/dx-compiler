@@ -362,11 +362,21 @@ install_dx_tron() {
 main() {
     # this function is defined in scripts/common_util.sh
     # Usage: os_check "supported_os_names" "ubuntu_versions" "debian_versions"
-    os_check "ubuntu" "20.04 22.04 24.04" ""
+    os_check "ubuntu" "20.04 22.04 24.04" || {
+        print_colored_v2 "ERROR" "This installer supports only Ubuntu 20.04, 22.04, and 24.04."
+        print_colored_v2 "HINT" "For other OS versions, please refer to the manual installation guide at https://github.com/DEEPX-AI/dx-compiler/blob/main/source/docs/02_01_System_Requirements_of_DX-COM.md"
+        popd >&2
+        exit 1
+    }
 
     # this function is defined in scripts/common_util.sh
     # Usage: arch_check "supported_arch_names"
-    arch_check "amd64 x86_64"
+    arch_check "amd64 x86_64" || {
+        print_colored_v2 "ERROR" "This installer supports only x86_64/amd64 architecture."
+        print_colored_v2 "HINT" "For other architectures, please refer to the manual installation guide at https://github.com/DEEPX-AI/dx-compiler/blob/main/source/docs/02_01_System_Requirements_of_DX-COM.md"
+        popd >&2
+        exit 1
+    }
 
     case $TARGET_PKG in
         dx_com)
