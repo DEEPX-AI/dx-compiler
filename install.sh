@@ -325,7 +325,8 @@ install_dx_com() {
     # Pass all relevant args to install_module.sh
     INSTALL_COM_CMD="$PROJECT_ROOT/scripts/install_module.sh --module_name=dx_com --version=$COM_VERSION --download_url=$COM_DOWNLOAD_URL $ARCHIVE_MODE_ARGS $FORCE_ARGS $VERBOSE_ARGS"
     print_colored "Executing: $INSTALL_COM_CMD" "DEBUG" # Debug line
-    $INSTALL_COM_CMD
+    # If executed with '$INSTALL_COM_CMD', DX_USERNAME and DX_PASSWORD are not passed. Therefore, execute with eval as below
+    eval "$INSTALL_COM_CMD"
     if [ $? -ne 0 ]; then
         print_colored "Installing dx-com failed!" "ERROR"
         popd >&2
@@ -349,7 +350,8 @@ install_dx_tron() {
     # Pass all relevant args to install_module.sh
     INSTALL_TRON_CMD="$PROJECT_ROOT/scripts/install_module.sh --module_name=dx_tron --version=$TRON_VERSION --download_url=$TRON_DOWNLOAD_URL $ARCHIVE_MODE_ARGS $FORCE_ARGS $VERBOSE_ARGS"
     print_colored "Executing: $INSTALL_TRON_CMD" "DEBUG" # Debug line
-    $INSTALL_TRON_CMD
+    # If executed with '$INSTALL_COM_CMD', DX_USERNAME and DX_PASSWORD are not passed. Therefore, execute with eval as below
+    eval "$INSTALL_TRON_CMD"
     if [ $? -ne 0 ]; then
         print_colored "Installing dx-tron failed!" "ERROR"
         popd >&2
