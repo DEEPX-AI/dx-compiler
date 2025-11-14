@@ -92,7 +92,7 @@ def login_and_download_file(username, password, download_url, save_directory, ex
         str or None: The full path to the downloaded file if successful, None otherwise.
     """
     session = requests.Session()
-    login_page_url = "https://developer.deepx.ai/"
+    login_page_url = "https://developer.deepx.ai/wp-login.php"
 
     # Ensure the save directory exists
     try:
@@ -101,9 +101,9 @@ def login_and_download_file(username, password, download_url, save_directory, ex
         colored_print(f"ERROR: Could not create save directory '{save_directory}': {e}", "ERROR")
         return None
 
-    # 1. Send a GET request to the login page to extract CSRF token and other necessary values
+    # 1. Send a GET request to the login page to get cookies
     try:
-        colored_print("INFO: Extracting login page information...", "INFO")
+        colored_print("INFO: Accessing login page...", "INFO")
         response_get = session.get(login_page_url)
         response_get.raise_for_status() # Raise an exception for HTTP errors
     except requests.exceptions.RequestException as e:
@@ -112,44 +112,21 @@ def login_and_download_file(username, password, download_url, save_directory, ex
 
     soup = BeautifulSoup(response_get.text, 'html.parser')
 
-    csrf_token = None
-    wp_http_referer = None
-
-    # Extract CSRF token
-    csrf_input = soup.find('input', {'id': 'CSRFToken-wppb'})
-    if csrf_input:
-        csrf_token = csrf_input.get('value')
-    else:
-        colored_print("ERROR: CSRF token not found. The website's HTML structure might have changed.", "ERROR")
+    # Check if login form exists
+    login_form = soup.find('form', {'id': 'loginform'})
+    if not login_form:
+        colored_print("ERROR: Login form not found. The website's HTML structure might have changed.", "ERROR")
         return None
 
-    # Extract _wp_http_referer (hidden input with name _wp_http_referer)
-    wp_http_referer_input = soup.find('input', {'name': '_wp_http_referer'})
-    if wp_http_referer_input:
-        wp_http_referer = wp_http_referer_input.get('value')
-    else:
-        colored_print("ERROR: '_wp_http_referer' value not found. The website's HTML structure might have changed.", "ERROR")
-        return None
+    colored_print("INFO: Login form detected successfully.", "INFO")
 
-    if not csrf_token or not wp_http_referer:
-        colored_print("ERROR: Failed to extract necessary login information.", "ERROR")
-        return None
-
-    # 2. Send a POST request using the extracted information for login
+    # 2. Send a POST request using standard WordPress login
     login_data = {
         'log': username,
         'pwd': password,
         'wp-submit': 'Log In',
         'redirect_to': 'https://developer.deepx.ai/',
-        'wppb_login': 'true',
-        'wppb_form_location': 'widget',
-        'wppb_request_url': 'https://developer.deepx.ai/',
-        'wppb_lostpassword_url': '',
-        'wppb_redirect_priority': '',
-        'wppb_referer_url': 'https://developer.deepx.ai/',
-        'CSRFToken-wppb': csrf_token,
-        '_wp_http_referer': wp_http_referer,
-        'wppb_redirect_check': 'true',
+        'testcookie': '1',
         'rememberme': 'forever'
     }
 
@@ -162,14 +139,19 @@ def login_and_download_file(username, password, download_url, save_directory, ex
         return None
 
     # 3. Enhanced Login Success/Failure Check based on URL and content
-    if "loginerror=" in response_post.url:
-        colored_print("ERROR: Login failed. The provided username or password is invalid. Please check your credentials.", "ERROR")
+    if "wp-login.php" in response_post.url and "action=logout" not in response_post.url:
+        # Still on login page means login failed
+        colored_print("ERROR: Login failed. The server redirected back to the login page. Please check your credentials.", "ERROR")
+        # Check for specific error messages
+        if "login_error" in response_post.url or "loginerror" in response_post.url:
+            colored_print("ERROR: Invalid username or password detected in URL.", "ERROR")
+        error_soup = BeautifulSoup(response_post.text, 'html.parser')
+        error_div = error_soup.find('div', {'id': 'login_error'})
+        if error_div:
+            colored_print(f"ERROR: Server message: {error_div.get_text(strip=True)}", "ERROR")
         return None
-    elif "wp-login.php" in response_post.url:
-        colored_print("ERROR: Login failed. The server redirected back to the login page unexpectedly. Please check your credentials.", "ERROR")
-        return None
-    elif "잘못된 비밀번호" in response_post.text or "알 수 없는 사용자" in response_post.text:
-        colored_print("ERROR: Login failed. The website indicated an invalid username or password in its content. Please check your credentials.", "ERROR")
+    elif "잘못된 비밀번호" in response_post.text or "알 수 없는 사용자" in response_post.text or "incorrect password" in response_post.text.lower() or "invalid username" in response_post.text.lower():
+        colored_print("ERROR: Login failed. Invalid username or password. Please check your credentials.", "ERROR")
         return None
     else:
         colored_print(f"INFO: Login successful! Final URL: {response_post.url}", "INFO")
