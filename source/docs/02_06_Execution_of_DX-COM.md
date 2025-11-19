@@ -60,10 +60,10 @@ This will generate a minimal output containing only the components essential for
 
 You can compile the sample model using the provided Makefile.
 ```
-make mv1 
+make MobileNetV1-1 
 ```
 
-This command will compile the `mobilenetv1` sample and generate the output in `./output/mobilenetv1`.  
+This command will compile the `./sample/MobileNetV1-1.onnx` sample and generate the output in `./sample/MobileNetV1-1.dxnn`.
  
 **Note.** `dx_com` supports ONNX models with batch size fixed to 1 only. If the input shape of the ONNX model is defined as `(batch_size, C, H, W)`, you must overwrite the batch size to 1 before compilation.
 ```
