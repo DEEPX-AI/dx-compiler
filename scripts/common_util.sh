@@ -51,10 +51,10 @@ check_container_mode() {
 check_virtualenv() {
     if [ -n "$VIRTUAL_ENV" ]; then
         venv_name=$(basename "$VIRTUAL_ENV")
-        print_colored_v2 "✅ Virtual environment '$venv_name' is currently active."
+        print_colored_v2 "INFO" "✅ Virtual environment '$venv_name' is currently active."
         return 0
     else
-        print_colored_v2 "❌ No virtual environment is currently active."
+        print_colored_v2 "INFO" "❌ No virtual environment is currently active."
         return 1
     fi
 }
