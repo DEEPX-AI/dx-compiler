@@ -62,6 +62,7 @@ show_help() {
     echo -e "  ${COLOR_GREEN}[--docker_volume_path=<path>]${COLOR_RESET}         Set Docker volume path (required in container mode)"
     echo -e ""
     echo -e "  ${COLOR_GREEN}[--verbose]${COLOR_RESET}                           Enable verbose (debug) logging."
+    echo -e "  ${COLOR_GREEN}[--force=<true|false>]${COLOR_RESET}                Force reinstall modules (dx_com, dx_tron) even if already installed (default: true)"
     echo -e "  ${COLOR_GREEN}[--help]${COLOR_RESET}                              Display this help message and exit."
     echo -e ""
     echo -e "Virtual Environment Options:"
@@ -71,7 +72,7 @@ show_help() {
     echo -e "Virtual Environment Sub-Options:"
     echo -e "  ${COLOR_GREEN}  [--system-site-packages]${COLOR_RESET}              Set venv '--system-site-packages' option."    
     echo -e "                                            - This option is applied only when venv is created. If you use '-venv-reuse', it is ignored. "
-    echo -e "  ${COLOR_GREEN}  [-f | --venv-force-remove]${COLOR_RESET}            (Default ON) Force remove existing virtual environment at --venv_path before creation."
+    echo -e "  ${COLOR_GREEN}  [-f | --venv-force-remove]${COLOR_RESET}            (Default ON) Force remove and recreate virtual environment (venv related only)"
     echo -e "  ${COLOR_GREEN}  [-r | --venv-reuse]${COLOR_RESET}                   (Default OFF) Reuse existing virtual environment at --venv_path if it's valid, skipping creation."
     echo -e ""
     echo -e "${COLOR_BOLD}Examples:${COLOR_RESET}"
@@ -451,6 +452,17 @@ while [[ $# -gt 0 ]]; do
         --verbose)
             ENABLE_DEBUG_LOGS=1
             VERBOSE_ARGS="--verbose"
+            ;;
+        --force)
+            FORCE_ARGS="--force"
+            ;;
+        --force=*)
+            FORCE_VALUE="${1#*=}"
+            if [ "$FORCE_VALUE" = "false" ]; then
+                FORCE_ARGS=""
+            else
+                FORCE_ARGS="--force"
+            fi
             ;;
         --help)
             show_help
