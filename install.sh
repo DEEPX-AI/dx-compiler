@@ -327,11 +327,19 @@ install_dx_com() {
     INSTALL_COM_CMD="$PROJECT_ROOT/scripts/install_module.sh --module_name=dx_com --version=$COM_VERSION --download_url=$COM_DOWNLOAD_URL $ARCHIVE_MODE_ARGS $FORCE_ARGS $VERBOSE_ARGS"
     print_colored "Executing: $INSTALL_COM_CMD" "DEBUG" # Debug line
     # If executed with '$INSTALL_COM_CMD', DX_USERNAME and DX_PASSWORD are not passed. Therefore, execute with eval as below
-    eval "$INSTALL_COM_CMD"
+    COM_OUTPUT=$(eval "$INSTALL_COM_CMD")
     if [ $? -ne 0 ]; then
         print_colored "Installing dx-com failed!" "ERROR"
         popd >&2
         exit 1
+    fi
+    
+    # Extract archived file path from output if in archive mode
+    if [ "$ARCHIVE_MODE" = "y" ]; then
+        ARCHIVED_COM_FILE=$(echo "$COM_OUTPUT" | grep "ARCHIVED_FILE_PATH=" | cut -d'=' -f2)
+        if [ -n "$ARCHIVED_COM_FILE" ] && [ -n "$ARCHIVE_OUTPUT_FILE" ]; then
+            echo "ARCHIVED_COM_FILE=${ARCHIVED_COM_FILE}" >> "$ARCHIVE_OUTPUT_FILE"
+        fi
     fi
 
     echo -e "=== install_dx_com() ${TAG_DONE} ==="
@@ -352,11 +360,19 @@ install_dx_tron() {
     INSTALL_TRON_CMD="$PROJECT_ROOT/scripts/install_module.sh --module_name=dx_tron --version=$TRON_VERSION --download_url=$TRON_DOWNLOAD_URL $ARCHIVE_MODE_ARGS $FORCE_ARGS $VERBOSE_ARGS"
     print_colored "Executing: $INSTALL_TRON_CMD" "DEBUG" # Debug line
     # If executed with '$INSTALL_COM_CMD', DX_USERNAME and DX_PASSWORD are not passed. Therefore, execute with eval as below
-    eval "$INSTALL_TRON_CMD"
+    TRON_OUTPUT=$(eval "$INSTALL_TRON_CMD")
     if [ $? -ne 0 ]; then
         print_colored "Installing dx-tron failed!" "ERROR"
         popd >&2
         exit 1
+    fi
+    
+    # Extract archived file path from output if in archive mode
+    if [ "$ARCHIVE_MODE" = "y" ]; then
+        ARCHIVED_TRON_FILE=$(echo "$TRON_OUTPUT" | grep "ARCHIVED_FILE_PATH=" | cut -d'=' -f2)
+        if [ -n "$ARCHIVED_TRON_FILE" ] && [ -n "$ARCHIVE_OUTPUT_FILE" ]; then
+            echo "ARCHIVED_TRON_FILE=${ARCHIVED_TRON_FILE}" >> "$ARCHIVE_OUTPUT_FILE"
+        fi
     fi
 
     echo -e "=== install_dx_tron() ${TAG_DONE} ==="
