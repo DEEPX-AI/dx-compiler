@@ -336,7 +336,7 @@ install_dx_com() {
     
     # Extract archived file path from output if in archive mode
     if [ "$ARCHIVE_MODE" = "y" ]; then
-        ARCHIVED_COM_FILE=$(echo "$COM_OUTPUT" | grep "ARCHIVED_FILE_PATH=" | cut -d'=' -f2)
+        ARCHIVED_COM_FILE=$(echo "$COM_OUTPUT" | grep "^ARCHIVED_FILE_PATH=" | tail -1 | cut -d'=' -f2)
         if [ -n "$ARCHIVED_COM_FILE" ] && [ -n "$ARCHIVE_OUTPUT_FILE" ]; then
             echo "ARCHIVED_COM_FILE=${ARCHIVED_COM_FILE}" >> "$ARCHIVE_OUTPUT_FILE"
         fi
@@ -369,7 +369,7 @@ install_dx_tron() {
     
     # Extract archived file path from output if in archive mode
     if [ "$ARCHIVE_MODE" = "y" ]; then
-        ARCHIVED_TRON_FILE=$(echo "$TRON_OUTPUT" | grep "ARCHIVED_FILE_PATH=" | cut -d'=' -f2)
+        ARCHIVED_TRON_FILE=$(echo "$TRON_OUTPUT" | grep "^ARCHIVED_FILE_PATH=" | tail -1 | cut -d'=' -f2)
         if [ -n "$ARCHIVED_TRON_FILE" ] && [ -n "$ARCHIVE_OUTPUT_FILE" ]; then
             echo "ARCHIVED_TRON_FILE=${ARCHIVED_TRON_FILE}" >> "$ARCHIVE_OUTPUT_FILE"
         fi
