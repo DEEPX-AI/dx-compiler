@@ -141,6 +141,10 @@ validate_environment() {
     # Export final credentials as environment variables for child processes
     export DX_USERNAME="$DX_USERNAME_FINAL"
     export DX_PASSWORD="$DX_PASSWORD_FINAL"
+    
+    # Debug: Verify credentials are exported (without showing password)
+    print_colored "DEBUG: DX_USERNAME exported for child processes: ${DX_USERNAME:+SET}" "DEBUG"
+    print_colored "DEBUG: DX_PASSWORD exported for child processes: ${DX_PASSWORD:+SET}" "DEBUG"
 
     # Usage check for required properties (must exist in compiler.properties)
     if [ -z "$COM_VERSION" ] || [ -z "$COM_DOWNLOAD_URL" ]; then
@@ -326,9 +330,13 @@ install_dx_com() {
     # Pass all relevant args to install_module.sh
     INSTALL_COM_CMD="$PROJECT_ROOT/scripts/install_module.sh --module_name=dx_com --version=$COM_VERSION --download_url=$COM_DOWNLOAD_URL $ARCHIVE_MODE_ARGS $FORCE_ARGS $VERBOSE_ARGS"
     print_colored "Executing: $INSTALL_COM_CMD" "DEBUG" # Debug line
-    # If executed with '$INSTALL_COM_CMD', DX_USERNAME and DX_PASSWORD are not passed. Therefore, execute with eval as below
-    COM_OUTPUT=$(eval "$INSTALL_COM_CMD")
-    if [ $? -ne 0 ]; then
+    # Use direct execution to properly pass environment variables with real-time output
+    COM_OUTPUT_FILE=$(mktemp)
+    eval "$INSTALL_COM_CMD" 2>&1 | tee "$COM_OUTPUT_FILE"
+    COM_INSTALL_EXIT_CODE=${PIPESTATUS[0]}
+    COM_OUTPUT=$(cat "$COM_OUTPUT_FILE")
+    rm -f "$COM_OUTPUT_FILE"
+    if [ $COM_INSTALL_EXIT_CODE -ne 0 ]; then
         print_colored "Installing dx-com failed!" "ERROR"
         popd >&2
         exit 1
@@ -359,9 +367,13 @@ install_dx_tron() {
     # Pass all relevant args to install_module.sh
     INSTALL_TRON_CMD="$PROJECT_ROOT/scripts/install_module.sh --module_name=dx_tron --version=$TRON_VERSION --download_url=$TRON_DOWNLOAD_URL $ARCHIVE_MODE_ARGS $FORCE_ARGS $VERBOSE_ARGS"
     print_colored "Executing: $INSTALL_TRON_CMD" "DEBUG" # Debug line
-    # If executed with '$INSTALL_COM_CMD', DX_USERNAME and DX_PASSWORD are not passed. Therefore, execute with eval as below
-    TRON_OUTPUT=$(eval "$INSTALL_TRON_CMD")
-    if [ $? -ne 0 ]; then
+    # Use direct execution to properly pass environment variables with real-time output
+    TRON_OUTPUT_FILE=$(mktemp)
+    eval "$INSTALL_TRON_CMD" 2>&1 | tee "$TRON_OUTPUT_FILE"
+    TRON_INSTALL_EXIT_CODE=${PIPESTATUS[0]}
+    TRON_OUTPUT=$(cat "$TRON_OUTPUT_FILE")
+    rm -f "$TRON_OUTPUT_FILE"
+    if [ $TRON_INSTALL_EXIT_CODE -ne 0 ]; then
         print_colored "Installing dx-tron failed!" "ERROR"
         popd >&2
         exit 1
