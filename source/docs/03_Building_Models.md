@@ -24,7 +24,7 @@ The following ONNX operators are supported by the compiler.
 ### Normal Operations
 
 | **Operator** | **Supported Conditions** |
-| :----------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| :--- | :--- |
 | Add | Supported as: <br> - Bias addition (e.g., as part of `Gemm` or `Conv`) <br> - Element-wise addition <br> - Used for input normalization <br> - Constant scalar addition |
 | ArgMax | Only supported if all of the following hold: <br> - It is the final operation in the network <br> - The preceding output is 2D or 4D <br> - It operates along the channel dimension |
 | AveragePool | - `kernel_shape` < 32 <br> - `strides` < 32 |
@@ -34,11 +34,12 @@ The following ONNX operators are supported by the compiler.
 | Constant | Only numeric constants are supported |
 | ConstantOfShape | No restrictions |
 | Conv | **Common constraints:** <br> - `dilations` < 64 <br> - `pads` < 64 <br> - `strides` < 16 <br> **Standard Conv:** <br> - `kernel_shape` < 16 <br> **Depth-wise Conv:** <br> - `kernel_shape` ∈ {[3, 3], [5, 5]} <br> - Only constant weights are supported |
-| ConvTranspose | - `dilations` = [1, 1] <br> - `pads` ≤ 14 <br> - `strides` ∈ [2, 8] <br> - `kernel_shape` < 16 <br> - `group` = 1 |
+| ConvTranspose | - `dilations` = [1, 1] <br> - `output_padding` = [0, 0] <br> - `pads` ≤ 14 <br> - `strides` ∈ [2, 8] <br> - `kernel_shape` < 16 <br> - `group` = 1 |
 | Div | Supported as: <br> - Constant scalar division <br> - Input normalization <br> - Part of `Softmax` <br> - Part of `LayerNorm` |
 | Dropout | Removed during inference |
 | Erf | Only supported as part of `GELU` |
-| Flatten | Only supported for reshaping `Conv` output into `Dense` input |
+| Flatten | No restrictions |
+| Gather | Supported when `indices` is a 0-D or 1-D tensor. <br> Examples: <br> - Scalar index: `indices = [0]` to select first element <br> - 1-D index: `indices = [0, 2, 5]` to select multiple elements |
 | Gemm | No restrictions |
 | GlobalAveragePool | No restrictions |
 | Identity | No restrictions |
@@ -48,26 +49,25 @@ The following ONNX operators are supported by the compiler.
 | Pad | - Only `mode=constant` is supported <br> - Must precede a `Pool` or `Conv` operation |
 | ReduceMean | Only supported when reducing along: <br> - Channel dimension <br> - (Width, Height) dimensions |
 | ReduceSum | Only supported when reducing along the channel dimension |
-| Reshape | Supported as: <br> - Squeeze-like transformations <br> - As part of the attention mechanism |
+| Reshape | No restrictions |
 | Resize | Only supported with the following attributes: <br> - `coordinate_transformation_mode` = `pytorch_half_pixel` <br> - `mode` ∈ {`nearest`, `linear`} <br> - Scale values ∈ ℤ (integers) |
 | Shape | Cannot be used as a model output |
-| Slice | Only supported when slicing along the height dimension |
+| Slice | No restrictions |
 | Softmax | Only supported if the size of the input along the specified `axis` is ≤ 4080 |
-| Split | Input tensor must have rank 4 |
+| Split | No restrictions |
 | Squeeze | No restrictions |
 | Sub | Supported as: <br> - Element-wise subtraction <br> - Constant scalar subtraction <br> - Input normalization |
-| Transpose | Only supported as part of the attention mechanism |
+| Transpose | No restrictions |
 
 ---
 
 ### Deprecated Operations
 
-The following operations are deprecated in ONNX and maintained here only for backward compatibility.  
-Their usage is discouraged in new models and may be removed in future versions.  
+The following operations are deprecated in ONNX and maintained here only for backward compatibility. Their usage is discouraged in new models and may be removed in future versions.  
 Please use alternative operators where possible.
 
 | **Operator** | **Supported Conditions** |
-| :----------- | :-------------------------------------------------------------------------- |
+| :--- | :--- |
 | Upsample | Only supported when scale values in the N and C dimensions are 1 |
 
 ---
@@ -75,7 +75,7 @@ Please use alternative operators where possible.
 ### Activation Functions
 
 | **Operator** | **Supported Conditions** |
-| :----------- | :----------------------- |
+| :--- | :--- |
 | HardSwish | No restrictions |
 | HardSigmoid | No restrictions |
 | LeakyRelu | No restrictions |
@@ -87,6 +87,7 @@ Please use alternative operators where possible.
 | Softplus | No restrictions |
 | Tanh | No restrictions |
 
----
+!!! note "NOTE"  
+    The operator support may vary depending on how operations are combined within a model. This document is intended as a general guideline. For validation of specific use cases, please contact our technical support team.  
 
-**Note:** Operator support may vary depending on how operations are combined within a model. This document is intended as a general guideline. For validation of specific use cases, please contact our technical support team.
+---

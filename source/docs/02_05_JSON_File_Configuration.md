@@ -1,21 +1,24 @@
 This chapter describes various parameters required for compiling an ONNX model using the **DX_COM**. It includes input specifications, calibration methods, data preprocessing settings, and optional parameters for advanced compilation schemes.  
+
 These parameters are defined in a JSON file, which serves as a blueprint for how the compiler interprets and processes the input model.  
 
-### Required Parameters  
+---
+
+## Required Parameters  
 
 **DEEPX** provides the following required parameters for configuring JSON files. These parameters **must** be defined to successfully compile an ONNX model.  
 
-**Inputs**  
+### Inputs  
 
 Defines the input name and shape of the ONNX model.  
 
 !!! warning "Model Input Restrictions"
-    - The batch size **must** be fixed to 1.  
+    - The batch size <span style="color:red">**must**</span> be fixed to 1.  
     - **Only** a single input is supported.  
     - Input name **must** exactly match ONNX model definition.
 
 Example  
-```
+```json
 {
   "inputs": {
     "input.1": [1, 3, 512, 512]
@@ -25,12 +28,13 @@ Example
 
 In this example, `"input.1"` is the name of the input tensor and its shape is `[1, 3, 512, 512]`, where:
 
-- `1`: batch size (**must be 1**)  
+- `1`: batch size (<span style="color:red">**must be 1**</span>)  
 - `3`: number of channels (e.g., RGB)  
 - `512 x 512`: image height and width
 
+---
 
-**Calibration Method**  
+### Calibration Method  
 
 Defines the calibration method used during quantization. It is essential for maintaining model accuracy after compilation by determining appropriate activation ranges.  
 
@@ -44,7 +48,7 @@ Available Methods
   Uses the minimum and maximum activation values to determine quantization range.
 
 Example
-```
+```json
 {
   "calibration_method": "ema"
 }
@@ -52,34 +56,36 @@ Example
 
 In this example, the ema method is selected to compute more stable and accurate quantization thresholds.  
 
+---
 
-**Calibration Number**  
+### Calibration Number
 
 Defines the number of steps used during calibration. A higher number may improve quantization accuracy by better estimating activation ranges, but may also increase compile time.  
 To minimize the accuracy degradation, it is recommended to try different values, such as 1, 5, 10, 100, or 1000, and determine the value that yields the best accuracy for your model.
 
 Example
-```
+```json
 {
   "calibration_num": 100
 }
 ```
 
-In this example, 100 samples from the calibration dataset will be used to determine activation ranges for quantization.
+In this example, 100 samples from the calibration dataset will be used to determine activation ranges for quantization.  
 
+---
 
-**Calibration Data Loader**  
+### Calibration Data Loader  
 
-Defines the dataset loader used during the calibration process. This parameter specifies the dataset location, accepted file types, and preprocessing steps to be applied before feeding data into the model.
+Defines the dataset loader used during the calibration process. This parameter specifies the dataset location, accepted file types, and preprocessing steps to be applied before feeding data into the model.  
 
-Parameter
+Parameter  
 
 - `dataset_path`: The directory path where the calibration dataset is located.  
 - `file_extensions`: A list of allowed file extensions for dataset files (case-sensitive). Only files with these extensions can be used.  
 - `preprocessings`: Defines preprocessing steps applied to the calibration dataset. These steps should match the preprocessing used during inference to ensure consistency.  
 
 Example
-```
+```json
 {
   "default_loader": {
     "dataset_path": "/datasets/ILSVRC2012",
@@ -89,22 +95,23 @@ Example
 }
 ```
 
+---
 
-**Input Preprocessing Operations in `default_loader`**  
+### Input Preprocessing Operations in `default_loader`  
 
-The following preprocessing operations can be applied to input data for calibration or inference. TThese operations help standardize input formats and ensure consistency between calibration and deployment.  
+The following preprocessing operations can be applied to input data for calibration or inference. These operations help standardize input formats and ensure consistency between calibration and deployment.  
 
-*`convertColor`*  
+**convertColor**  
 
 Changes the color channel order of the input images. It is useful when the input image format (e.g., BGR or RGB) differs from what the model expects.  
 
 Parameter  
 
 - `form`: Defines the type of color space conversion.  
-  - Supported values:`["RGB2BGR", "BGR2RGB", "BGR2GRAY", "BGR2YCrCb"]`  
+    - Supported values:`["RGB2BGR", "BGR2RGB", "RGB2GRAY", "BGR2GRAY", "RGB2YCrCb", "BGR2YCrCb", "RGB2YUV", "BGR2YUV", "RGB2HSV", "BGR2HSV", "RGB2LAB", "BGR2LAB"]`  
 
 Example
-``` 
+```json
 {
   "preprocessings": [
   {
@@ -118,30 +125,29 @@ Example
 
 In this example, the color format is converted from BGR to RGB before being passed to the model.  
 
-
-*`resize`*  
+**resize**  
 
 Resizes the input image to a specified target size.This operation is commonly used to match the model's expected input dimensions.  
 
-Parameter
+Parameter  
 
-- `mode`
+- `mode`  
   : Defines the backend used for resizing.  
   : `default`: Uses OpenCV's resize function.  
   : `torchvision`: Uses PIL's resize function.  
 
-- `size`
+- `size`  
   : Defines the target output image size.  
   : Accepts list, tuple, or integer.  
   : Cannot be used with `width` and `height`.  
 
-- `width, height`
+- `width, height`  
   : Defines target width and height.  
   : Cannot be used with `size`.  
 
-- `interpolation` (Optional)
+- `interpolation` (Optional)  
   : Defines the interpolation method during resizing.  
-  : Default: `"LINEAR"`  
+  : Default: `LINEAR`  
 
 | Mode           | Supported Interpolation Methods               |
 |----------------|-----------------------------------------------|
@@ -149,7 +155,7 @@ Parameter
 | `torchvision`  | `BILINEAR`, `NEAREST`, `BICUBIC`, `LANCZOS`     |
 
 Example for `default` mode (OpenCV)
-```
+```json
 {
   "preprocessings": [
     {
@@ -165,14 +171,14 @@ Example for `default` mode (OpenCV)
 ```
 
 Example for `torchvision` mode (PIL-based) 
-```
+```json
 {
   "preprocessings": [
     {
       "resize": {
         "mode": "torchvision",
         "size": 250,
-        "interpolation": "BILINEAR" # NEAREST, BILINEAR, BICUBIC, LANCZOC
+        "interpolation": "BILINEAR" # NEAREST, BILINEAR, BICUBIC, LANCZOS
 
       }
     }
@@ -180,18 +186,17 @@ Example for `torchvision` mode (PIL-based)
 }
 ```
 
-
-*`centercrop`*
+**centercrop**  
 
 Crops the central region of the input image to the specified dimension. The crop is automatically centered based on the original image size.  
 
 Parameter  
 
 - `width`: The width of the crop region (in pixels)  
-- `height`: The height of the crop region (in pixels)
+- `height`: The height of the crop region (in pixels)  
 
 Example
-```
+```json
 {
   "preprocessings": [
     {
@@ -207,16 +212,16 @@ Example
 In this example, a 224 × 224 region is cropped from the center of the input image.  
 
 
-*`transpose`*  
+**transpose**  
 
 Rearranges the dimensions of the input data based on the specified axis order. It is commonly used to convert between data formats.  
 
-Paramater  
+Parameter  
 
-- `axis`: A list specifying the new order of axes
+- `axis`: A list specifying the new order of axes  
 
 Example
-```
+```json
 {
   "preprocessings": [
     {
@@ -228,19 +233,19 @@ Example
 }
 ```
 
-In this example, the tensor dimensions are rearranged to follow the `[batch, height, width, channels]` (NHWC) format.
+In this example, the tensor dimensions are rearranged to follow the `[batch, height, width, channels]` (NHWC) format.  
 
 
-*`expandDim`*  
+**expandDim**  
 
 Adds a new dimension to the input tensor at the specified axis. It is commonly used to insert a batch or channel dimension when required by the model.  
 
 Parameter  
 
-- `axis`: The axis index where the new dimension should be inserted
+- `axis`: The axis index where the new dimension should be inserted  
 
 Example
-```
+```json
 {
   "preprocessings": [
     {
@@ -252,23 +257,23 @@ Example
 }
 ```
 
-In this example, a new dimension is added at axis 0, typically used to add a batch dimension to an image tensor.
+In this example, a new dimension is added at axis 0, typically used to add a batch dimension to an image tensor.  
 
 
-*`normalize`*  
+**normalize**  
 
 Normalizes the input data by applying mean and standard deviation values for each channel. This is commonly used to standardize input values before feeding them into a model.  
 
-!!! warning "Warning"
-    This preprocessing is accelerated by NPU. Thus, it **must not** be applied during NPU runtime.
+!!! warning "NPU Integration"  
+    This operation may be integrated into the NPU graph depending on the model. Check the compiler log for "Inserting preprocessing operations to NPU graph". If integrated, <span style="color:red">**do not**</span> apply during runtime.
 
 Parameter  
 
 - `mean`: A list of mean values for each channel (e.g., R, G, B)  
-- `std`: A list of standard deviation values for each channel
+- `std`: A list of standard deviation values for each channel  
 
 Example
-```
+```json
 {
   "preprocessings": [
     {
@@ -284,18 +289,16 @@ Example
 In this example, the same mean and standard deviation values are applied to all three channels, typically used for normalized RGB images.  
 
 
-*`mul`*  
-Multiplies the input data by a specified constant value. It is commonly used for scaling input pixel values.  
+**mul**  
 
-!!! warning "Warning"
-    This preprocessing is accelerated by NPU. Thus, it **must not** be applied during NPU runtime.
+Multiplies the input data by a specified constant value. It is commonly used for scaling input pixel values.  
 
 Parameter  
 
 - `x`: The constant value to multiply with the input data  
 
 Example
-```
+```json
 {
   "preprocessings": [
     {
@@ -310,19 +313,16 @@ Example
 In this example, the input data is scaled by a factor of 255.  
 
 
-*`add`*  
+**add**  
 
 Adds a constant value to the input data. This operation is commonly used to adjust the input data by a fixed offset, such as shifting pixel values.  
-
-!!! warning "Warning"
-    This preprocessing is accelerated by NPU. Thus, it **must not** be applied during NPU runtime.
 
 Parameter  
 
 - `x`: The constant value to be added to each element of the input data  
 
 Example
-```
+```json
 {
   "preprocessings": [
     {
@@ -337,18 +337,19 @@ Example
 In this example, the value 255 is added to each element of the input data.  
 
 
-*`subtract`*  
+**subtract**  
+
 Subtracts a constant value from the input data. This operation is commonly used to adjust pixel intensity values or normalize data by removing a fixed offset.  
 
-!!! warning "Warning"
-    This preprocessing is accelerated by NPU. Thus, it **must not** be applied during NPU runtime. 
+!!! warning "NPU Integration"  
+    This operation may be integrated into the NPU graph depending on the model. Check the compiler log for "Inserting preprocessing operations to NPU graph". If integrated, <span style="color:red">**do not**</span> apply during runtime.
 
 Parameter  
 
 - `x`: The constant value to subtract from each element of the input data  
 
 Example
-```
+```json
 {
   "preprocessings": [
     {
@@ -359,22 +360,23 @@ Example
   ]
 }
 ```
+
 In this example, the value 255 is subtracted from each element of the input data.  
 
 
-*`div`*  
+**div**  
 
 Divides the input data by a specified constant. It is commonly used to scale pixel values into a normalized range such as [0, 1].  
 
-!!! warning "Warning"
-    This preprocessing is accelerated by NPU. Thus, it **must not** be applied during NPU runtime. 
+!!! warning "NPU Integration"  
+    This operation may be integrated into the NPU graph depending on the model. Check the compiler log for "Inserting preprocessing operations to NPU graph". If integrated, <span style="color:red">**do not**</span> apply during runtime.
 
 Parameter  
 
 - `x`: The constant value to divide each element of the input data by (i.e., the divisor)  
 
 Example
-```
+```json
 {
   "preprocessings": [
     {
@@ -388,11 +390,14 @@ Example
 
 In this example, all input values are divided by 255.  
 
-**Custom Loader**
+---
 
-If the model's input is not an image, you can use a custom loader to provide the input data during calibration. The user **must** provide a Python script that defines a custom dataset class.
+### Custom Loader  
 
-*Guidelines for Writing a Dataset Class*  
+If the model's input is not an image, you can use a custom loader to provide the input data during calibration. The user **must** provide a Python script that defines a custom dataset class.  
+
+**Guidelines for Writing a Dataset Class**  
+
 Your custom dataset class **must** implement the following methods.  
 
 - `__init__()`  
@@ -405,7 +410,7 @@ Your custom dataset class **must** implement the following methods.
    : The batch dimension (N) is automatically added by the system and is always set to 1.
 
 
-Recommendation  
+**Recommendation**  
 
 When using a custom loader, it is recommended to implement preprocessing logic directly within the dataset class, rather than relying on the preprocessing settings in the JSON configuration file.  
 
@@ -460,12 +465,12 @@ Example of `CustomDataset(Dataset)`
           return img_as_tensor
 ```
 
-*Using a Custom Loader in JSON configuration*  
+**Using a Custom Loader in JSON configuration**  
 
 To use a custom loader during calibration, you **must** specify the python dataset class in the JSON configuration.  
 
 If the Python script file is named `dataset_module.py` and the dataset class is `CustomDataset`, the JSON configuration should be as follows.
-```
+```json
 {
   "custom_loader": {
     "package": “dataset_module.CustomDataset”
@@ -492,6 +497,280 @@ Example
   └── Makefile
 ```
 
-See also: Download the [Custom Dataloader Guide”](https://developer.deepx.ai/wp-content/uploads/2024/09/Custom%20Dataloader%20Guide.zip) file for more detailed instruction. 
+See also: Download the [Custom Dataloader Guide](http://cs.deepx.ai/_deepx_fae_archive/docs/Custom_Dataloader_Guide_241204.zip) file for more detailed instruction. 
+
+---  
+
+## Optional Parameters  
+
+### Enhanced Quantization Scheme   
+
+When quantizing a model, accuracy degradation may occur compared to the original model. To mitigate this, **Q-PRO options** (DXQ-P0 to DXQ-P5) can be used to enhance quantization performance. DXQ-P3 and DXQ-P4 generally offer better accuracy, so it is recommended to try them first.
+
+| Name | Compilation Speed | Accuracy Improvement Tendency |
+|------|------------------|-------------------------------|
+| DXQ-P0 | Very Fast | Low |
+| DXQ-P1 | Fast | Low-Middle |
+| DXQ-P2 | Quite Slow | Middle-High |
+| DXQ-P3 | Very Slow | High |
+| DXQ-P4 | Very Slow | High |
+| DXQ-P5 | Very Slow | High |
+
+!!! note "NOTE"  
+    Applying Q-PRO options <span style="color:red">**does not guarantee**</span> improved accuracy. Results may vary depending on the model and dataset.
+
+!!! note "NOTE"  
+    Due to a current limitation, compilation is only possible with **CPU**, which may significantly increase compile time.
+
+**DXQ-P0**  
+Uses an alpha value to control the strength of the quantization enhancement. This method is lightweight and fast, but may result in less accuracy gain compared to higher-level options.
+
+Parameter  
+
+- `alpha`: A float value between 0.0 and 1.0 that controls the level of enhancement.    
+           Recommended value: 0.5  
+
+Example
+```json
+{
+  "enhanced_scheme": {
+    "DXQ-P0": {
+      "alpha": 0.5
+    }
+  }
+}
+```
+
+In this example, the DXQ-P0 option is applied with a moderate enhancement level (alpha = 0.5).
+
+**DXQ-P1**  
+Enables a simple quantization improvement strategy by toggling the option on or off. This is a lightweight option with low to moderate accuracy gain and minimal impact on compilation time.  
+
+Parameter  
+
+- `Boolean flag`: Set to `true` to enable the DXQ-P1 enhancement. No additional configuration is required.  
+
+Example
+```json
+{
+  "enhanced_scheme": {
+    "DXQ-P1": true
+  }
+}
+```
+
+In this example, the DXQ-P1 option is enabled to apply lightweight quantization enhancement.
+
+**DXQ-P2**  
+Uses a more refined strategy by adjusting `alpha`, `beta`, and `cosim_num` parameters. This option provides moderate to high accuracy improvement at the cost of slower compilation.
+
+Parameter  
+
+- `alpha`: A float value between 0.0 and beta.  
+           Recommended value: 0.1  
+- `beta`: A float value between alpha and infinity.  
+           Recommended value: 1.0  
+- `cosim_num`: An integer between 1 and infinity specifying the number of co-simulation runs.  
+            Recommended value: 2  
+
+Example
+```json
+{
+  "enhanced_scheme": {
+    "DXQ-P2": {
+      "alpha": 0.1,
+      "beta": 1.0,
+      "cosim_num": 2
+    }
+  }
+}
+```
+
+In this example, DXQ-P2 is configured with recommended values to balance accuracy improvement and compile time.
+
+**DXQ-P3, DXQ-P4, DXQ-P5**  
+These options support the optional `num_samples` parameter, which specifies the number of samples used during the quantization optimization process.  
+
+Parameter  
+
+- `num_samples`: An integer between 0 and infinity.  
+                Recommended value: 1024
+
+Example for DXQ-P3
+```json
+{
+  "enhanced_scheme": {
+    "DXQ-P3": {
+      "num_samples": 1024
+    }
+  }
+}
+```
+
+---
+
+### PPU (Post-Processing Unit) Configuration
+
+The PPU enables hardware-accelerated post-processing for object detection models. To use the PPU, define the `ppu` field in the configuration file with the appropriate type and parameters based on your model architecture.  
+
+!!! note "NOTE"  
+    While specific models are listed as verified, PPU supports any model with a similar detection head structure. If your model follows the same architectural pattern (anchor-based or anchor-free), it should work with the appropriate PPU type configuration.
+
+**Supported PPU Types**  
+The PPU configuration supports the following types of object detection architectures:  
+
+- **Type 0 (Anchor-Based YOLO)**: Designed for models that use anchor boxes, such as YOLOv3, YOLOv4, YOLOv5, and YOLOv7.  
+- **Type 1 (Anchor-Free YOLO)**: Designed for anchor-free models, such as YOLOX.  
+
+
+**Type 0: Anchor-Based YOLO Models**  
+
+- Supported Models: YOLOv3, YOLOv4, YOLOv5, YOLOv7  
+
+This type supports anchor-based YOLO architectures with the following parameters:  
+
+Parameter  
+
+- `type`: Set to `0` for anchor-based YOLO models  
+- `conf_thres`: Confidence threshold for detection filtering (float).   
+    Note: This value is fixed during compilation and cannot be changed at runtime.  
+- `num_classes`: Number of detection classes (integer)  
+- `activation`: Activation function used in post-processing (mostly `"Sigmoid"`)  
+- `layer`: Dictionary mapping convolution layer node names to their anchor configurations  
+    - Each layer entry specifies `num_anchors`: Number of anchors used in that layer  
+
+Example
+```json
+{
+  "inputs": {
+    "input.1": [1, 3, 640, 640]
+  },
+  "calibration_method": "ema",
+  "calibration_num": 100,
+  "ppu": {
+    "type": 0,
+    "conf_thres": 0.25,
+    "activation": "Sigmoid",
+    "num_classes": 80,
+    "layer": {
+      "Conv_245": {
+        "num_anchors": 3
+      },
+      "Conv_294": {
+        "num_anchors": 3
+      },
+      "Conv_343": {
+        "num_anchors": 3
+      }
+    }
+  }
+}
+```
+
+**Type 1: Anchor-Free YOLO Models** 
+
+- Supported Models: YOLOX  
+
+This type supports anchor-free YOLO architectures with the following parameters:  
+
+Parameter  
+
+- `type`: Set to `1` for anchor-free YOLO models  
+- `conf_thres`: Confidence threshold for detection filtering (float)  
+    Note. This value is fixed during compilation and cannot be changed at runtime.  
+- `num_classes`: Number of detection classes (integer)  
+- `layer`: List of layer configurations, each containing  
+   : `bbox`: Layer name that outputs bounding box coordinates  
+   : `obj_conf`: Layer name that outputs object confidence scores  
+   : `cls_conf`: Layer name that outputs class-wise confidence scores  
+
+Example
+```json
+{
+  "inputs": {
+    "input.1": [1, 3, 640, 640]
+  },
+  "calibration_method": "ema",
+  "calibration_num": 100,
+  "ppu": {
+    "type": 1,
+    "conf_thres": 0.25,
+    "num_classes": 80,
+    "layer": [
+      {
+        "bbox": "Conv_261",
+        "obj_conf": "Conv_262",
+        "cls_conf": "Conv_254"
+      },
+      {
+        "bbox": "Conv_282",
+        "obj_conf": "Conv_283",
+        "cls_conf": "Conv_275"
+      },
+      {
+        "bbox": "Conv_303",
+        "obj_conf": "Conv_304",
+        "cls_conf": "Conv_296"
+      }
+    ]
+  }
+}
+```
+
+**How to Identify ONNX Node Names for PPU Configuration** 
+
+To configure PPU, you need to identify specific Conv operation nodes in your ONNX model:  
+
+**Step 1.** Open your model in [Netron](https://netron.app) to visualize the ONNX graph  
+
+**Step 2.** For Type 0 (Anchor-based YOLO)  
+
+- **Trace backwards from model outputs** using Netron to locate the detection head Conv layers  
+- These Conv layers output feature maps with shape `[1, num_anchors*(5+num_classes), H, W]`  
+- The multiplier before `(5+num_classes)` is the `num_anchors` value you need to configure in the PPU JSON  
+- These Conv layers are typically followed by reshape, permute, and other post-processing operations  
+- Example node names in YOLOv7: `/model.105/m.0/Conv`, `/model.105/m.1/Conv`, `/model.105/m.2/Conv` (one per detection scale)  
+
+![Figure. YOLOv7 detection head showing the three Conv layers (highlighted in red) ](./../resources/yolov7-class-n2-ppu.png){ width=600px }
+
+This diagram shows the **YOLOv7 Detection Head** . It highlights the three final `Conv` layers (e.g., `/model.105/m.0/Conv`) that produce predictions for different detection scales. These layers output a shape of `[1, num_anchors * (5 + num_classes), H, W]`. The Node Names and the `num_anchors` value are the exact parameters needed to configure PPU Type 0 (Anchor-Based) in the JSON file.
+
+
+Configuration Example for the model shown above (YOLOv7 with 2 classes)  
+```json
+{
+  "ppu": {
+    "type": 0,
+    "conf_thres": 0.25,
+    "activation": "Sigmoid",
+    "num_classes": 2,
+    "layer": {
+      "/model.105/m.0/Conv": {
+        "num_anchors": 3
+      },
+      "/model.105/m.1/Conv": {
+        "num_anchors": 3
+      },
+      "/model.105/m.2/Conv": {
+        "num_anchors": 3
+      }
+    }
+  }
+}
+```
+
+**Step 3.** For Type 1 (Anchor-free YOLOX)  
+
+- **Trace backwards from model outputs** using Netron to locate the detection head Conv layers  
+- Find three types of Conv nodes for each detection scale  
+    : `bbox`: Conv layer that outputs bounding box regression values  
+    : `obj_conf`: Conv layer that outputs objectness confidence scores  
+    : `cls_conf`: Conv layer that outputs class prediction scores  
+- These three branches run in parallel for each scale level  
+- This results in a total of 9 Conv layers (3 scales × 3 branches per scale)  
+
+![Figure. YOLOX Multi-Scale Detection Head Architecture](./../resources/YOLOX-head.png){ width=600px }
+
+YOLOX detection head showing the nine Conv layers color-coded by function - blue boxes indicate bounding box (bbox) layers, red boxes indicate object confidence (obj_conf) layers, and green boxes indicate class confidence (cls_conf) layers. Each of the three detection scales has all three branch types.  
 
 ---
