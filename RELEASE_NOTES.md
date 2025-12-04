@@ -1,6 +1,55 @@
 
 # RELEASE_NOTES
 
+## DX-Compiler v2.1.0 / 2025-11-24
+
+-   DX-COM: v2.1.0
+    
+
+----------
+
+Here are the **DX-Compiler v2.1.0** Release Notes.
+
+### DX-COM (v2.1.0)
+
+### 1. Changed
+
+-   Removed deprecated command-line options: `--jobs`, `--shrink`, `--info` (or `-i`).
+    
+-   Clarified ONNX opset version support: versions 11-21 are supported (version 22 and above are not supported).
+    
+-   Removed restrictions on `Split`, `Transpose`, `Reshape`, `Flatten`, and `Slice` operators.
+    
+
+### 2. Fixed
+
+-   None
+    
+
+### 3. Added
+
+-   Added new command-line options:
+    
+    -   `--aggressive_partitioning`: Enables aggressive partitioning to maximize operations executed on NPU.
+        
+    -   `--opt_level {0,1}`: Controls optimization level (default: 1).
+        
+    -   `--compile_input_nodes` / `--compile_output_nodes`: Support for Partial Compilation.
+        
+-   Added support for `Gather` operator.
+    
+-   Reinstated PPU (Post-Processing Unit) support.
+    
+    -   Supported models: YOLOv3, YOLOv4, YOLOv5, YOLOv7 (anchor-based), YOLOX (anchor-free).
+    
+
+### 4. Known Issues
+
+-   Accuracy degradation has been observed in the `DeepLabV3PlusMobilenet-1` model from DX ModelZoo.
+    
+
+----------
+
 ## DX-Compiler v2.0.0 / 2025-08-11
 
 -   DX-COM: v2.0.0

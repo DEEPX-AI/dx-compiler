@@ -38,11 +38,6 @@ To generate the user guide as both HTML and PDF files, execute the following com
 mkdocs build
 ```
 
-### View Documentation in a Web Browser
-
-To preview the documentation as HTML in your web browser, run the following command in this project's root directory:
-
-```bash
-mkdocs serve
-```
-This will start a local web server, usually found at http://localhost:8000, where you can navigate and view your documentation as a website.
+This will create:
+- **HTML documentation** in the `docs/` folder - open `docs/index.html` in your web browser
+- **PDF file**: `DEEPX_DX-COM_UM_v2.1.0_2025_11.pdf` in the root directory
