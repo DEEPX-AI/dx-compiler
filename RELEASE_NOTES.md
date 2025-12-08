@@ -3,9 +3,10 @@
 
 ## DX-Compiler v2.1.0 / 2025-11-24
 
--   DX-COM: v2.1.0
+-   DX-COM: v2.1.0    
+   
+-   DX-TRON: v2.0.0
     
-
 ----------
 
 Here are the **DX-Compiler v2.1.0** Release Notes.
