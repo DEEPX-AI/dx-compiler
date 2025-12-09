@@ -31,8 +31,13 @@ theme:
      - content.code.annotate
      - navigation.tabs
      - navigation.tabs.sticky
+     - navigation.top
+     - navigation.tracking
+     - navigation.sections
      - content.tabs.link
      - content.code.copy
+     - search.highlight
+     - search.suggest
 nav:
   - DXNN SDK Overview: docs/01_DXNN_Compiler_Overview.md
   - Installation and Configuration:
@@ -53,11 +58,12 @@ plugins:
       author: DEEPX.ai
       copyright: ⓒ Copyright 2025 DEEPX All Rights Reserved.
       cover_title: DXNN Compiler (DX-COM) User Manual
-      cover_subtitle: August 2025 - Version 2.0.0
+      cover_subtitle: Version 2.1.0 (Nov 2025)
       cover_logo: img/deepx.png
       custom_template_path: docs/stylesheets
-      output_path: ../DEEPX_DX-COM_UM_v2.0.0_2025_08.pdf
+      output_path: ../DEEPX_DX-COM_UM_v2.1.0_Nov_2025.pdf
 extra:
+  homepage: https://developer.deepx.ai
   generator: false
   social:
      - icon: fontawesome/brands/linkedin

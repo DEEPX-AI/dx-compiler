@@ -470,5 +470,11 @@ fi
 rm -rf "$DOWNLOAD_TEMP_DIR"
 print_colored "Temporary download directory '$DOWNLOAD_TEMP_DIR' cleaned up." "INFO"
 
+# --- Output archived file path for parent script (archive mode only) ---
+if [ "$ARCHIVE_MODE" = "y" ]; then
+    # Output to stdout for parent script to capture
+    echo "ARCHIVED_FILE_PATH=${FINAL_MODULE_PATH}"
+fi
+
 print_colored "Module '$MODULE_NAME' (Version: $VERSION) installation completed successfully." "INFO"
 exit 0

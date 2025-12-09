@@ -1,7 +1,6 @@
 This section describes how to convert a PyTorch model to the ONNX format using the `torch.onnx.export()` function.  
 
-**pytorch to ONNX Converison Example**  
-
+**pytorch to ONNX Conversion Example**  
 You can export a PyTorch model to ONNX format as follows.  
 
 Example  
@@ -34,26 +33,24 @@ torch.onnx.export(
   dummy_input,             # Dummy input used for tracing (tuple is possible)
   onnx_file_path,          # Output ONNX file path 
   export_params=True,      # If True, saves model parameter (weight) into the ONNX file 
-  opset_version=11,        # ONNX opset version (11 or higher recommended)
+  opset_version=11,        # ONNX opset version (11~21 supported)
   input_names=['input'],   # Name of the ONNX model input tensor 
   output_names=['output']  # Name of the ONNX model output tensor 
 )
 ```
 
-
 Key Parameter of `torch.onnx.export()`  
 
 - `model`: PyTorch model object to export  
-- `dummy_input`: Input values to model’s `forward()` method  
+- `dummy_input`: Input values to model's `forward()` method  
 - `onnx_file_path`: Output ONNX file path  
 - `export_params`: If True, includes weights in the ONNX file  
-- `opset_version`: ONNX opset version (11 or higher recommended)  
+- `opset_version`: ONNX opset version (11~21 supported)  
 - `input_names`: Name of the input tensor(s)  
 - `output_names`: Name of the output tensor(s)  
 
-**Note.**  
-
-- `model.eval()`: Set the model to "eval()" mode before exporting  
-- `batch size`: Batch size **must** be 1  
+!!! note "NOTE"  
+    - `model.eval()`: Set the model to "eval()" mode before exporting.  
+    - `batch size`: Batch size **must** be 1.  
 
 ---

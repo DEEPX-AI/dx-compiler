@@ -62,6 +62,7 @@ show_help() {
     echo -e "  ${COLOR_GREEN}[--docker_volume_path=<path>]${COLOR_RESET}         Set Docker volume path (required in container mode)"
     echo -e ""
     echo -e "  ${COLOR_GREEN}[--verbose]${COLOR_RESET}                           Enable verbose (debug) logging."
+    echo -e "  ${COLOR_GREEN}[--force=<true|false>]${COLOR_RESET}                Force reinstall modules (dx_com, dx_tron) even if already installed (default: true)"
     echo -e "  ${COLOR_GREEN}[--help]${COLOR_RESET}                              Display this help message and exit."
     echo -e ""
     echo -e "Virtual Environment Options:"
@@ -71,7 +72,7 @@ show_help() {
     echo -e "Virtual Environment Sub-Options:"
     echo -e "  ${COLOR_GREEN}  [--system-site-packages]${COLOR_RESET}              Set venv '--system-site-packages' option."    
     echo -e "                                            - This option is applied only when venv is created. If you use '-venv-reuse', it is ignored. "
-    echo -e "  ${COLOR_GREEN}  [-f | --venv-force-remove]${COLOR_RESET}            (Default ON) Force remove existing virtual environment at --venv_path before creation."
+    echo -e "  ${COLOR_GREEN}  [-f | --venv-force-remove]${COLOR_RESET}            (Default ON) Force remove and recreate virtual environment (venv related only)"
     echo -e "  ${COLOR_GREEN}  [-r | --venv-reuse]${COLOR_RESET}                   (Default OFF) Reuse existing virtual environment at --venv_path if it's valid, skipping creation."
     echo -e ""
     echo -e "${COLOR_BOLD}Examples:${COLOR_RESET}"
@@ -140,6 +141,10 @@ validate_environment() {
     # Export final credentials as environment variables for child processes
     export DX_USERNAME="$DX_USERNAME_FINAL"
     export DX_PASSWORD="$DX_PASSWORD_FINAL"
+    
+    # Debug: Verify credentials are exported (without showing password)
+    print_colored "DEBUG: DX_USERNAME exported for child processes: ${DX_USERNAME:+SET}" "DEBUG"
+    print_colored "DEBUG: DX_PASSWORD exported for child processes: ${DX_PASSWORD:+SET}" "DEBUG"
 
     # Usage check for required properties (must exist in compiler.properties)
     if [ -z "$COM_VERSION" ] || [ -z "$COM_DOWNLOAD_URL" ]; then
@@ -325,11 +330,24 @@ install_dx_com() {
     # Pass all relevant args to install_module.sh
     INSTALL_COM_CMD="$PROJECT_ROOT/scripts/install_module.sh --module_name=dx_com --version=$COM_VERSION --download_url=$COM_DOWNLOAD_URL $ARCHIVE_MODE_ARGS $FORCE_ARGS $VERBOSE_ARGS"
     print_colored "Executing: $INSTALL_COM_CMD" "DEBUG" # Debug line
-    $INSTALL_COM_CMD
-    if [ $? -ne 0 ]; then
+    # Use direct execution to properly pass environment variables with real-time output
+    COM_OUTPUT_FILE=$(mktemp)
+    eval "$INSTALL_COM_CMD" 2>&1 | tee "$COM_OUTPUT_FILE"
+    COM_INSTALL_EXIT_CODE=${PIPESTATUS[0]}
+    COM_OUTPUT=$(cat "$COM_OUTPUT_FILE")
+    rm -f "$COM_OUTPUT_FILE"
+    if [ $COM_INSTALL_EXIT_CODE -ne 0 ]; then
         print_colored "Installing dx-com failed!" "ERROR"
         popd >&2
         exit 1
+    fi
+    
+    # Extract archived file path from output if in archive mode
+    if [ "$ARCHIVE_MODE" = "y" ]; then
+        ARCHIVED_COM_FILE=$(echo "$COM_OUTPUT" | grep "^ARCHIVED_FILE_PATH=" | tail -1 | cut -d'=' -f2)
+        if [ -n "$ARCHIVED_COM_FILE" ] && [ -n "$ARCHIVE_OUTPUT_FILE" ]; then
+            echo "ARCHIVED_COM_FILE=${ARCHIVED_COM_FILE}" >> "$ARCHIVE_OUTPUT_FILE"
+        fi
     fi
 
     echo -e "=== install_dx_com() ${TAG_DONE} ==="
@@ -349,11 +367,24 @@ install_dx_tron() {
     # Pass all relevant args to install_module.sh
     INSTALL_TRON_CMD="$PROJECT_ROOT/scripts/install_module.sh --module_name=dx_tron --version=$TRON_VERSION --download_url=$TRON_DOWNLOAD_URL $ARCHIVE_MODE_ARGS $FORCE_ARGS $VERBOSE_ARGS"
     print_colored "Executing: $INSTALL_TRON_CMD" "DEBUG" # Debug line
-    $INSTALL_TRON_CMD
-    if [ $? -ne 0 ]; then
+    # Use direct execution to properly pass environment variables with real-time output
+    TRON_OUTPUT_FILE=$(mktemp)
+    eval "$INSTALL_TRON_CMD" 2>&1 | tee "$TRON_OUTPUT_FILE"
+    TRON_INSTALL_EXIT_CODE=${PIPESTATUS[0]}
+    TRON_OUTPUT=$(cat "$TRON_OUTPUT_FILE")
+    rm -f "$TRON_OUTPUT_FILE"
+    if [ $TRON_INSTALL_EXIT_CODE -ne 0 ]; then
         print_colored "Installing dx-tron failed!" "ERROR"
         popd >&2
         exit 1
+    fi
+    
+    # Extract archived file path from output if in archive mode
+    if [ "$ARCHIVE_MODE" = "y" ]; then
+        ARCHIVED_TRON_FILE=$(echo "$TRON_OUTPUT" | grep "^ARCHIVED_FILE_PATH=" | tail -1 | cut -d'=' -f2)
+        if [ -n "$ARCHIVED_TRON_FILE" ] && [ -n "$ARCHIVE_OUTPUT_FILE" ]; then
+            echo "ARCHIVED_TRON_FILE=${ARCHIVED_TRON_FILE}" >> "$ARCHIVE_OUTPUT_FILE"
+        fi
     fi
 
     echo -e "=== install_dx_tron() ${TAG_DONE} ==="
@@ -449,6 +480,17 @@ while [[ $# -gt 0 ]]; do
         --verbose)
             ENABLE_DEBUG_LOGS=1
             VERBOSE_ARGS="--verbose"
+            ;;
+        --force)
+            FORCE_ARGS="--force"
+            ;;
+        --force=*)
+            FORCE_VALUE="${1#*=}"
+            if [ "$FORCE_VALUE" = "false" ]; then
+                FORCE_ARGS=""
+            else
+                FORCE_ARGS="--force"
+            fi
             ;;
         --help)
             show_help
