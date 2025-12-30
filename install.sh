@@ -15,6 +15,7 @@ PROJECT_NAME="dx-compiler"
 CLI_USERNAME=""
 CLI_PASSWORD=""
 ARCHIVE_MODE="n"
+LEGACY_MODE="n"
 FORCE_ARGS="--force"
 VERBOSE_ARGS=""
 ENABLE_DEBUG_LOGS=0   # New flag for debug logging
@@ -27,6 +28,9 @@ VENV_SYSTEM_SITE_PACKAGES_ARGS=""
 # Global variables for script configuration
 PYTHON_VERSION=""
 MIN_PY_VERSION="3.8.0"
+# Python version compatibility settings
+# Supported Python versions list (space-separated)
+SUPPORTED_PYTHON_VERSIONS="3.8 3.9 3.10 3.11 3.12"
 # VENV_PATH and VENV_SYMLINK_TARGET_PATH will be set dynamically in install_python_and_venv()
 VENV_PATH=""
 VENV_SYMLINK_TARGET_PATH=""
@@ -35,6 +39,9 @@ VENV_PATH_OVERRIDE=""
 VENV_SYMLINK_TARGET_PATH_OVERRIDE=""
 # Target package for installation
 TARGET_PKG="all"
+# Installation status flags
+DX_COM_INSTALLED=0
+DX_TRON_INSTALLED=0
 
 # Properties file path
 VERSION_FILE="$PROJECT_ROOT/compiler.properties"
@@ -57,9 +64,14 @@ show_help() {
     echo -e "  ${COLOR_GREEN}[--target=<module_name>]${COLOR_RESET}              Install specific module (dx_com | dx_tron | all) (default: all)"
     echo -e "  ${COLOR_GREEN}[--username=<user>]${COLOR_RESET}                   Your DEEPX Portal username/email."
     echo -e "  ${COLOR_GREEN}[--password=<pass>]${COLOR_RESET}                   Your DEEPX Portal password."
+    echo -e "                                            ${COLOR_YELLOW}Note: If password contains special characters like '!' or '$',"
+    echo -e "                                            use single quotes: --password='pass!word'${COLOR_RESET}"
     echo -e "  ${COLOR_GREEN}[--archive_mode=<y|n>]${COLOR_RESET}                Set archive mode (default: n)."
+    echo -e "  ${COLOR_GREEN}[--legacy]${COLOR_RESET}                            Use legacy mode: downloads executable files and extracts them."
+    echo -e "                                            (default: No(wheel mode) - downloads Python packages, extracts and installs to venv)"
     echo -e ""
     echo -e "  ${COLOR_GREEN}[--docker_volume_path=<path>]${COLOR_RESET}         Set Docker volume path (required in container mode)"
+    echo -e "  ${COLOR_GREEN}[--python_version=<version>]${COLOR_RESET}          Specify Python version to install (e.g., 3.11, 3.12)"
     echo -e ""
     echo -e "  ${COLOR_GREEN}[--verbose]${COLOR_RESET}                           Enable verbose (debug) logging."
     echo -e "  ${COLOR_GREEN}[--force=<true|false>]${COLOR_RESET}                Force reinstall modules (dx_com, dx_tron) even if already installed (default: true)"
@@ -70,7 +82,7 @@ show_help() {
     echo -e "  ${COLOR_GREEN}[--venv_symlink_target_path=<dir>]${COLOR_RESET}    Set symlink target path for venv (ex: PROJECT_ROOT/../workspace/venv/${PROJECT_NAME})"
     echo -e ""
     echo -e "Virtual Environment Sub-Options:"
-    echo -e "  ${COLOR_GREEN}  [--system-site-packages]${COLOR_RESET}              Set venv '--system-site-packages' option."    
+    echo -e "  ${COLOR_GREEN}  [--system-site-packages]${COLOR_RESET}              Set venv '--system-site-packages' option."
     echo -e "                                            - This option is applied only when venv is created. If you use '-venv-reuse', it is ignored. "
     echo -e "  ${COLOR_GREEN}  [-f | --venv-force-remove]${COLOR_RESET}            (Default ON) Force remove and recreate virtual environment (venv related only)"
     echo -e "  ${COLOR_GREEN}  [-r | --venv-reuse]${COLOR_RESET}                   (Default OFF) Reuse existing virtual environment at --venv_path if it's valid, skipping creation."
@@ -141,7 +153,7 @@ validate_environment() {
     # Export final credentials as environment variables for child processes
     export DX_USERNAME="$DX_USERNAME_FINAL"
     export DX_PASSWORD="$DX_PASSWORD_FINAL"
-    
+
     # Debug: Verify credentials are exported (without showing password)
     print_colored "DEBUG: DX_USERNAME exported for child processes: ${DX_USERNAME:+SET}" "DEBUG"
     print_colored "DEBUG: DX_PASSWORD exported for child processes: ${DX_PASSWORD:+SET}" "DEBUG"
@@ -180,7 +192,7 @@ install_python_and_venv() {
 
     # Check if running in a container and set appropriate paths
     local CONTAINER_MODE=false
-    
+
     # Check if running in a container
     if check_container_mode; then
         CONTAINER_MODE=true
@@ -208,7 +220,7 @@ install_python_and_venv() {
     else
         print_colored_v2 "INFO" "Auto-detected VENV_PATH: ${VENV_PATH}"
     fi
-    
+
     if [ -n "${VENV_SYMLINK_TARGET_PATH_OVERRIDE}" ]; then
         VENV_SYMLINK_TARGET_PATH="${VENV_SYMLINK_TARGET_PATH_OVERRIDE}"
         print_colored_v2 "INFO" "Using user-specified VENV_SYMLINK_TARGET_PATH: ${VENV_SYMLINK_TARGET_PATH}"
@@ -255,6 +267,95 @@ install_python_and_venv() {
     }
 
     print_colored "[OK] Completed to Install Python and Create Virtual environment." "INFO"
+}
+
+check_python_version_compatibility() {
+    echo -e "=== check_python_version_compatibility() ${TAG_START} ==="
+
+    # Get current Python version
+    local CURRENT_PY_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null)
+
+    if [ -z "$CURRENT_PY_VERSION" ]; then
+        print_colored "ERROR: Failed to detect Python version." "ERROR"
+        popd >&2
+        exit 1
+    fi
+
+    print_colored "Detected Python version: ${CURRENT_PY_VERSION}" "INFO"
+
+    # Check if version is in supported list
+    local IS_COMPATIBLE=1
+    for supported_ver in $SUPPORTED_PYTHON_VERSIONS; do
+        if [ "$CURRENT_PY_VERSION" = "$supported_ver" ]; then
+            IS_COMPATIBLE=0
+            break
+        fi
+    done
+
+    if [ $IS_COMPATIBLE -eq 0 ]; then
+        print_colored "Python version ${CURRENT_PY_VERSION} is compatible. Proceeding..." "INFO"
+        echo -e "=== check_python_version_compatibility() ${TAG_DONE} ==="
+        return 0
+    fi
+
+    # Version is not compatible
+    # Format supported versions list for display
+    local SUPPORTED_VERSIONS=$(echo "$SUPPORTED_PYTHON_VERSIONS" | sed 's/ /, /g')
+
+    echo ""
+    print_colored_v2 "WARNING" "===================================================================="
+    print_colored_v2 "WARNING" "  Python version compatibility check failed!"
+    print_colored_v2 "WARNING" "  Detected Python version: ${CURRENT_PY_VERSION}"
+    print_colored_v2 "WARNING" "  Supported Python versions: ${SUPPORTED_VERSIONS}"
+    print_colored_v2 "WARNING" "===================================================================="
+    echo ""
+
+    # Prompt with timeout
+    print_colored "Do you want to continue and install a compatible Python version? (y/n)" "WARNING"
+    print_colored "(Will abort in 10 seconds if no response)" "WARNING"
+
+    local USER_RESPONSE=""
+    if read -t 10 -r USER_RESPONSE; then
+        if [[ ! "$USER_RESPONSE" =~ ^[Yy]$ ]]; then
+            print_colored "Installation aborted by user." "ERROR"
+            popd >&2
+            exit 1
+        fi
+    else
+        echo ""
+        print_colored "No response received within 10 seconds. Aborting installation." "ERROR"
+        popd >&2
+        exit 1
+    fi
+
+    # Ask for Python version to install
+    echo ""
+    print_colored "Please enter the Python version you want to install (e.g., 3.11, 3.12):" "INFO"
+    print_colored "Supported versions: ${SUPPORTED_VERSIONS}" "INFO"
+
+    local NEW_PY_VERSION=""
+    read -r -p "Python version: " NEW_PY_VERSION
+
+    # Validate input - check if version is in supported list
+    local VERSION_FOUND=0
+    for supported_ver in $SUPPORTED_PYTHON_VERSIONS; do
+        if [ "$NEW_PY_VERSION" = "$supported_ver" ]; then
+            VERSION_FOUND=1
+            break
+        fi
+    done
+
+    if [ $VERSION_FOUND -eq 0 ]; then
+        print_colored "ERROR: Invalid Python version '${NEW_PY_VERSION}'. Supported versions: ${SUPPORTED_VERSIONS}" "ERROR"
+        popd >&2
+        exit 1
+    fi
+
+    # Update PYTHON_VERSION and reinstall Python environment
+    PYTHON_VERSION="$NEW_PY_VERSION"
+    print_colored "Will install Python ${PYTHON_VERSION}..." "INFO"
+
+    echo -e "=== check_python_version_compatibility() ${TAG_DONE} ==="
 }
 
 activate_venv() {
@@ -316,6 +417,51 @@ setup_project() {
     echo -e "=== setup_${PROJECT_NAME}() ${TAG_DONE} ==="
 }
 
+show_installation_complete_message() {
+    # Only show message for non-legacy mode
+    if [ "$LEGACY_MODE" != "y" ]; then
+        # Combined message for all installations
+        local MODULE_NAMES=""
+        local COMMAND_NAMES=""
+
+        if [ $DX_COM_INSTALLED -eq 1 ] && [ $DX_TRON_INSTALLED -eq 1 ]; then
+            MODULE_NAMES="dx_com and dx_tron"
+        elif [ $DX_COM_INSTALLED -eq 1 ]; then
+            MODULE_NAMES="dx_com"
+        elif [ $DX_TRON_INSTALLED -eq 1 ]; then
+            MODULE_NAMES="dx_tron"
+        else
+            return  # Nothing installed
+        fi
+
+        echo ""
+        print_colored_v2 "HINT" "===================================================================="
+        print_colored_v2 "HINT" "  ${MODULE_NAMES} installation completed!"
+        print_colored_v2 "HINT" ""
+
+        if [ $DX_COM_INSTALLED -eq 1 ]; then
+            print_colored_v2 "HINT" "  To use dx_com, activate the virtual environment first:"
+            print_colored_v2 "HINT" "    $ source ${VENV_PATH}/bin/activate"
+            print_colored_v2 "HINT" ""
+            print_colored_v2 "HINT" "  Then you can run dxcom:"
+            print_colored_v2 "HINT" "    $ dxcom -h"
+            print_colored_v2 "HINT" ""
+        fi
+
+        if [ $DX_TRON_INSTALLED -eq 1 ]; then
+            print_colored_v2 "HINT" "  To run dxtron (no virtual environment required):"
+            print_colored_v2 "HINT" "    $ dxtron"
+            print_colored_v2 "HINT" ""
+            print_colored_v2 "HINT" "  Or use the convenience script to start the web server:"
+            print_colored_v2 "HINT" "    $ ./run_dxtron_web.sh --port 8080"
+            print_colored_v2 "HINT" ""
+        fi
+
+        print_colored_v2 "HINT" "===================================================================="
+        echo ""
+    fi
+}
+
 install_dx_com() {
     echo -e "=== install_dx_com() ${TAG_START} ==="
 
@@ -325,10 +471,20 @@ install_dx_com() {
         ARCHIVE_MODE_ARGS="--archive_mode=y" # Pass this to install_module.sh
     fi
 
+    # Select download URL based on legacy mode
+    local SELECTED_COM_URL="$COM_DOWNLOAD_URL"
+    if [ "$LEGACY_MODE" = "y" ]; then
+        print_colored "LEGACY_MODE is ON." "INFO"
+        SELECTED_COM_URL="$COM_DOWNLOAD_LEGACY_URL"
+        print_colored "Using legacy download URL: $SELECTED_COM_URL" "INFO"
+    else
+        print_colored "Using wheel download URL: $SELECTED_COM_URL" "INFO"
+    fi
+
     # Install dx-com
     print_colored "Installing dx-com (Version: $COM_VERSION)..." "INFO"
     # Pass all relevant args to install_module.sh
-    INSTALL_COM_CMD="$PROJECT_ROOT/scripts/install_module.sh --module_name=dx_com --version=$COM_VERSION --download_url=$COM_DOWNLOAD_URL $ARCHIVE_MODE_ARGS $FORCE_ARGS $VERBOSE_ARGS"
+    INSTALL_COM_CMD="$PROJECT_ROOT/scripts/install_module.sh --module_name=dx_com --version=$COM_VERSION --download_url=$SELECTED_COM_URL $ARCHIVE_MODE_ARGS $FORCE_ARGS $VERBOSE_ARGS"
     print_colored "Executing: $INSTALL_COM_CMD" "DEBUG" # Debug line
     # Use direct execution to properly pass environment variables with real-time output
     COM_OUTPUT_FILE=$(mktemp)
@@ -341,7 +497,7 @@ install_dx_com() {
         popd >&2
         exit 1
     fi
-    
+
     # Extract archived file path from output if in archive mode
     if [ "$ARCHIVE_MODE" = "y" ]; then
         ARCHIVED_COM_FILE=$(echo "$COM_OUTPUT" | grep "^ARCHIVED_FILE_PATH=" | tail -1 | cut -d'=' -f2)
@@ -350,7 +506,73 @@ install_dx_com() {
         fi
     fi
 
+    # --- Wheel Installation (Non-legacy mode only, dx_com only) ---
+    if [ "$LEGACY_MODE" != "y" ] && [ "$ARCHIVE_MODE" != "y" ]; then
+        print_colored "INFO: Checking for wheel package installation..." "INFO"
+
+        # Determine the dx_com directory (OUTPUT_DIR equivalent)
+        local DX_COM_DIR="${PROJECT_ROOT}/dx_com"
+
+        # Get current Python version tag (e.g., cp312, cp311)
+        local PYTHON_VERSION_TAG=$(python3 -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')" 2>/dev/null)
+        if [ -z "$PYTHON_VERSION_TAG" ]; then
+            print_colored "ERROR: Failed to detect Python version." "ERROR"
+            popd >&2
+            exit 1
+        fi
+        print_colored "INFO: Detected Python version tag: ${PYTHON_VERSION_TAG}" "INFO"
+
+        # Scan for .whl files matching the current Python version
+        local MATCHING_WHEEL=""
+        local ALL_WHEEL_FILES=()
+
+        # Collect all wheel files
+        for whl_file in "${DX_COM_DIR}"/*.whl; do
+            if [ -e "$whl_file" ]; then
+                ALL_WHEEL_FILES+=("$whl_file")
+                # Check if this wheel matches the current Python version
+                if [[ "$(basename "$whl_file")" == *"-${PYTHON_VERSION_TAG}-"* ]]; then
+                    MATCHING_WHEEL="$whl_file"
+                fi
+            fi
+        done
+
+        # Check if any wheel files exist
+        if [ ${#ALL_WHEEL_FILES[@]} -eq 0 ]; then
+            print_colored "ERROR: No wheel file found in '${DX_COM_DIR}'." "ERROR"
+            popd >&2
+            exit 1
+        fi
+
+        # Check if a matching wheel was found
+        if [ -z "$MATCHING_WHEEL" ]; then
+            print_colored "ERROR: No wheel file compatible with Python ${PYTHON_VERSION_TAG} found in '${DX_COM_DIR}'." "ERROR"
+            print_colored "Available wheel files:" "ERROR"
+            for whl in "${ALL_WHEEL_FILES[@]}"; do
+                print_colored "  - $(basename "$whl")" "ERROR"
+            done
+            print_colored "Please ensure a wheel file for ${PYTHON_VERSION_TAG} is available." "ERROR"
+            popd >&2
+            exit 1
+        fi
+
+        # Install the matching wheel
+        print_colored "INFO: Found compatible wheel file: $(basename "$MATCHING_WHEEL")" "INFO"
+        print_colored "INFO: Installing wheel package with pip..." "INFO"
+
+        if pip3 install "$MATCHING_WHEEL"; then
+            print_colored "INFO: Wheel package installed successfully!" "INFO"
+        else
+            print_colored "ERROR: Failed to install wheel package '$(basename "$MATCHING_WHEEL")'." "ERROR"
+            popd >&2
+            exit 1
+        fi
+    fi
+
     echo -e "=== install_dx_com() ${TAG_DONE} ==="
+
+    # Set installation flag
+    DX_COM_INSTALLED=1
 }
 
 install_dx_tron() {
@@ -378,7 +600,7 @@ install_dx_tron() {
         popd >&2
         exit 1
     fi
-    
+
     # Extract archived file path from output if in archive mode
     if [ "$ARCHIVE_MODE" = "y" ]; then
         ARCHIVED_TRON_FILE=$(echo "$TRON_OUTPUT" | grep "^ARCHIVED_FILE_PATH=" | tail -1 | cut -d'=' -f2)
@@ -388,6 +610,9 @@ install_dx_tron() {
     fi
 
     echo -e "=== install_dx_tron() ${TAG_DONE} ==="
+
+    # Set installation flag
+    DX_TRON_INSTALLED=1
 }
 
 main() {
@@ -414,29 +639,38 @@ main() {
             print_colored "Installing dx-com..." "INFO"
             validate_environment
             install_prerequisites
+            check_python_version_compatibility
             install_python_and_venv
             setup_project
             install_dx_com
             print_colored "[OK] Installing dx-com completed successfully." "INFO"
+
+            show_installation_complete_message
             ;;
         dx_tron)
             print_colored "Installing dx-tron..." "INFO"
             validate_environment
             install_prerequisites
+            check_python_version_compatibility
             install_python_and_venv
             setup_project
             install_dx_tron
             print_colored "[OK] Installing dx-tron completed successfully." "INFO"
+
+            show_installation_complete_message
             ;;
         all)
             print_colored "Installing all compiler modules..." "INFO"
             validate_environment
             install_prerequisites
+            check_python_version_compatibility
             install_python_and_venv
             setup_project
             install_dx_com
             install_dx_tron
             print_colored "[OK] Installing all compiler modules completed successfully." "INFO"
+
+            show_installation_complete_message
             ;;
         *)
             show_help "error" "Invalid target '$TARGET_PKG'. Valid targets are: dx_com, dx_tron, all"
@@ -458,8 +692,14 @@ while [[ $# -gt 0 ]]; do
         --archive_mode=*)
             ARCHIVE_MODE="${1#*=}"
             ;;
+        --legacy)
+            LEGACY_MODE="y"
+            ;;
         --docker_volume_path=*)
             DOCKER_VOLUME_PATH="${1#*=}"
+            ;;
+        --python_version=*)
+            PYTHON_VERSION="${1#*=}"
             ;;
         --venv_path=*)
             VENV_PATH_OVERRIDE="${1#*=}"
