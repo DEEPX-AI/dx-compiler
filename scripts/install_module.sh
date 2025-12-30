@@ -193,7 +193,7 @@ generate_output() {
 
     # --- Step 1: Check if file already exists in FINAL destination (SKIP logic) ---
     # This checks if we can skip downloading and processing altogether.
-    local potential_filename_pattern="${MODULE_NAME}_*v${VERSION}*.tar.gz" # Pattern for expected filename
+    local potential_filename_pattern="*${VERSION}*.tar.gz" # Pattern for expected filename
     local existing_archive_in_final_output_dir="" # Variable to hold path if found
 
     if [ "$ARCHIVE_MODE" = "y" ]; then
@@ -321,7 +321,8 @@ generate_output() {
 
     # --- Step 4: Create symlink from OLD_DOWNLOAD_DIR (scripts/../download) to the archive's current location ---
     mkdir -p "$OLD_DOWNLOAD_DIR" || { print_colored "ERROR: Failed to create old download directory '$OLD_DOWNLOAD_DIR'." "ERROR"; return 1; }
-    local old_download_symlink_path="${OLD_DOWNLOAD_DIR}/${final_module_basename}" # Symlink using the final archive filename
+    local archive_basename="$(basename "$actual_downloaded_file_from_downloader")" # Get actual archive filename with .tar.gz
+    local old_download_symlink_path="${OLD_DOWNLOAD_DIR}/${archive_basename}" # Symlink using the actual archive filename
 
     if [ -L "$old_download_symlink_path" ] || [ -e "$old_download_symlink_path" ]; then
         if [ "$USE_FORCE" -eq 1 ]; then
@@ -421,13 +422,13 @@ create_module_symlink() {
         # Ensure parent directory for symlink exists
         mkdir -p "$(dirname "$final_module_symlink_target_dir")" || { print_colored "ERROR: Failed to create parent directory for symlink '$final_module_symlink_target_dir'." "ERROR"; return 1; }
 
-        # Check if the target for the symlink exists and is not a symlink, then remove it
-        if [ -e "$final_module_symlink_target_dir" ] && [ ! -L "$final_module_symlink_target_dir" ]; then
-            print_colored "Non-symlink entry found at '$final_module_symlink_target_dir'. Removing to create symlink." "WARNING"
-            rm -rf "$final_module_symlink_target_dir"
-        elif [ -L "$final_module_symlink_target_dir" ] && [ ! -e "$final_module_symlink_target_dir" ]; then
-            print_colored "Broken symlink found at '$final_module_symlink_target_dir'. Removing to recreate." "INFO"
+        # Remove any existing entry at the symlink target location to avoid ln creating symlink inside a directory
+        if [ -L "$final_module_symlink_target_dir" ]; then
+            print_colored "Removing existing symlink at '$final_module_symlink_target_dir'." "INFO"
             rm -f "$final_module_symlink_target_dir"
+        elif [ -e "$final_module_symlink_target_dir" ]; then
+            print_colored "Removing existing entry at '$final_module_symlink_target_dir' to create symlink." "WARNING"
+            rm -rf "$final_module_symlink_target_dir"
         fi
 
         # Create symlink (e.g., COMPILER_PATH/MODULE_NAME -> extracted_module_path)

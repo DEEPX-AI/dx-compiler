@@ -4,13 +4,11 @@ echo "Install dependencies..." && \
 UBUNTU_VERSION=$(lsb_release -rs) && \
 echo "*** UBUNTU_VERSION(${UBUNTU_VERSION}) ***" && \
 
-# [Fix 3] Ensure universe repo is enabled BEFORE installing packages
 sudo apt-get update && sudo apt-get install -y software-properties-common && \
 sudo add-apt-repository -y universe && sudo apt-get update && \
 
 # Version-specific packages
 if [ "$UBUNTU_VERSION" = "24.04" ]; then \
-    # [Fix 2] Use libncurses-dev instead of libncurses5-dev for 24.04
     # libfuse2 is safe (needed for AppImages), but 'fuse' package must be avoided
     sudo apt-get install -y --no-install-recommends \
         libgl1-mesa-dev libglib2.0-0 make \
@@ -31,8 +29,6 @@ else \
 fi && \
 
 # Common packages across all versions
-# [Fix 1] REMOVED 'fuse' package to prevent gnome-shell removal on 24.04
-# [Fix 2] REMOVED 'libncurses5-dev/libncursesw5-dev' (moved to version specific blocks)
 sudo apt-get install -y --no-install-recommends \
     libssl-dev \
     wget \

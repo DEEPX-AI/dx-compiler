@@ -12,7 +12,7 @@ source "${COMPILER_PATH}/scripts/common_util.sh"
 print_colored_v2 "WARNING" "DX-TRON is being run with the **'--no-sandbox'** flag because it is inside a Docker container. However, this is **not recommended** for security reasons."
 
 main() {
-    ${TRON_BASE_PATH}/DXTron-*.AppImage --no-sandbox > /dev/null 2>&1
+    ${TRON_BASE_PATH}/dxtron*.AppImage --no-sandbox > /dev/null 2>&1
 }
 
 main
