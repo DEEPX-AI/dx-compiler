@@ -471,14 +471,43 @@ install_dx_com() {
         ARCHIVE_MODE_ARGS="--archive_mode=y" # Pass this to install_module.sh
     fi
 
-    # Select download URL based on legacy mode
+    # Select download URL based on legacy mode and Python version
     local SELECTED_COM_URL="$COM_DOWNLOAD_URL"
     if [ "$LEGACY_MODE" = "y" ]; then
         print_colored "LEGACY_MODE is ON." "INFO"
         SELECTED_COM_URL="$COM_DOWNLOAD_LEGACY_URL"
         print_colored "Using legacy download URL: $SELECTED_COM_URL" "INFO"
     else
-        print_colored "Using wheel download URL: $SELECTED_COM_URL" "INFO"
+        # Detect Python version and select appropriate URL
+        local PYTHON_VERSION_TAG=""
+        if [ -n "$PYTHON_VERSION" ]; then
+            # Use user-specified Python version
+            PYTHON_VERSION_TAG="cp${PYTHON_VERSION//./}"
+            print_colored "Using user-specified Python version: ${PYTHON_VERSION} (${PYTHON_VERSION_TAG})" "INFO"
+        else
+            # Detect current Python version
+            PYTHON_VERSION_TAG=$(python3 -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')" 2>/dev/null)
+            if [ -z "$PYTHON_VERSION_TAG" ]; then
+                print_colored "ERROR: Failed to detect Python version." "ERROR"
+                popd >&2
+                exit 1
+            fi
+            print_colored "Detected Python version tag: ${PYTHON_VERSION_TAG}" "INFO"
+        fi
+
+        # Select URL based on Python version
+        local VERSION_URL_VAR="COM_${PYTHON_VERSION_TAG^^}_DOWNLOAD_URL"
+        local VERSION_SPECIFIC_URL="${!VERSION_URL_VAR}"
+
+        if [ -n "$VERSION_SPECIFIC_URL" ]; then
+            SELECTED_COM_URL="$VERSION_SPECIFIC_URL"
+            print_colored "Using Python ${PYTHON_VERSION_TAG} specific wheel download URL: $SELECTED_COM_URL" "INFO"
+        else
+            print_colored "ERROR: No download URL found for Python ${PYTHON_VERSION_TAG}." "ERROR"
+            print_colored "Please ensure ${VERSION_URL_VAR} is defined in compiler.properties." "ERROR"
+            popd >&2
+            exit 1
+        fi
     fi
 
     # Install dx-com
