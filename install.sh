@@ -159,10 +159,35 @@ validate_environment() {
     print_colored "DEBUG: DX_PASSWORD exported for child processes: ${DX_PASSWORD:+SET}" "DEBUG"
 
     # Usage check for required properties (must exist in compiler.properties)
-    if [ -z "$COM_VERSION" ] || [ -z "$COM_DOWNLOAD_URL" ]; then
-        print_colored "COM_VERSION or COM_DOWNLOAD_URL not defined in '$VERSION_FILE'." "ERROR"
+    # Check COM_VERSION
+    if [ -z "$COM_VERSION" ]; then
+        print_colored "COM_VERSION not defined in '$VERSION_FILE'." "ERROR"
         popd >&2
         exit 1
+    fi
+
+    # Check download URLs based on mode
+    if [ "$LEGACY_MODE" = "y" ]; then
+        # Legacy mode: check COM_DOWNLOAD_LEGACY_URL
+        if [ -z "$COM_DOWNLOAD_LEGACY_URL" ]; then
+            print_colored "COM_DOWNLOAD_LEGACY_URL not defined in '$VERSION_FILE' (required for --legacy mode)." "ERROR"
+            popd >&2
+            exit 1
+        fi
+    else
+        # Wheel mode: check that all COM_CPXX_DOWNLOAD_URLs are defined
+        local MISSING_URLS=""
+        for py_ver in 38 39 310 311 312; do
+            local url_var="COM_CP${py_ver}_DOWNLOAD_URL"
+            if [ -z "${!url_var}" ]; then
+                MISSING_URLS+=" COM_CP${py_ver}_DOWNLOAD_URL"
+            fi
+        done
+        if [ -n "$MISSING_URLS" ]; then
+            print_colored "Missing COM_CPXX_DOWNLOAD_URL(s) in '$VERSION_FILE':${MISSING_URLS}" "ERROR"
+            popd >&2
+            exit 1
+        fi
     fi
 
     if [ -z "$TRON_VERSION" ] || [ -z "$TRON_DOWNLOAD_URL" ]; then
@@ -419,7 +444,7 @@ setup_project() {
 
 show_installation_complete_message() {
     # Only show message for non-legacy mode
-    if [ "$LEGACY_MODE" != "y" ]; then
+    if [ "$LEGACY_MODE" != "y" ] && [ "$ARCHIVE_MODE" != "y" ]; then
         # Combined message for all installations
         local MODULE_NAMES=""
         local COMMAND_NAMES=""
@@ -635,6 +660,44 @@ install_dx_tron() {
         ARCHIVED_TRON_FILE=$(echo "$TRON_OUTPUT" | grep "^ARCHIVED_FILE_PATH=" | tail -1 | cut -d'=' -f2)
         if [ -n "$ARCHIVED_TRON_FILE" ] && [ -n "$ARCHIVE_OUTPUT_FILE" ]; then
             echo "ARCHIVED_TRON_FILE=${ARCHIVED_TRON_FILE}" >> "$ARCHIVE_OUTPUT_FILE"
+        fi
+    fi
+
+    # --- DEB Package Installation (Non-archive mode only) ---
+    if [ "$ARCHIVE_MODE" != "y" ]; then
+        local DX_TRON_DIR="${PROJECT_ROOT}/dx_tron"
+        
+        # Detect architecture and select appropriate deb file
+        local ARCH=$(dpkg --print-architecture 2>/dev/null || uname -m)
+        case "$ARCH" in
+            amd64|x86_64) ARCH="amd64" ;;
+            arm64|aarch64) ARCH="arm64" ;;
+        esac
+        
+        # Use -L to follow symlinks when searching
+        local DEB_FILE=$(find -L "${DX_TRON_DIR}" -name "*_${ARCH}.deb" -print -quit 2>/dev/null)
+        
+        # Fallback to any .deb if architecture-specific not found
+        if [ -z "$DEB_FILE" ]; then
+            DEB_FILE=$(find -L "${DX_TRON_DIR}" -name "*.deb" -print -quit 2>/dev/null)
+        fi
+
+        if [ -n "$DEB_FILE" ] && [ -f "$DEB_FILE" ]; then
+            print_colored "INFO: Found DEB package: $(basename "$DEB_FILE")" "INFO"
+            print_colored "INFO: Installing DX-Tron DEB package..." "INFO"
+
+            # Update apt and install dependencies, then install deb package
+            if sudo apt-get update && sudo apt-get install -y "$DEB_FILE"; then
+                print_colored "INFO: DX-Tron DEB package installed successfully!" "INFO"
+            else
+                print_colored "ERROR: Failed to install DX-Tron DEB package '$(basename "$DEB_FILE")'." "ERROR"
+                popd >&2
+                exit 1
+            fi
+        else
+            print_colored "ERROR: No DEB package found in '${DX_TRON_DIR}'." "ERROR"
+            popd >&2
+            exit 1
         fi
     fi
 
