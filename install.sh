@@ -612,6 +612,21 @@ install_dx_com() {
 
         # Install the matching wheel
         print_colored "INFO: Found compatible wheel file: $(basename "$MATCHING_WHEEL")" "INFO"
+
+        # For Python 3.8, manually install onnxruntime 1.18.0 from direct URL (PyPI doesn't support it)
+        # Note: pip upgrade is required to recognize manylinux_2_27/manylinux_2_28 platform tags
+        if [ "${PYTHON_VERSION_TAG}" = "cp38" ]; then
+            print_colored "INFO: Python 3.8 detected: Upgrading pip and installing onnxruntime 1.18.0 from direct URL..." "INFO"
+            pip3 install --upgrade pip
+            if pip3 install https://files.pythonhosted.org/packages/1b/74/02cb1f6fcbadc094c98c49aff8571e7c576bdb4015c01507c385285b5bed/onnxruntime-1.18.0-cp38-cp38-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl; then
+                print_colored "INFO: onnxruntime 1.18.0 installed successfully for Python 3.8!" "INFO"
+            else
+                print_colored "ERROR: Failed to install onnxruntime 1.18.0 for Python 3.8." "ERROR"
+                popd >&2
+                exit 1
+            fi
+        fi
+
         print_colored "INFO: Installing wheel package with pip..." "INFO"
 
         if pip3 install "$MATCHING_WHEEL"; then
