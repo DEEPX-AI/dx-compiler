@@ -478,7 +478,7 @@ show_installation_complete_message() {
             print_colored_v2 "HINT" "    $ dxtron"
             print_colored_v2 "HINT" ""
             print_colored_v2 "HINT" "  Or use the convenience script to start the web server:"
-            print_colored_v2 "HINT" "    $ ./run_dxtron_web.sh --port 8080"
+            print_colored_v2 "HINT" "    $ ./run_dxtron_web.sh --port=8080"
             print_colored_v2 "HINT" ""
         fi
 
