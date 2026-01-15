@@ -722,28 +722,75 @@ install_dx_tron() {
     DX_TRON_INSTALLED=1
 }
 
-main() {
-    # this function is defined in scripts/common_util.sh
-    # Usage: os_check "supported_os_names" "ubuntu_versions" "debian_versions"
-    os_check "ubuntu" "20.04 22.04 24.04" || {
-        print_colored_v2 "ERROR" "This installer supports only Ubuntu 20.04, 22.04, and 24.04."
-        print_colored_v2 "HINT" "For other OS versions, please refer to the manual installation guide at https://github.com/DEEPX-AI/dx-compiler/blob/main/source/docs/02_01_System_Requirements_of_DX-COM.md"
+os_arch_check() {
+    local target=$1
+    local print_message_mode=$2
+
+    local os_names=""
+    local ubuntu_versions=""
+    local debian_versions=""
+    local supported_arch_names=""
+    local os_check_error_message=""
+    local arch_check_error_message=""
+
+    local os_check_hint_message="For other OS versions, please refer to the manual installation guide at https://github.com/DEEPX-AI/dx-compiler/blob/main/source/docs/02_01_System_Requirements_of_DX-COM.md"
+    local arch_check_hint_message="For other architectures, please refer to the manual installation guide at https://github.com/DEEPX-AI/dx-compiler/blob/main/source/docs/02_01_System_Requirements_of_DX-COM.md"
+
+    if [ "$target" == "dx_com" ]; then
+        os_names="ubuntu"
+        ubuntu_versions="20.04 22.04 24.04"
+        debian_versions=""
+        supported_arch_names="amd64 x86_64"
+
+        os_check_error_message="This installer supports only Ubuntu 20.04, 22.04, and 24.04."
+        arch_check_error_message="This installer supports only x86_64/amd64 architecture."
+    elif [ "$target" == "dx_tron" ]; then
+        os_names="ubuntu debian"
+        ubuntu_versions="20.04 22.04 24.04"
+        debian_versions="11 12 13"
+        supported_arch_names="amd64 x86_64 arm64 aarch64 armv7l"
+
+        os_check_error_message="This installer supports only Ubuntu 20.04, 22.04, and 24.04 / Debian 11 12 and 13."
+        arch_check_error_message="This installer supports only x86_64/amd64 and arm64/aarch64/armv7l architecture."
+    else
+        print_colored_v2 "ERROR" "$1 is not supported target."
         popd >&2
         exit 1
+    fi
+    
+    # this function is defined in scripts/common_util.sh
+    # Usage: os_check "supported_os_names" "ubuntu_versions" "debian_versions"
+    os_check "$os_names" "$ubuntu_versions" "$debian_versions" || {
+        if [ "$print_message_mode" == "silent" ] ; then
+            return 1
+        else
+            print_colored_v2 "ERROR" "$os_check_error_message"
+            print_colored_v2 "HINT" "$os_check_hint_message"
+            return 1
+        fi
     }
 
     # this function is defined in scripts/common_util.sh
     # Usage: arch_check "supported_arch_names"
-    arch_check "amd64 x86_64" || {
-        print_colored_v2 "ERROR" "This installer supports only x86_64/amd64 architecture."
-        print_colored_v2 "HINT" "For other architectures, please refer to the manual installation guide at https://github.com/DEEPX-AI/dx-compiler/blob/main/source/docs/02_01_System_Requirements_of_DX-COM.md"
-        popd >&2
-        exit 1
+    arch_check "$supported_arch_names" || {
+        if [ "$print_message_mode" == "silent" ] ; then
+            return 1
+        else
+            print_colored_v2 "ERROR" "$arch_check_error_message"
+            print_colored_v2 "HINT" "$arch_check_hint_message"
+            return 1
+        fi
     }
+}
 
+main() {
     case $TARGET_PKG in
         dx_com)
             print_colored "Installing dx-com..." "INFO"
+            os_arch_check "dx_com" || {
+                popd >&2
+                exit 1
+            }
             validate_environment
             install_prerequisites
             check_python_version_compatibility
@@ -751,11 +798,14 @@ main() {
             setup_project
             install_dx_com
             print_colored "[OK] Installing dx-com completed successfully." "INFO"
-
             show_installation_complete_message
             ;;
         dx_tron)
             print_colored "Installing dx-tron..." "INFO"
+            os_arch_check "dx_tron" || {
+                popd >&2
+                exit 1
+            }
             validate_environment
             install_prerequisites
             check_python_version_compatibility
@@ -768,13 +818,25 @@ main() {
             ;;
         all)
             print_colored "Installing all compiler modules..." "INFO"
+            
             validate_environment
             install_prerequisites
             check_python_version_compatibility
             install_python_and_venv
             setup_project
-            install_dx_com
-            install_dx_tron
+            
+            os_arch_check "dx_tron" "silent" && {
+                install_dx_tron
+            } || {
+                print_colored_v2 "SKIP" "dx-tron is not supported on this OS/Architecture. Skipping dx-tron installation."
+            }
+            
+            os_arch_check "dx_com" "silent" && {
+                install_dx_com    
+            } || {
+                print_colored_v2 "SKIP" "dx-com is not supported on this OS/Architecture. Skipping dx-com installation."
+            }
+            
             print_colored "[OK] Installing all compiler modules completed successfully." "INFO"
 
             show_installation_complete_message
