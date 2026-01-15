@@ -1,23 +1,25 @@
-This chapter describes the ONNX operations currently supported by DX-COM. When you build or export models to ONNX format, you **must** use only the supported operations to ensure successful compilation and optimal performance on our NPU.
+# Supported ONNX Operators
+
+This chapter describes the ONNX operations currently supported by DX-COM. When you build or export models to ONNX format, you **must** use only the supported operations to ensure successful compilation and optimal performance on our NPU.  
 
 ---
 
-## Supported ONNX Operations
+## Operator Support Details
 
-The following ONNX operators are supported by the compiler.
+The following ONNX operators are supported by the compiler.  
 
 ### Common Conditions (Applicable to All Operation Types)
 
-**Tensor Shape Limitations**
+**Tensor Shape Limitations**  
 
-* **Width, height:** < 8,192
-* **Channels:** < 32,768
-* Dynamic shapes are not supported.
+- **Width, height:** < 8,192  
+- **Channels:** < 32,768  
+- Dynamic shapes are not supported.  
 
-**Broadcasting Restrictions**
+**Broadcasting Restrictions**  
 
-* In element-wise operations like Add, Div, Mul, and Sub, **channel-wise broadcasting** is not supported when the channel dimension size is greater than **1**.
-* **Example:** A tensor with shape 1x24x24x1 (NHWC) cannot be broadcast to shape 1x24x24x32.
+- In element-wise operations like Add, Div, Mul, and Sub, **channel-wise broadcasting** is not supported when the channel dimension size is greater than **1**.  
+- **Example:** A tensor with shape 1x24x24x1 (NHWC) cannot be broadcast to shape 1x24x24x32.  
 
 ---
 
@@ -61,17 +63,6 @@ The following ONNX operators are supported by the compiler.
 
 ---
 
-### Deprecated Operations
-
-The following operations are deprecated in ONNX and maintained here only for backward compatibility. Their usage is discouraged in new models and may be removed in future versions.  
-Please use alternative operators where possible.
-
-| **Operator** | **Supported Conditions** |
-| :--- | :--- |
-| Upsample | Only supported when scale values in the N and C dimensions are 1 |
-
----
-
 ### Activation Functions
 
 | **Operator** | **Supported Conditions** |
@@ -87,7 +78,18 @@ Please use alternative operators where possible.
 | Softplus | No restrictions |
 | Tanh | No restrictions |
 
+---
+
+### Deprecated Operations
+
+The following operations are deprecated in ONNX and maintained here only for backward compatibility. Their usage is discouraged in new models and may be removed in future versions.  
+Please use alternative operators where possible.  
+
+| **Operator** | **Supported Conditions** |
+| :--- | :--- |
+| Upsample | Only supported when scale values in the N and C dimensions are 1 |
+
 !!! note "NOTE"  
-    The operator support may vary depending on how operations are combined within a model. This document is intended as a general guideline. For validation of specific use cases, please contact our technical support team.  
+    The operator support may vary depending on how operations are combined within a model. This document is intended as a general guideline. For validation of specific use cases, please contact our technical support team.
 
 ---

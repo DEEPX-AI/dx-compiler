@@ -31,14 +31,10 @@ theme:
      - content.code.annotate
      - navigation.tabs
      - navigation.tabs.sticky
-     - navigation.top
-     - navigation.tracking
-     - navigation.sections
      - content.tabs.link
      - content.code.copy
-     - search.highlight
-     - search.suggest
 nav:
+  - Quick Start Guide : docs/00_Quick_Start.md
   - DXNN SDK Overview: docs/01_DXNN_Compiler_Overview.md
   - Installation and Configuration:
       - System Requirements of DX-COM: docs/02_01_System_Requirements_of_DX-COM.md
@@ -47,6 +43,7 @@ nav:
       - ONNX File Configuration: docs/02_04_ONNX_File_Configuration.md
       - JSON File Configuration: docs/02_05_JSON_File_Configuration.md
       - Execution of DX-COM: docs/02_06_Execution_of_DX-COM.md
+      - Common Use Cases: docs/02_07_Common_Use_Cases.md
   - Building Models: docs/03_Building_Models.md
   - Development Tools:
       - Model Viewer_DX-TRON: docs/04_01_Model_Viewer_DX-TRON.md
@@ -54,16 +51,15 @@ nav:
 
 plugins:
   - search
-  - with-pdf:
+  - to-pdf:
       author: DEEPX.ai
-      copyright: ⓒ Copyright 2025 DEEPX All Rights Reserved.
+      copyright: ⓒ Copyright 2026 DEEPX All Rights Reserved.
       cover_title: DXNN Compiler (DX-COM) User Manual
-      cover_subtitle: Version 2.1.0 (Nov 2025)
+      cover_subtitle: January 2026 - Version 2.2.0
       cover_logo: img/deepx.png
       custom_template_path: docs/stylesheets
-      output_path: ../DEEPX_DX-COM_UM_v2.1.0_Nov_2025.pdf
+      output_path: ../DEEPX_DX-COM_UM_v2.2.0_Jan_2026.pdf
 extra:
-  homepage: https://developer.deepx.ai
   generator: false
   social:
      - icon: fontawesome/brands/linkedin
@@ -83,7 +79,6 @@ markdown_extensions:
   - toc:
         permalink: "true"
         baselevel: 1
-        separator: ">_"
         toc_depth: 3
   - pymdownx.critic
   - pymdownx.caret
@@ -105,4 +100,4 @@ extra_javascript:
   - javascripts/mathjax.js
   - https://polyfill.io/v3/polyfill.min.js?features=es6
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
-copyright: ⓒ Copyright 2025 <a href="http://deepx.ai">DEEPX</a>. All Rights Reserved.
+copyright: ⓒ Copyright 2026 <a href="http://deepx.ai">DEEPX</a>. All Rights Reserved.

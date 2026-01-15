@@ -1,23 +1,24 @@
 ## Overview
 
-**DX-TRON** is a graphical visualization tool for exploring .dxnn model files compiled with the DEEPX toolchain. 
-It allows users to load and inspect model structures, view workload distribution between NPU and CPU through color-coded graphs. With **DX-TRON**, users can better understand model execution flow and improve overall performance.
+**DX-TRON** is a graphical visualization tool for exploring .dxnn model files compiled with the DEEPX toolchain.  
+It allows users to load and inspect model structures, view workload distribution between NPU and CPU through color-coded graphs. With **DX-TRON**, users can better understand model execution flow and improve overall performance.  
 
 **Key Features**
 
-- **Support for .dxnn Files**  
-  Load and visualize model files compiled with the DEEPX toolchain.
+- **Support for .dxnn Files**: Load and visualize model files compiled with the DEEPX toolchain.  
 
-- **Visual Workload Representation**  
-  Displays a color-coded breakdown of workload execution:  
+- **Visual Workload Representation**: Displays a color-coded breakdown of workload execution:  
     - Red: Operations executed on the NPU  
-    - Blue: Operations executed on the CPU or host  
+    - Purple: Operations executed on the CPU or host  
 
-- **Model Navigation Controls**  
-  Use the backward arrow in the bottom-left corner to return to the model overview screen at any time.
+- **Interactive Node Inspection** : Double-click any node within the graph to view detailed information about the associated operations.  
 
-- **Interactive Node Inspection**  
-  Double-click any node within the graph to view detailed information about the associated operations.  
+![Figure. DX-TRON Interactive Node Details](../resources/04_02_DX-TRON_Interactive_Node_Details.png){ width=500px }
+
+
+- **Model Navigation Controls**: Use the backward arrow in the bottom-left corner to return to the model overview screen at any time.  
+
+![Figure. DX-TRON Navigation Controls](../resources/04_02_DX-TRON_Navigation_Controls.png){ width=600px }
 
 ---
 
@@ -48,11 +49,12 @@ Execute the AppImage.
 ./DXTron-x.y.z.AppImage
 ```
 
-![Figure. DX-Tron GUI Window](../resources/dx-tron_GUI_window.png){ width=600px }
+![Figure. DX-Tron GUI Window](../resources/dx-tron_GUI_window.png){ width=500px }
 
 Once launched, a GUI window will appear, enabling DXNN model visualization. 
 
->**WARNING.** Running DX-TRON with `sudo` may require the `--no-sandbox` flag, but this is **not recommended** for security reasons.
+!!! warning "Warning"  
+    Running DX-TRON with `sudo` may require the `--no-sandbox` flag, but this is **not recommended** for security reasons.  
 
 ---
 

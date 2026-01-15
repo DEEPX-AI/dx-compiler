@@ -51,7 +51,7 @@ For detailed instructions on how to run DX-Compiler, please refer to the link be
 To install the necessary Python packages, run the following command:
 
 ```bash
-pip install mkdocs mkdocs-material mkdocs-video pymdown-extensions mkdocs-with-pdf 
+pip install mkdocs mkdocs-material mkdocs-video pymdown-extensions mkdocs-to-pdf 
 ```
 
 ### Generate Documentation (HTML and PDF)

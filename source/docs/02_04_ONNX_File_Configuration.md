@@ -1,6 +1,6 @@
 This section describes how to convert a PyTorch model to the ONNX format using the `torch.onnx.export()` function.  
 
-**pytorch to ONNX Conversion Example**  
+**PyTorch to ONNX Conversion Example**  
 You can export a PyTorch model to ONNX format as follows.  
 
 Example  

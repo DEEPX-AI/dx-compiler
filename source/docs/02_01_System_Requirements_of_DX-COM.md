@@ -7,7 +7,7 @@ This section describes the hardware and software requirements for running **DX-C
 - **RAM:** ≥ 16 GB  
 - **Storage:** ≥ 8 GB available disk space  
 - **OS:** Ubuntu 20.04 / 22.04 / 24.04 (x64)  
-     NOTE.Ubuntu 18.04 OS is **NOT** supported.  
+     NOTE. Ubuntu 18.04 OS is **NOT** supported.  
 - **LDD:** ≥ 2.28  
 
 !!! note "NOTE"  

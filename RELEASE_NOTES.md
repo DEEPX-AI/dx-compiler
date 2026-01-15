@@ -1,6 +1,66 @@
 
 # RELEASE_NOTES
 
+## DX-Compiler v2.2.0 / 2025-12-24
+
+-   DX-COM: v2.2.0
+-   DX-TRON: v2.0.1
+
+----------
+
+Here are the **DX-Compiler v2.2.0** Release Notes.
+
+### DX-COM (v2.2.0)
+
+### 1. Changed
+
+-   None
+
+### 2. Fixed
+
+-   Resolved accuracy degradation issue in the `DeepLabV3PlusMobilenet-1` model from DX ModelZoo.
+
+### 3. Added
+
+-   **New Installation Option: Python Wheel Package**
+    - Install DX-COM via `pip` for Python projects (Python 3.8, 3.9, 3.10, 3.11, 3.12)
+    - Use `dx_com.compile()` API directly in your Python code
+    - No JSON configuration file needed (optional) - use torch DataLoader instead
+    - Perfect for: automated workflows, Jupyter notebooks, integration with existing ML pipelines
+    
+-   **Multi-Input Model Support** (via Python API)
+    - Compile models with multiple inputs (e.g., stereo vision, dual-stream models)
+    - Use torch DataLoader to provide data for each input independently
+    
+-   **Extended PPU Support**
+    - YOLOv8, YOLOv9, YOLOv10, YOLOv11, YOLOv12 now compatible with hardware-accelerated post-processing
+    - In addition to previously supported YOLOv3, YOLOv4, YOLOv5, YOLOv7
+
+### 4. Known Issues
+
+-   Significant FPS degradation has been observed in models using PReLU as an activation function.
+
+### DX-TRON (v2.0.1)
+
+### 1. Changed
+
+-   None
+
+### 2. Fixed
+
+-   None
+
+### 3. Added
+
+-   **New Installation Method: Debian Package (DEB)**
+    - Install via `.deb` package on Ubuntu 20.04, 22.04, and 24.04 (supports amd64, arm64)
+    
+-   **Local Web Server Support**: Run DX-TRON locally to view compiled models in your browser.
+    
+-   Added support for Ubuntu 24.04.
+
+----------
+
 ## DX-Compiler v2.1.0 / 2025-11-24
 
 -   DX-COM: v2.1.0    
@@ -38,6 +98,8 @@ Here are the **DX-Compiler v2.1.0** Release Notes.
     -   `--compile_input_nodes` / `--compile_output_nodes`: Support for Partial Compilation.
         
 -   Added support for `Gather` operator.
+
+-   Reintroduced the DXQ enhanced quantization option (`enhanced_scheme`, DXQ-P0 to DXQ-P5), previously removed in DX-COM v2.0.0.
     
 -   Reinstated PPU (Post-Processing Unit) support.
     
@@ -68,7 +130,7 @@ Here are the **DX-Compiler v2.0.0** Release Note for each module.
 
 -   Compatibility with DX-RT versions earlier than v3.0.0 is not guaranteed.
     
--   The `DXQ` option has been removed and will be reintroduced in a future release.
+-   Removed the DXQ enhanced quantization option (`enhanced_scheme`) in DX-COM v2.0.0 (reintroduced in DX-COM v2.1.0).
     
 -   `PPU(Post-Processing Unit)` is no longer supported, and there are no current plans to reinstate it.
     
