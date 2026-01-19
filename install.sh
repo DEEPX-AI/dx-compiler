@@ -792,11 +792,13 @@ main() {
                 exit 1
             }
             validate_environment
-            install_prerequisites
             check_python_version_compatibility
             install_python_and_venv
             setup_project
+
+            install_prerequisites
             install_dx_com
+
             print_colored "[OK] Installing dx-com completed successfully." "INFO"
             show_installation_complete_message
             ;;
@@ -807,20 +809,19 @@ main() {
                 exit 1
             }
             validate_environment
-            install_prerequisites
             check_python_version_compatibility
             install_python_and_venv
             setup_project
+
             install_dx_tron
+
             print_colored "[OK] Installing dx-tron completed successfully." "INFO"
 
             show_installation_complete_message
             ;;
         all)
             print_colored "Installing all compiler modules..." "INFO"
-            
             validate_environment
-            install_prerequisites
             check_python_version_compatibility
             install_python_and_venv
             setup_project
@@ -832,6 +833,7 @@ main() {
             }
             
             os_arch_check "dx_com" "silent" && {
+                install_prerequisites
                 install_dx_com    
             } || {
                 print_colored_v2 "SKIP" "dx-com is not supported on this OS/Architecture. Skipping dx-com installation."
