@@ -809,7 +809,6 @@ main() {
                 exit 1
             }
             validate_environment
-            check_python_version_compatibility
             install_python_and_venv
             setup_project
 
@@ -822,22 +821,32 @@ main() {
         all)
             print_colored "Installing all compiler modules..." "INFO"
             validate_environment
-            check_python_version_compatibility
+
+            # Check if dx_com will be installed (has stricter Python version requirements)
+            local WILL_INSTALL_DX_COM=0
+            os_arch_check "dx_com" "silent" && WILL_INSTALL_DX_COM=1
+
+            # If dx_com will be installed, check Python version compatibility first
+            # This ensures venv is created with a compatible Python version for both modules
+            if [ $WILL_INSTALL_DX_COM -eq 1 ]; then
+                check_python_version_compatibility
+            fi
+
             install_python_and_venv
             setup_project
-            
+
             os_arch_check "dx_tron" "silent" && {
                 install_dx_tron
             } || {
                 print_colored_v2 "SKIP" "dx-tron is not supported on this OS/Architecture. Skipping dx-tron installation."
             }
-            
-            os_arch_check "dx_com" "silent" && {
+
+            if [ $WILL_INSTALL_DX_COM -eq 1 ]; then
                 install_prerequisites
                 install_dx_com    
-            } || {
+            else
                 print_colored_v2 "SKIP" "dx-com is not supported on this OS/Architecture. Skipping dx-com installation."
-            }
+            fi
             
             print_colored "[OK] Installing all compiler modules completed successfully." "INFO"
 
