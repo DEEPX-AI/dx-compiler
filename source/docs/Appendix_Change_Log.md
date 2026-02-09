@@ -1,3 +1,26 @@
+## v2.2.1 (February 2026)
+
+DX-Compiler Version
+
+- dx_com : 2.2.1  
+- dx_tron : 2.0.1
+
+#### Changed
+
+- None
+
+#### Fixed
+
+- **DXQ Quantization**: Fixed DXQ enhanced quantization option bugs.
+- **Python Wheel Package**: Fixed PPU compilation bug for Python 3.8, 3.9, and 3.10.
+- **Input Validation**: Fixed an issue where compilation proceeded without error when invalid model input names were specified.
+
+#### Added
+
+- None
+
+---
+
 ## v2.2.0 (December 2025)
 
 DX-Compiler Version
