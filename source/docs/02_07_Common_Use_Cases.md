@@ -314,33 +314,50 @@ dx_com.compile(
 
 ---
 
-## Use Case 5: GPU-Accelerated Quantization
+## Use Case 5: Enhanced Quantization (DXQ)
 
-**Scenario**: Reducing compilation time for large-scale models or when utilizing compute-intensive quantization algorithms (DXQ-P3, P4, or P5).  
+**Scenario**: Improving quantization accuracy for models where standard quantization causes unacceptable accuracy degradation.  
 
-!!! note "Python API Only"
-    GPU-accelerated quantization (`quantization_device="cuda"`) is **only available via Python API**. CLI always uses CPU.
+!!! note "Version Support"
+    DXQ (`enhanced_scheme`) is supported in **DX-COM v2.1.0 and later**.
 
-### Basic GPU Quantization
+- **Option A: CLI Method** – Set `enhanced_scheme` in the JSON config file.  
+- **Option B: Python API Method** – Pass `enhanced_scheme` as a parameter directly.  
 
-```python
-import dx_com
+### Option A: CLI Method
 
-dx_com.compile(
-    model="large_model.onnx",
-    output_dir="output/large_model",
-    config="config.json",
-    quantization_device="cuda:0",  # Use GPU 0
-    opt_level=1,
-    calibration_num=100
-)
+**Configuration File** (`config.json`):
+```json
+{
+  "inputs": {
+    "input": [1, 3, 224, 224]
+  },
+  "calibration_method": "ema",
+  "calibration_num": 100,
+  "enhanced_scheme": {
+    "DXQ-P3": {"num_samples": 1024}
+  },
+  "default_loader": {
+    "dataset_path": "./calibration_images",
+    "file_extensions": ["jpeg", "jpg", "png"],
+    "preprocessings": [
+      {"resize": {"width": 224, "height": 224}},
+      {"normalize": {"mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]}}
+    ]
+  }
+}
 ```
 
-### GPU with Enhanced Quantization (DXQ)
+**Command**:
+```bash
+dxcom \
+  -m large_model.onnx \
+  -c config.json \
+  -o output/large_model_dxq \
+  --opt_level 1
+```
 
-DXQ (`enhanced_scheme`) is supported in **DX-COM v2.1.0 and later**.
-
-For improved accuracy with GPU acceleration:
+### Option B: Python API Method
 
 ```python
 import dx_com
@@ -349,7 +366,6 @@ dx_com.compile(
     model="large_model.onnx",
     output_dir="output/large_model_dxq",
     config="config.json",
-    quantization_device="cuda:0",  # GPU acceleration
     enhanced_scheme={
         "DXQ-P3": {"num_samples": 1024}
     },
@@ -358,12 +374,9 @@ dx_com.compile(
 )
 ```
 
-**Hardware Requirements**:  
+!!! note "GPU Device Selection"
+    By default, DX-COM automatically uses GPU if available. In multi-GPU environments, you can specify a device via `quantization_device` in the JSON config or Python API parameter (e.g., `"cuda:1"`). See [Quantization Device](02_05_JSON_File_Configuration.md#optional-parameters-quantization-device) for details.
 
-- GPU: NVIDIA GPU with CUDA support  
-- LibraryPyTorch built with CUDA support  
-- Verification: `python -c "import torch; print(torch.cuda.is_available())"`  
-
-**Quantization Speedup**: 2x – 5x faster compared to CPU-only execution.    
+For all available DXQ schemes (DXQ-P0 to DXQ-P5) and their parameters, see [Enhanced Quantization Scheme (DXQ)](02_05_JSON_File_Configuration.md#optional-parameters-enhanced-quantization-scheme-dxq).
 
 ---
