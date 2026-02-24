@@ -1,7 +1,7 @@
 
 # RELEASE_NOTES
 
-## DX-Compiler v2.2.1 / 2026-02-06
+## DX-Compiler v2.2.1 / 2026-02-11
 
 -   DX-COM: v2.2.1
 -   DX-TRON: v2.0.1
@@ -24,7 +24,8 @@ Here are the **DX-Compiler v2.2.1** Release Notes.
 
 ### 3. Added
 
--   None
+-   **GPU Quantization (JSON Config)**: Added `quantization_device` support in JSON configuration file, enabling GPU-accelerated quantization via CLI (`dxcom`) in addition to the Python API. Available only with the Python wheel package installation.
+-   **GPU Auto-Detection**: When `quantization_device` is not specified, DX-COM now automatically uses GPU if a CUDA-compatible GPU is available, otherwise falls back to CPU.
 
 ### 4. Known Issues
 

@@ -17,7 +17,8 @@ DX-Compiler Version
 
 #### Added
 
-- None
+- **GPU Quantization (JSON Config)**: Added `quantization_device` support in JSON configuration file, enabling GPU-accelerated quantization via CLI (`dxcom`) in addition to the Python API. Available only with the Python wheel package installation.
+- **GPU Auto-Detection**: When `quantization_device` is not specified, DX-COM now automatically uses GPU if a CUDA-compatible GPU is available, otherwise falls back to CPU.
 
 ---
 
