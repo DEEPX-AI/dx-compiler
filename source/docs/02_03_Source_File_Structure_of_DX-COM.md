@@ -32,7 +32,7 @@ If the calibration dataset does not reflect the training or field data, it may s
 This directory contains executable files and shared libraries used to generate NPU command sets from ONNX models. It includes the core compiler logic and third-party dependencies such as OpenCV, NumPy, and Protobuf.  
 
 **dx_com-*.whl** (Python Wheel distribution)  
-This Python wheel package contains the compiled `dx_com` module for programmatic use. After extraction, install it using `pip install dx_com-*.whl` to use the Python API. Refer to [Installation of DX-COM](02_02_Installation_of_DX-COM.md#option-2-python-wheel-package) for installation instructions.  
+This Python wheel package contains the compiled `dx_com` module for programmatic use. Install it using `pip install dx_com-*.whl` to use the Python API. Refer to [Installation of DX-COM](02_02_Installation_of_DX-COM.md#option-2-python-wheel-package) for installation instructions.  
 
 **sample**  
 This folder provides example files to demonstrate how to compile an ONNX model using **DX-COM**.  

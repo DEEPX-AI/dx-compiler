@@ -49,13 +49,7 @@ For detailed information on command-line usage, refer to the [CLI Execution](02_
 
 **Installation**  
 
-After downloading the wheel package file, extract it using the following command:
-
-```bash
-tar xfz dx_com_M1_vx.x.x_wheel.tar.gz
-```
-
-Then install the wheel file matching your Python version using pip:  
+Download the wheel file matching your Python version and install it using pip:  
 
 ```bash
 pip install dx_com-2.2.0-cp<VERSION>-cp<VERSION>-linux_x86_64.whl

@@ -164,13 +164,20 @@ This command prints the compiler module version and exits.
 ./dx_com/dx_com --version
 ```
 
-**Compile Sample Model with Makefile**  
-If a Makefile is provided in the project, sample models can often be compiled directly:  
-```
-make MobileNetV1-1
+**Compile Sample Models (Script)**  
+Sample models and calibration data are automatically downloaded to `dx_com/` after running `install.sh`.  
+Use the provided script to compile all sample models at once:  
+```bash
+./example/3-compile_sample_models.sh
 ```
 
-This command typically compiles the `./sample/MobileNetV1-1.onnx` file and generates the output in the `./sample/MobileNetV1-1.dxnn` path.  
+This script compiles `YOLOV5S-1`, `YOLOV5S_Face-1`, and `MobileNetV2-1` from `dx_com/sample_models/` and saves `.dxnn` outputs to `dx_com/output/`.  
+
+If sample data was not downloaded automatically, run these first:  
+```bash
+./example/1-download_sample_models.sh
+./example/2-download_sample_calibration_dataset.sh
+```
 
 ---
 
