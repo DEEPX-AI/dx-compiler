@@ -442,6 +442,33 @@ setup_project() {
     echo -e "=== setup_${PROJECT_NAME}() ${TAG_DONE} ==="
 }
 
+download_sample_data() {
+    echo ""
+    echo -e "=== download_sample_data() ${TAG_START} ==="
+    print_colored_v2 "INFO" "Running sample data download steps..."
+
+    local EXAMPLE_DIR="${PROJECT_ROOT}/example"
+
+    echo ""
+    print_colored_v2 "INFO" "[1/2] Downloading sample models..."
+    "${EXAMPLE_DIR}/1-download_sample_models.sh"
+    if [ $? -ne 0 ]; then
+        print_colored_v2 "WARNING" "Sample model download failed. You can run it manually:"
+        print_colored_v2 "HINT"    "  ${EXAMPLE_DIR}/1-download_sample_models.sh"
+    fi
+
+    echo ""
+    print_colored_v2 "INFO" "[2/2] Downloading sample calibration dataset..."
+    "${EXAMPLE_DIR}/2-download_sample_calibration_dataset.sh"
+    if [ $? -ne 0 ]; then
+        print_colored_v2 "WARNING" "Calibration dataset download failed. You can run it manually:"
+        print_colored_v2 "HINT"    "  ${EXAMPLE_DIR}/2-download_sample_calibration_dataset.sh"
+    fi
+
+    echo ""
+    echo -e "=== download_sample_data() ${TAG_DONE} ==="
+}
+
 show_installation_complete_message() {
     # Only show message for non-legacy mode
     if [ "$LEGACY_MODE" != "y" ] && [ "$ARCHIVE_MODE" != "y" ]; then
@@ -798,6 +825,7 @@ main() {
 
             install_prerequisites
             install_dx_com
+            download_sample_data
 
             print_colored "[OK] Installing dx-com completed successfully." "INFO"
             show_installation_complete_message
@@ -843,7 +871,8 @@ main() {
 
             if [ $WILL_INSTALL_DX_COM -eq 1 ]; then
                 install_prerequisites
-                install_dx_com    
+                install_dx_com   
+                [ $DX_COM_INSTALLED -eq 1 ] && download_sample_data
             else
                 print_colored_v2 "SKIP" "dx-com is not supported on this OS/Architecture. Skipping dx-com installation."
             fi
