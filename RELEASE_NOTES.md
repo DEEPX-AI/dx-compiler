@@ -1,6 +1,42 @@
 
 # RELEASE_NOTES
 
+## DX-Compiler v2.2.1 / 2026-02-11
+
+-   DX-COM: v2.2.1
+-   DX-TRON: v2.0.1
+
+----------
+
+Here are the **DX-Compiler v2.2.1** Release Notes.
+
+### DX-COM (v2.2.1)
+
+### 1. Changed
+
+-   None
+
+### 2. Fixed
+
+-   Fixed DXQ enhanced quantization option bugs.
+-   Fixed PPU compilation bug in Python Wheel Package for Python 3.8, 3.9, and 3.10.
+-   Fixed an issue where compilation proceeded without error when invalid model input names were specified.
+
+### 3. Added
+
+-   **GPU Quantization (JSON Config)**: Added `quantization_device` support in JSON configuration file, enabling GPU-accelerated quantization via CLI (`dxcom`) in addition to the Python API. Available only with the Python wheel package installation.
+-   **GPU Auto-Detection**: When `quantization_device` is not specified, DX-COM now automatically uses GPU if a CUDA-compatible GPU is available, otherwise falls back to CPU.
+
+### 4. Known Issues
+
+-   Significant FPS degradation has been observed in models using PReLU as an activation function.
+
+### DX-TRON (v2.0.1)
+
+No changes in this release.
+
+----------
+
 ## DX-Compiler v2.2.0 / 2025-12-24
 
 -   DX-COM: v2.2.0

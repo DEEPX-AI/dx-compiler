@@ -374,6 +374,17 @@ generate_output() {
                     print_colored "ERROR: Failed to move file to '$final_module_output_path'." "ERROR"
                     return 1
                 }
+            elif [[ "$actual_downloaded_file_from_downloader" == *.whl ]]; then
+                print_colored "INFO: file format is Python Wheel: '$actual_downloaded_file_from_downloader'." "INFO"
+                print_colored "INFO: Copying wheel file to '$final_module_output_path'." "INFO"
+                mkdir -p "$final_module_output_path" || {
+                    print_colored "ERROR: Failed to create directory for wheel file at '$final_module_output_path'." "ERROR"
+                    return 1
+                }
+                cp "$actual_downloaded_file_from_downloader" "$final_module_output_path" || {
+                    print_colored "ERROR: Failed to move file to '$final_module_output_path'." "ERROR"
+                    return 1
+                }
             else
                 print_colored "ERROR: Unsupported file format: '$actual_downloaded_file_from_downloader'." "ERROR"
                 return 1

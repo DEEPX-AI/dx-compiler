@@ -9,7 +9,7 @@ Welcome to **DX-COM** (DEEPX Compiler)! This guide will help you compile your fi
 **What did you download?**
 
 - **Executable File** (`dx_com_M1_vx.x.x.tar.gz`) → See [Installation of DX-COM (Executable File)](02_02_Installation_of_DX-COM.md#option-1-executable-file)
-- **Python Wheel** (`dx_com_M1_vx.x.x_wheel.tar.gz`) → See [Installation of DX-COM (Python Wheel)](02_02_Installation_of_DX-COM.md#option-2-python-wheel-package)
+- **Python Wheel** (`dx_com_M1_vx.x.x_cp<VERSION>-cp<VERSION>-linux_x86_64.whl`) → See [Installation of DX-COM (Python Wheel)](02_02_Installation_of_DX-COM.md#option-2-python-wheel-package)
 
 Not sure which to choose? See [Installation of DX-COM](02_02_Installation_of_DX-COM.md) for details.
 
@@ -29,7 +29,26 @@ python3 -c "import dx_com; print(dx_com.__version__)"
 
 ---
 
-## Compile Your First Model
+## Compile Sample Models
+
+Sample models and calibration data are **automatically downloaded** into `dx_com/` after `install.sh` completes.
+
+Run all sample compilations at once:
+
+```bash
+./example/3-compile_sample_models.sh
+```
+
+If the automatic download was skipped or failed, run these first:
+
+```bash
+./example/1-download_sample_models.sh
+./example/2-download_sample_calibration_dataset.sh
+```
+
+---
+
+## Compile Your Own Model
 
 ### With Executable File (CLI)
 

@@ -12,6 +12,7 @@ These parameters are defined in a JSON file, which serves as a blueprint for how
 | `calibration_method` | Yes | Calibration method: `"ema"` or `"minmax"` |
 | `calibration_num` | Yes | Number of calibration samples (e.g., 100) |
 | `default_loader` | Yes | Preprocessing configuration with dataset loading |
+| `quantization_device` | No | Target device for quantization computation. GPU auto-selected if available |
 | `enhanced_scheme` | No | DXQ-P0~P5 quantization enhancement for accuracy improvement (DX-COM v2.1.0+) |
 | `ppu` | No | Object detection post-processing (YOLO models) |
 
@@ -109,6 +110,35 @@ If you need to compile multi-input models or provide non-image data, use the Pyt
 
 ---
 
+## Optional Parameters: Quantization Device
+
+!!! note "Wheel Package Only"
+    `quantization_device` is **only supported when DX-COM is installed via the Python wheel package**. The standalone executable does not support GPU quantization.
+
+Specifies the device used for quantization during compilation. By default, DX-COM automatically detects available hardware and uses GPU if a CUDA-compatible GPU is available, otherwise falls back to CPU. You can override this behavior by explicitly setting the device.
+
+Available Values
+
+- Not specified (Default): Auto-detect. Uses GPU if available, otherwise CPU.
+- `"cpu"`: Force CPU quantization.
+- `"cuda"`: Use the default CUDA GPU.
+- `"cuda:N"`: Use a specific GPU (e.g., `"cuda:0"`, `"cuda:1"`).
+
+Example
+```json
+{
+  "quantization_device": "cuda:0"
+}
+```
+
+!!! warning "Hardware Requirements"
+    - **GPU**: NVIDIA GPU with CUDA support.
+    - **Framework**: PyTorch built with CUDA support (`torch.cuda.is_available()` must return `True`).
+
+For practical examples, see [Use Case 5: Enhanced Quantization (DXQ)](02_07_Common_Use_Cases.md#use-case-5-enhanced-quantization-dxq).
+
+---
+
 ## Optional Parameters: Enhanced Quantization Scheme (DXQ)
 
 !!! note "Version Support"
@@ -129,7 +159,7 @@ When quantizing a model, accuracy degradation may occur compared to the original
     **Best Accuracy**: DXQ-P3 and DXQ-P4 generally offer better accuracy, so try them first.  
     
     **GPU Acceleration**: DXQ schemes (especially P2-P5) are computationally intensive. Using `quantization_device="cuda"` can reduce compilation time by **2-5x** compared to CPU. 
-    See [Use Case 5: GPU-Accelerated Quantization](02_07_Common_Use_Cases.md#use-case-5-gpu-accelerated-quantization) for examples.  
+    See [Use Case 5: Enhanced Quantization (DXQ)](02_07_Common_Use_Cases.md#use-case-5-enhanced-quantization-dxq) for examples.  
 
 !!! warning "Limitations"
     Results are **not guaranteed** to improve accuracy. Results may vary depending on the model and dataset.
