@@ -47,6 +47,8 @@ nav:
   - Building Models: docs/03_Building_Models.md
   - Development Tools:
       - Model Viewer_DX-TRON: docs/04_01_Model_Viewer_DX-TRON.md
+  - AI-Powered Development:
+      - Agentic Development Guide: docs/05_DX-COMPILER_Agentic_Development.md
   - Change Log: docs/Appendix_Change_Log.md
 
 plugins:
