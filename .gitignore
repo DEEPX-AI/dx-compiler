@@ -1,0 +1,14 @@
+.vscode/
+download/
+dx_com
+dx_tron
+venv-dx-compiler-local/
+dx-agentic-dev/
+docs/superpowers/
+calibration_images/
+# Model files (downloaded by agents)
+*.onnx
+*.pt
+*.pth
+*.dxnn
+copilot-session-*.html
