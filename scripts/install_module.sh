@@ -105,14 +105,6 @@ DOWNLOAD_TEMP_DIR="${COMPILER_PATH}/temp_downloads" # Temporary download directo
 OLD_DOWNLOAD_DIR="${COMPILER_PATH}/download" # Refers to the original scripts/../download path
 
 
-# --- Use DEEPX Portal Credentials from Environment Variables ---
-# NO PROMPT HERE. Credentials MUST be provided via install.sh or env vars.
-if [ -z "$DX_USERNAME" ] || [ -z "$DX_PASSWORD" ]; then
-    print_colored "ERROR: DEEPX Portal credentials (DX_USERNAME, DX_PASSWORD) are not set in environment variables." "ERROR"
-    print_colored "Please run install.sh directly or ensure these environment variables are exported." "ERROR"
-    exit 1
-fi
-
 # --- Function to intelligently extract archives ---
 # Checks for a top-level directory and uses appropriate --strip-components option.
 extract_archive() {
@@ -251,14 +243,14 @@ generate_output() {
         mkdir -p "$DOWNLOAD_TEMP_DIR" || { print_colored "ERROR: Failed to create temporary download directory '$DOWNLOAD_TEMP_DIR'." "ERROR"; return 1; }
 
         print_colored "INFO: Attempting to download module '$MODULE_NAME' (Version: $VERSION) from '$DOWNLOAD_URL'..." "INFO"
-        local download_cmd="python3 \"$DOWNLOADER_PY\" --username \"$DX_USERNAME\" --password \"$DX_PASSWORD\" --download-url \"$DOWNLOAD_URL\" --save-location \"$DOWNLOAD_TEMP_DIR\" --expected-version \"$VERSION\""
+        local download_cmd="python3 \"$DOWNLOADER_PY\" --download-url \"$DOWNLOAD_URL\" --save-location \"$DOWNLOAD_TEMP_DIR\" --expected-version \"$VERSION\""
         print_colored "Executing download command: $download_cmd" "DEBUG"
 
         eval "$download_cmd 1>&2"
         local download_exit_code=$?
 
         if [ $download_exit_code -ne 0 ]; then
-            print_colored "ERROR: Module download failed! Please check your credentials or download URL. See downloader.py output above." "ERROR"
+            print_colored "ERROR: Module download failed! Please check the download URL. See downloader.py output above." "ERROR"
             rm -rf "$DOWNLOAD_TEMP_DIR"
             return 1
         fi

@@ -1,14 +1,11 @@
 # How to Run
 # pip install colorama # For Windows users, to make ANSI colors work in cmd.exe
 # python downloader.py \
-#   --username "userid" \
-#   --password "1234" \
 #   --download-url "https://developer.deepx.ai/?url=2262" \
 #   --save-location "download_dir/" # Optional. If omitted, defaults to 'download/' \
 #   --expected-version "1.60.2" # Optional: Expected version string to check in the downloaded filename.
 
 import requests
-from bs4 import BeautifulSoup
 import os
 import argparse
 import sys
@@ -76,13 +73,11 @@ def print_progress_bar(iteration, total, prefix = '', suffix = '', decimals = 1,
         sys.stdout.write(print_end)
         sys.stdout.flush()
 
-def login_and_download_file(username, password, download_url, save_directory, expected_version=None):
+def download_file(download_url, save_directory, expected_version=None):
     """
-    Logs into the DEEPX Developers' page and downloads a file from a specific URL.
+    Downloads a file from developer.deepx.ai.
 
     Args:
-        username (str): The username or email to log in with.
-        password (str): The password to log in with.
         download_url (str): The URL of the file to download.
         save_directory (str): The directory to save the downloaded file to.
         expected_version (str, optional): The version string expected in the downloaded filename.
@@ -92,7 +87,6 @@ def login_and_download_file(username, password, download_url, save_directory, ex
         str or None: The full path to the downloaded file if successful, None otherwise.
     """
     session = requests.Session()
-    login_page_url = "https://developer.deepx.ai/wp-login.php"
 
     # Ensure the save directory exists
     try:
@@ -101,62 +95,7 @@ def login_and_download_file(username, password, download_url, save_directory, ex
         colored_print(f"ERROR: Could not create save directory '{save_directory}': {e}", "ERROR")
         return None
 
-    # 1. Send a GET request to the login page to get cookies
-    try:
-        colored_print("INFO: Accessing login page...", "INFO")
-        response_get = session.get(login_page_url)
-        response_get.raise_for_status() # Raise an exception for HTTP errors
-    except requests.exceptions.RequestException as e:
-        colored_print(f"ERROR: Failed to retrieve login page: {e}", "ERROR")
-        return None
-
-    soup = BeautifulSoup(response_get.text, 'html.parser')
-
-    # Check if login form exists
-    login_form = soup.find('form', {'id': 'loginform'})
-    if not login_form:
-        colored_print("ERROR: Login form not found. The website's HTML structure might have changed.", "ERROR")
-        return None
-
-    colored_print("INFO: Login form detected successfully.", "INFO")
-
-    # 2. Send a POST request using standard WordPress login
-    login_data = {
-        'log': username,
-        'pwd': password,
-        'wp-submit': 'Log In',
-        'redirect_to': 'https://developer.deepx.ai/',
-        'testcookie': '1',
-        'rememberme': 'forever'
-    }
-
-    try:
-        colored_print("INFO: Attempting to log in...", "INFO")
-        response_post = session.post(login_page_url, data=login_data, allow_redirects=True)
-        response_post.raise_for_status() # Raise an exception for HTTP errors
-    except requests.exceptions.RequestException as e:
-        colored_print(f"ERROR: An error occurred during login request: {e}", "ERROR")
-        return None
-
-    # 3. Enhanced Login Success/Failure Check based on URL and content
-    if "wp-login.php" in response_post.url and "action=logout" not in response_post.url:
-        # Still on login page means login failed
-        colored_print("ERROR: Login failed. The server redirected back to the login page. Please check your credentials.", "ERROR")
-        # Check for specific error messages
-        if "login_error" in response_post.url or "loginerror" in response_post.url:
-            colored_print("ERROR: Invalid username or password detected in URL.", "ERROR")
-        error_soup = BeautifulSoup(response_post.text, 'html.parser')
-        error_div = error_soup.find('div', {'id': 'login_error'})
-        if error_div:
-            colored_print(f"ERROR: Server message: {error_div.get_text(strip=True)}", "ERROR")
-        return None
-    elif "잘못된 비밀번호" in response_post.text or "알 수 없는 사용자" in response_post.text or "incorrect password" in response_post.text.lower() or "invalid username" in response_post.text.lower():
-        colored_print("ERROR: Login failed. Invalid username or password. Please check your credentials.", "ERROR")
-        return None
-    else:
-        colored_print(f"INFO: Login successful! Final URL: {response_post.url}", "INFO")
-
-    # 4. Download the file after successful login with more robust checks and custom progress bar
+    # Download the file with more robust checks and custom progress bar
     full_save_path = None
     try:
         colored_print(f"INFO: Requesting file download from: {download_url}", "INFO")
@@ -307,9 +246,7 @@ def login_and_download_file(username, password, download_url, save_directory, ex
         return None
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Log in to DEEPX Developers' page and download a file.")
-    parser.add_argument('-u', '--username', required=True, help="Username or email for login for 'developer.deepx.ai'.")
-    parser.add_argument('-p', '--password', required=True, help="Password for login.")
+    parser = argparse.ArgumentParser(description="Download a file from DEEPX Developers' page.")
     parser.add_argument('-d', '--download-url', required=True, help="URL of the file to download (e.g., 'https://developer.deepx.ai/?url=2262').")
     parser.add_argument('-s', '--save-location', default='downloads', help="Directory to save the downloaded file (e.g., 'downloads/'). Defaults to 'downloads'.")
     parser.add_argument('-v', '--expected-version', help="Optional: Expected version string to check in the downloaded filename.")
@@ -321,9 +258,7 @@ if __name__ == "__main__":
         save_directory += os.sep
 
     # Pass the expected_version to the download function
-    downloaded_file_path = login_and_download_file(
-        args.username,
-        args.password,
+    downloaded_file_path = download_file(
         args.download_url,
         save_directory,
         args.expected_version
