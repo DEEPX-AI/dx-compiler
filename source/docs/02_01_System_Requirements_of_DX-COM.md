@@ -6,7 +6,7 @@ This section describes the hardware and software requirements for running **DX-C
      NOTE. aarch64(arm64) is **NOT** supported.  
 - **RAM:** ≥ 16 GB  
 - **Storage:** ≥ 8 GB available disk space  
-- **OS:** Ubuntu 20.04 / 22.04 / 24.04 (x64)  
+- **OS:** Ubuntu 20.04 / 22.04 / 24.04 (x86_64, primary supported environments), Fedora 42-45, Red Hat Enterprise Linux 9-10, and CentOS Stream 9-10 (validated in DX-COM v2.3.0).  
      NOTE. Ubuntu 18.04 OS is **NOT** supported.  
 - **LDD:** ≥ 2.28  
 

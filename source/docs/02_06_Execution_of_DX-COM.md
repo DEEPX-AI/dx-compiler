@@ -1,9 +1,9 @@
-This section details the entire process for executing the DXNN Compiler (`dx_com`), which converts the prepared ONNX model (`*.onnx`) and configuration JSON file (`*.json`) into the optimized .dxnn output file. 
+This section details the entire process for executing the DXNN Compiler, which converts the prepared ONNX model (`*.onnx`) and configuration JSON file (`*.json`) into the optimized `.dxnn` output file. You can use DX-COM through both the `dxcom` command-line interface and the `dx_com` Python module.
 
 **DX-COM** supports two execution methods:  
 
-- **[CLI Execution](#cli-execution-command-line-interface)**: Execute compilation using the `dx_com` command with configuration files  
-- **[Python API](#python-wheel-package-usage)**: Programmatic compilation using the `dx_com` Python module with torch DataLoader  
+- **[CLI Execution](#cli-execution-command-line-interface)**: Execute compilation using the `dxcom` command with configuration files  
+- **[dx_com Python Module](#python-wheel-package-usage)**: Programmatic compilation using the `dx_com` Python module with torch DataLoader  
 
 Choose the execution method that best fits your workflow and model requirements.
 
@@ -15,10 +15,10 @@ Choose the execution method that best fits your workflow and model requirements.
 The data used for model calibration must adhere to the following specifications:
 
 - **Default Data Type**: By default, the Calibration Data must consist of image files (e.g., JPEG, PNG).
-- **Custom Data**: If the use of non-image data types is required, use the Python API with a custom torch DataLoader.
+- **Custom Data**: If the use of non-image data types is required, use the `dx_com` Python module with a custom torch DataLoader.
 
 **Multi-Input Model Support**  
-Multi-input models are now supported through the Python API using torch DataLoader. For command-line execution, only single-input models are supported.
+Multi-input models are now supported through the `dx_com` Python module using torch DataLoader. For command-line execution, only single-input models are supported.
 
 **Non-Deterministic Output Notice**  
 The compiled results may exhibit variation dependent on the underlying system environment, including CPU architecture, OS, and other specific hardware factors.
@@ -27,20 +27,14 @@ The compiled results may exhibit variation dependent on the underlying system en
 
 ## CLI Execution (Command-Line Interface)
 
-The compiler is executed via the command line, requiring the model, configuration, and desired output directory to generate the final `.dxnn` output file.
+The compiler can be executed via the `dxcom` command, requiring the model, configuration, and desired output directory to generate the final `.dxnn` output file.
 
-!!! note "Execution Methods"
-    - **Binary Installation**: Use `./dx_com/dx_com` command
-    - **Wheel Package**: After `pip install`, use `dxcom` command (same CLI interface)
+!!! note "Execution Method"
+    Use the `dxcom` command for command-line compilation.
 
-### Quick Example (New Users Start Here)
+### Basic Command
 
-**Using Binary**:
-```bash
-./dx_com/dx_com -m model.onnx -c config.json -o output/
-```
-
-**Using Wheel Package**:
+**Using `dxcom`:**
 ```bash
 dxcom -m model.onnx -c config.json -o output/
 ```
@@ -55,12 +49,6 @@ dxcom -m model.onnx -c config.json -o output/
 
 ### Command Format
 
-**Binary Installation**:
-```
-./dx_com/dx_com -m <MODEL_PATH> -c <CONFIG_PATH> -o <OUTPUT_DIR> [OPTIONS]
-```
-
-**Wheel Package**:
 ```
 dxcom -m <MODEL_PATH> -c <CONFIG_PATH> -o <OUTPUT_DIR> [OPTIONS]
 ```
@@ -86,7 +74,7 @@ These options manage the balance between compilation time, NPU execution latency
 | **Option** | **Value/Default** | **Description** |
 | :--- | :--- | :--- |
 | `--opt_level` | `{0,1}` <br> (Default: `1`) | Controls the model optimization level during compilation | 
-| `--aggressive_partitioning` | Flag | Enables partitioning designed to maximize operations executed on the NPU |
+| `--aggressive_partitioning` | Flag | **(Experimental)** Enables partitioning designed to maximize operations executed on the NPU |
 
 **Optimization Level Detail**  
 The --opt_level option controls the optimization balance:  
@@ -94,8 +82,8 @@ The --opt_level option controls the optimization balance:
 - `0`: Fast compilation with basic optimizations. Reduces compilation time but may result in higher NPU latency.  
 - `1` (Default): Full optimization for best performance. Compilation takes longer but provides optimal (lowest) NPU latency.  
 
-**Aggressive Partitioning Detail**  
-Enabling `--aggressive_partitioning` maximizes operations executed on the NPU.  
+**Aggressive Partitioning Detail (Experimental)**  
+Enabling `--aggressive_partitioning` maximizes operations executed on the NPU. This feature is currently experimental and may produce unexpected results for some models.  
 
 - **Benefit**: This is particularly advantageous in environments with limited host CPU performance (e.g., embedded systems, edge devices), as it significantly improves overall performance by minimizing CPU workload.  
 - **Consideration**: In systems with powerful host CPUs, the compiler's default partitioning strategy might yield better end-to-end performance. Note that using this option may increase compilation time and memory usage.  
@@ -131,7 +119,7 @@ The following examples demonstrate common usage patterns for CLI compilation.
 **Basic Command**     
 This command compiles the model using the required model path (`-m`), config file (`-c`), and output directory (`-o`).  
 ```
-./dx_com/dx_com \
+dxcom \
 -m sample/MobilenetV1.onnx \
 -c sample/MobilenetV1.json \
 -o output/mobilenetv1
@@ -140,50 +128,27 @@ This command compiles the model using the required model path (`-m`), config fil
 **With Log Generation**  
 This command uses the `--gen_log` flag to collect all compilation logs into `compiler.log` in the output directory.  
 ```
-./dx_com/dx_com \
+dxcom \
 -m sample/MobilenetV1.onnx \
 -c sample/MobilenetV1.json \
 -o output/mobilenetv1 \
 --gen_log
 ```
 
-**Aggressive Partitioning and Fast Compilation**  
-This combines `--aggressive_partitioning` to maximize NPU operations with `--opt_level 0` for faster compilation.  
-```
-./dx_com/dx_com \
--m sample/MobilenetV1.onnx \
--c sample/MobilenetV1.json \
--o output/mobilenetv1 \
---aggressive_partitioning \
---opt_level 0
-```
-
 **Version Information**  
 This command prints the compiler module version and exits.  
 ```
-./dx_com/dx_com --version
+dxcom --version
 ```
 
 **Compile Sample Models (Script)**  
-Sample models and calibration data are automatically downloaded to `dx_com/` after running `install.sh`.  
-Use the provided script to compile all sample models at once:  
-```bash
-./example/3-compile_sample_models.sh
-```
-
-This script compiles `YOLOV5S-1`, `YOLOV5S_Face-1`, and `MobileNetV2-1` from `dx_com/sample_models/` and saves `.dxnn` outputs to `dx_com/output/`.  
-
-If sample data was not downloaded automatically, run these first:  
-```bash
-./example/1-download_sample_models.sh
-./example/2-download_sample_calibration_dataset.sh
-```
+For the end-to-end sample workflow, see [Quick Start Guide](00_Quick_Start.md#compile-sample-models). The `./example/3-compile_sample_models.sh` helper compiles `YOLOV5S-1`, `YOLOV5S_Face-1`, and `MobileNetV2-1` with `dxcom`, using assets prepared under `dx_com/`. If `dxcom` is not available in the current shell, the script first tries to activate the DX-COM virtual environment.  
 
 ---
 
 ## Python Wheel Package Usage
 
-The Python wheel package provides an alternative to command-line compilation, enabling programmatic model compilation directly from Python code. This approach is particularly useful for automated workflows, multi-input models, and integration with existing Python pipelines.  
+The Python wheel package also provides a programmatic interface for model compilation directly from Python code. This approach is particularly useful for automated workflows, multi-input models, and integration with existing Python pipelines.  
 
 !!! note "Examples and Guides"
     For practical code examples and step-by-step guides, see:
@@ -343,7 +308,7 @@ opt_level=1
 
 - **Type**: `bool`
 - **Default**: `False`
-- **Description**: Enable aggressive partitioning to maximize operations on NPU
+- **Description**: **(Experimental)** Enable aggressive partitioning to maximize operations on NPU. This feature is currently experimental and may produce unexpected results for some models.
 - **Use Case**: Beneficial for systems with limited host CPU performance
 
 ```python
@@ -412,7 +377,7 @@ gen_log=True
 
 ### Usage Examples
 
-**Example 1: Basic Compilation with Configuration File**
+**Basic Compilation with Configuration File**
 
 ```python
 import dx_com
@@ -424,110 +389,7 @@ dx_com.compile(
 )
 ```
 
-**Example 2: Compilation with PyTorch DataLoader (Single-Input Model)**
-
-```python
-import dx_com
-import torch
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
-from PIL import Image
-import os
-
-class ImageDataset(Dataset):
-    def __init__(self, image_dir: str):
-        self.image_dir = image_dir
-        self.image_files = sorted(os.listdir(image_dir))
-        self.transform = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Resize((224, 224)),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], 
-                               std=[0.229, 0.224, 0.225]),
-        ])
-    
-    def __len__(self):
-        return len(self.image_files)
-    
-    def __getitem__(self, idx):
-        img_path = os.path.join(self.image_dir, self.image_files[idx])
-        img = Image.open(img_path).convert("RGB")
-        return self.transform(img)
-
-dataset = ImageDataset("/path/to/images/")
-dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
-
-dx_com.compile(
-    model="model.onnx",
-    output_dir="./compiled",
-    dataloader=dataloader,
-    calibration_num=100,
-)
-```
-
-**Example 3: Compilation with DataLoader (Multi-Input Model)**
-
-```python
-import dx_com
-import torch
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms
-from PIL import Image
-import os
-
-class StereoDataset(Dataset):
-    def __init__(self, image_dir: str):
-        self.image_dir = image_dir
-        self.image_files = sorted(os.listdir(image_dir))
-        self.transform0 = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Resize((128, 128)),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], 
-                               std=[0.229, 0.224, 0.225]),
-        ])
-        self.transform1 = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Resize((256, 256)),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], 
-                               std=[0.229, 0.224, 0.225]),
-        ])
-    
-    def __len__(self):
-        return len(self.image_files)
-    
-    def __getitem__(self, idx):
-        img_path0 = os.path.join(self.image_dir, self.image_files[idx])
-        img_path1 = os.path.join(self.image_dir, self.image_files[idx - 1])
-        img0 = Image.open(img_path0).convert("RGB")
-        img1 = Image.open(img_path1).convert("RGB")
-        img0 = self.transform0(img0)
-        img1 = self.transform1(img1)
-        return img0, img1
-
-dataset = StereoDataset("/path/to/images/")
-dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
-
-dx_com.compile(
-    model="multi-input.onnx",
-    output_dir="./multi-input-compiled",
-    dataloader=dataloader,
-)
-```
-
-**Example 4: Advanced Compilation with GPU Quantization**
-
-```python
-import dx_com
-
-dx_com.compile(
-    model="model.onnx",
-    output_dir="./compiled",
-    config="config.json",
-    quantization_device="cuda:0",
-    opt_level=1,
-    aggressive_partitioning=True,
-    gen_log=True,
-)
-```
+For more detailed examples — including DataLoader usage, multi-input models, edge device optimization, and advanced quantization — see [Common Use Cases](02_07_Common_Use_Cases.md).
 
 ---
 
@@ -557,18 +419,18 @@ dx_com.compile(
 
 Upon successful compilation, the `output_dir` will contain:
 
-- `[model_name].dxnn`: Compiled model binary executable on NPU hardware
+- `[model_name].dxnn`: Compiled model binary for execution on DEEPX NPU hardware
 - `compiler.log` (if `gen_log=True`): Detailed compilation logs
 
 ---
 
 ## Common Errors and Troubleshooting
 
-The following error types may occur during the compilation process using either CLI or Python wheel package. Understanding these errors will help you troubleshoot issues regardless of which execution method you choose.
+The following error types may occur during the compilation process using either the `dxcom` command or the `dx_com` Python module. Understanding these errors will help you troubleshoot issues regardless of which interface you choose.
 
 | No | **Error Type** | **Description & Conditions** |
 |----|---|---|
-| 1  | NotSupportError | Triggered when using features unsupported by the compiler. <br> Examples: multi-input models (CLI only), dynamic input shape, cubic resize |
+| 1  | NotSupportError | Triggered when using features unsupported by the compiler. <br> Examples: multi-input models with the `dxcom` command, dynamic input shape, cubic resize |
 | 2  | ConfigFileError | Invalid or missing JSON configuration file. <br> Examples: incorrect file path, malformed JSON syntax |
 | 3  | ConfigInputError | Input definitions in the config file do not match the ONNX model. <br> Examples: mismatched input name or shape |
 | 4  | DatasetPathError | The dataset path specified in the configuration is invalid. <br> Examples: path does not exist, or is not a directory |
