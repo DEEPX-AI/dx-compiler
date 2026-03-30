@@ -4,76 +4,50 @@ Welcome to **DX-COM** (DEEPX Compiler)! This guide will help you compile your fi
 
 ---
 
-## Choose Your Installation Method
+## Install DX-COM
 
-**What did you download?**
-
-- **Executable File** (`dx_com_M1_vx.x.x.tar.gz`) → See [Installation of DX-COM (Executable File)](02_02_Installation_of_DX-COM.md#option-1-executable-file)
-- **Python Wheel** (`dx_com_M1_vx.x.x_cp<VERSION>-cp<VERSION>-linux_x86_64.whl`) → See [Installation of DX-COM (Python Wheel)](02_02_Installation_of_DX-COM.md#option-2-python-wheel-package)
-
-Not sure which to choose? See [Installation of DX-COM](02_02_Installation_of_DX-COM.md) for details.
-
----
-
-## Verify Installation
-
-**Executable File:**
-```bash
-./dx_com/dx_com --version
-```
-
-**Python Wheel:**
-```bash
-python3 -c "import dx_com; print(dx_com.__version__)"
-```
+Follow [Installation of DX-COM](02_02_Installation_of_DX-COM.md) to install and verify DX-COM before continuing with this quick start.
 
 ---
 
 ## Compile Sample Models
 
-Sample models and calibration data are **automatically downloaded** into `dx_com/` after `install.sh` completes.
-
-Run all sample compilations at once:
-
-```bash
-./example/3-compile_sample_models.sh
-```
-
-If the automatic download was skipped or failed, run these first:
+When DX-COM is installed from the package bundle, sample models and calibration data are automatically downloaded to `dx_com/` during `install.sh`. If they are not available, run the helper scripts below first:
 
 ```bash
 ./example/1-download_sample_models.sh
 ./example/2-download_sample_calibration_dataset.sh
 ```
 
+These helper scripts populate the sample asset directories used by the bundle, such as `dx_com/sample_models/` and `dx_com/calibration_dataset/`.
+
+Then run all sample compilations at once:
+
+```bash
+./example/3-compile_sample_models.sh
+```
+
 ---
 
 ## Compile Your Own Model
 
-### With Executable File (CLI)
+### With the `dxcom` Command
 
 For complete examples and options, see [CLI Execution](02_06_Execution_of_DX-COM.md#cli-execution-command-line-interface).
 
 ```bash
-./dx_com/dx_com -m model.onnx -c config.json -o output/
+dxcom -m model.onnx -c config.json -o output/
 ```
 
-### With Python Wheel
+### With the `dx_com` Python Module
 
-For complete examples and options, see [Python API](02_06_Execution_of_DX-COM.md#python-wheel-package-usage).
+For complete examples and options, see [dx_com Python Module Usage](02_06_Execution_of_DX-COM.md#python-wheel-package-usage).
 
-**Using Python API:**
+**Using `dx_com.compile()`:**
 ```python
 import dx_com
 dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
 ```
-
-**Using CLI Command:**
-```bash
-dxcom -m model.onnx -c config.json -o output/
-```
-
----
 
 ## Next Steps
 

@@ -1,3 +1,31 @@
+## v2.3.0 (March 2026)
+
+DX-Compiler Version
+
+- dx_com : 2.3.0  
+- dx_tron : 2.0.1
+
+#### Changed
+
+- **Python Packaging**: Relaxed Python package dependency constraints to improve installation flexibility.
+- **Distribution**: The standalone DX-COM executable distribution is deprecated. The user manual now documents the wheel-based workflow only.
+- **Performance**:
+
+    - Reduced NPU inference latency for most models.
+    - Improved compiler performance to reduce compilation time.
+
+#### Fixed
+
+- **Compiler Stability**: Fixed various DX-COM compiler stability issues.
+
+#### Added
+
+- **TopK-Optimized Post-Processing Pipeline**: Added an optimized post-processing pipeline for supported DFL-based YOLO models that applies TopK filtering before bounding box decoding, reducing CPU post-processing workload and improving runtime efficiency.
+- **Batched Convolution Support**: Added support for batched convolution.
+- **Linux Distribution Validation**: In addition to Ubuntu 20.04, 22.04, and 24.04, DX-COM v2.3.0 was also validated on Fedora 42-45, Red Hat 9-10, and CentOS Stream 9-10.
+
+---
+
 ## v2.2.1 (February 2026)
 
 DX-Compiler Version
@@ -17,7 +45,7 @@ DX-Compiler Version
 
 #### Added
 
-- **GPU Quantization (JSON Config)**: Added `quantization_device` support in JSON configuration file, enabling GPU-accelerated quantization via CLI (`dxcom`) in addition to the Python API. Available only with the Python wheel package installation.
+- **GPU Quantization (JSON Config)**: Added `quantization_device` support in JSON configuration file, enabling GPU-accelerated quantization via CLI (`dxcom`) in addition to the `dx_com` Python module. Available only with the Python wheel package installation.
 - **GPU Auto-Detection**: When `quantization_device` is not specified, DX-COM now automatically uses GPU if a CUDA-compatible GPU is available, otherwise falls back to CPU.
 
 ---
