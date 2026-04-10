@@ -75,6 +75,7 @@ These options manage the balance between compilation time, NPU execution latency
 | :--- | :--- | :--- |
 | `--opt_level` | `{0,1}` <br> (Default: `1`) | Controls the model optimization level during compilation | 
 | `--aggressive_partitioning` | Flag | **(Experimental)** Enables partitioning designed to maximize operations executed on the NPU |
+| `--float64_calibration` | Flag | Use float64 precision during calibration and offset calculations for cross-CPU determinism |
 
 **Optimization Level Detail**  
 The --opt_level option controls the optimization balance:  
@@ -179,6 +180,7 @@ def compile(
     output_nodes: Optional[List[str]] = None,
     enhanced_scheme: Optional[Dict] = None,
     gen_log: bool = False,
+    float64_calibration: bool = False,
 ) -> None
 ```
 
@@ -264,19 +266,11 @@ dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
 - **Description**: Calibration method for quantization
 - **Supported Values**: `"ema"` (Exponential Moving Average), `"minmax"` (Min-Max method)
 
-```python
-calibration_method="minmax"
-```
-
 **`calibration_num`**
 
 - **Type**: `int`
 - **Default**: `100`
 - **Description**: Number of calibration samples to use for quantization
-
-```python
-calibration_num=200
-```
 
 **`quantization_device`**
 
@@ -300,20 +294,12 @@ quantization_device="cuda:1"  # Use specific GPU
     - `0`: Fast compilation with basic optimizations
     - `1`: Full optimization (recommended) - provides best performance but takes longer
 
-```python
-opt_level=1
-```
-
 **`aggressive_partitioning`**
 
 - **Type**: `bool`
 - **Default**: `False`
 - **Description**: **(Experimental)** Enable aggressive partitioning to maximize operations on NPU. This feature is currently experimental and may produce unexpected results for some models.
 - **Use Case**: Beneficial for systems with limited host CPU performance
-
-```python
-aggressive_partitioning=True
-```
 
 **`input_nodes`**
 
@@ -362,9 +348,11 @@ enhanced_scheme={
 - **Default**: `False`
 - **Description**: Enable detailed logging for debugging
 
-```python
-gen_log=True
-```
+**`float64_calibration`**
+
+- **Type**: `bool`
+- **Default**: `False`
+- **Description**: Use float64 precision during calibration and offset calculations for cross-CPU determinism
 
 ---
 

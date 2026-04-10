@@ -31,7 +31,7 @@ Here are the **DX-Compiler v2.3.0** Release Notes.
 ### 4. Known Issues
 
 -   Significant FPS degradation has been observed in models using PReLU as an activation function.
--   Greater than 5% accuracy degradation has been observed in the following models from [DX ModelZoo](https://developer.deepx.ai/modelzoo/): OSNet0_5, RepVGGA2, YoloV9C, DnCNN series.
+-   The following models from [DX ModelZoo](https://developer.deepx.ai/modelzoo/) show high accuracy variability depending on the host CPU and calibration dataset used: OSNet0_5, RepVGGA2, YoloV9C, DnCNN series.
 
 ### DX-TRON (v2.0.1)
 
