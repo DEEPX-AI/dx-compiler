@@ -2,6 +2,12 @@
 
 This chapter provides practical, real-world scenarios with ready-to-use examples. Each use case demonstrates the implementation using the `dxcom` command and the `dx_com` Python module where applicable. 
 
+!!! note "Additional Dependencies"
+    Some examples in this chapter use `torchvision` for image preprocessing. Install it before running these examples:
+    ```bash
+    pip install torchvision
+    ```
+
 ---
 
 ## Use Case 1: Simple Image Classification (ResNet / MobileNet)
