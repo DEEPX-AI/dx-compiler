@@ -12,10 +12,7 @@ source "${COMPILER_PATH}/scripts/common_util.sh"
 
 # --- Initialize variables for credentials and options ---
 PROJECT_NAME="dx-compiler"
-CLI_USERNAME=""
-CLI_PASSWORD=""
 ARCHIVE_MODE="n"
-LEGACY_MODE="n"
 FORCE_ARGS="--force"
 VERBOSE_ARGS=""
 ENABLE_DEBUG_LOGS=0   # New flag for debug logging
@@ -58,17 +55,11 @@ fi
 
 # Function to display help message
 show_help() {
-    echo -e "Usage: ${COLOR_CYAN}$(basename "$0") [--username=<user>] [--password=<pass>] [OPTIONS]${COLOR_RESET}"
+    echo -e "Usage: ${COLOR_CYAN}$(basename "$0") [OPTIONS]${COLOR_RESET}"
     echo -e ""
     echo -e "Options:"
     echo -e "  ${COLOR_GREEN}[--target=<module_name>]${COLOR_RESET}              Install specific module (dx_com | dx_tron | all) (default: all)"
-    echo -e "  ${COLOR_GREEN}[--username=<user>]${COLOR_RESET}                   Your DEEPX Portal username/email."
-    echo -e "  ${COLOR_GREEN}[--password=<pass>]${COLOR_RESET}                   Your DEEPX Portal password."
-    echo -e "                                            ${COLOR_YELLOW}Note: If password contains special characters like '!' or '$',"
-    echo -e "                                            use single quotes: --password='pass!word'${COLOR_RESET}"
     echo -e "  ${COLOR_GREEN}[--archive_mode=<y|n>]${COLOR_RESET}                Set archive mode (default: n)."
-    echo -e "  ${COLOR_GREEN}[--legacy]${COLOR_RESET}                            Use legacy mode: downloads executable files and extracts them."
-    echo -e "                                            (default: No(wheel mode) - downloads Python packages, extracts and installs to venv)"
     echo -e ""
     echo -e "  ${COLOR_GREEN}[--docker_volume_path=<path>]${COLOR_RESET}         Set Docker volume path (required in container mode)"
     echo -e "  ${COLOR_GREEN}[--python_version=<version>]${COLOR_RESET}          Specify Python version to install (e.g., 3.11, 3.12)"
@@ -88,12 +79,10 @@ show_help() {
     echo -e "  ${COLOR_GREEN}  [-r | --venv-reuse]${COLOR_RESET}                   (Default OFF) Reuse existing virtual environment at --venv_path if it's valid, skipping creation."
     echo -e ""
     echo -e "${COLOR_BOLD}Examples:${COLOR_RESET}"
-    echo -e "  ${COLOR_YELLOW}${COLOR_BOLD}export DX_USERNAME=username; export DX_PASSWORD=password; ${COLOR_RESET}${COLOR_YELLOW}${0}${COLOR_RESET}"
     echo -e "  ${COLOR_YELLOW}${0}${COLOR_RESET}"
-    echo -e "  ${COLOR_YELLOW}$0 --target=all --username=username --password=password${COLOR_RESET}"
-
-    echo -e "  ${COLOR_YELLOW}$0 --target=dx_com --username=username --password=password${COLOR_RESET}"
-    echo -e "  ${COLOR_YELLOW}$0 --target=dx_tron --username=username --password=password${COLOR_RESET}"
+    echo -e "  ${COLOR_YELLOW}$0 --target=all${COLOR_RESET}"
+    echo -e "  ${COLOR_YELLOW}$0 --target=dx_com${COLOR_RESET}"
+    echo -e "  ${COLOR_YELLOW}$0 --target=dx_tron${COLOR_RESET}"
     echo -e ""
     echo -e "  ${COLOR_YELLOW}$0 --docker_volume_path=/path/to/docker/volume${COLOR_RESET}"
     echo -e ""
@@ -128,36 +117,6 @@ validate_environment() {
         show_help "error" "Cannot use both --venv-force-remove and --venv-reuse simultaneously. Please choose one." "ERROR" >&2
     fi
 
-    # --- Determine DEEPX Portal Credentials based on priority ---
-    DX_USERNAME_FINAL=""
-    DX_PASSWORD_FINAL=""
-
-    if [[ -n "$CLI_USERNAME" ]] && [[ -n "$CLI_PASSWORD" ]]; then
-        # 1st priority: Command-line arguments
-        DX_USERNAME_FINAL="$CLI_USERNAME"
-        DX_PASSWORD_FINAL="$CLI_PASSWORD"
-        print_colored "Using DEEPX credentials from command-line arguments." "INFO"
-    elif [[ -n "$DX_USERNAME" ]] && [[ -n "$DX_PASSWORD" ]]; then
-        # 2nd priority: Environment variables
-        DX_USERNAME_FINAL="$DX_USERNAME"
-        DX_PASSWORD_FINAL="$DX_PASSWORD"
-        print_colored "Using DEEPX credentials from environment variables." "INFO"
-    else
-        # 3rd priority: Interactive prompt
-        print_colored "Please enter your DEEPX Developers' Portal credentials." "INFO"
-        read -r -p "Username (email or id): " DX_USERNAME_FINAL
-        read -r -s -p "Password: " DX_PASSWORD_FINAL # -s for silent input
-        echo "" # Newline after password input
-    fi
-
-    # Export final credentials as environment variables for child processes
-    export DX_USERNAME="$DX_USERNAME_FINAL"
-    export DX_PASSWORD="$DX_PASSWORD_FINAL"
-
-    # Debug: Verify credentials are exported (without showing password)
-    print_colored "DEBUG: DX_USERNAME exported for child processes: ${DX_USERNAME:+SET}" "DEBUG"
-    print_colored "DEBUG: DX_PASSWORD exported for child processes: ${DX_PASSWORD:+SET}" "DEBUG"
-
     # Usage check for required properties (must exist in compiler.properties)
     # Check COM_VERSION
     if [ -z "$COM_VERSION" ]; then
@@ -166,28 +125,18 @@ validate_environment() {
         exit 1
     fi
 
-    # Check download URLs based on mode
-    if [ "$LEGACY_MODE" = "y" ]; then
-        # Legacy mode: check COM_DOWNLOAD_LEGACY_URL
-        if [ -z "$COM_DOWNLOAD_LEGACY_URL" ]; then
-            print_colored "COM_DOWNLOAD_LEGACY_URL not defined in '$VERSION_FILE' (required for --legacy mode)." "ERROR"
-            popd >&2
-            exit 1
+    # Check that all COM_CPXX_DOWNLOAD_URLs are defined
+    local MISSING_URLS=""
+    for py_ver in 38 39 310 311 312; do
+        local url_var="COM_CP${py_ver}_DOWNLOAD_URL"
+        if [ -z "${!url_var}" ]; then
+            MISSING_URLS+=" COM_CP${py_ver}_DOWNLOAD_URL"
         fi
-    else
-        # Wheel mode: check that all COM_CPXX_DOWNLOAD_URLs are defined
-        local MISSING_URLS=""
-        for py_ver in 38 39 310 311 312; do
-            local url_var="COM_CP${py_ver}_DOWNLOAD_URL"
-            if [ -z "${!url_var}" ]; then
-                MISSING_URLS+=" COM_CP${py_ver}_DOWNLOAD_URL"
-            fi
-        done
-        if [ -n "$MISSING_URLS" ]; then
-            print_colored "Missing COM_CPXX_DOWNLOAD_URL(s) in '$VERSION_FILE':${MISSING_URLS}" "ERROR"
-            popd >&2
-            exit 1
-        fi
+    done
+    if [ -n "$MISSING_URLS" ]; then
+        print_colored "Missing COM_CPXX_DOWNLOAD_URL(s) in '$VERSION_FILE':${MISSING_URLS}" "ERROR"
+        popd >&2
+        exit 1
     fi
 
     if [ -z "$TRON_VERSION" ] || [ -z "$TRON_DOWNLOAD_URL" ]; then
@@ -470,8 +419,7 @@ download_sample_data() {
 }
 
 show_installation_complete_message() {
-    # Only show message for non-legacy mode
-    if [ "$LEGACY_MODE" != "y" ] && [ "$ARCHIVE_MODE" != "y" ]; then
+    if [ "$ARCHIVE_MODE" != "y" ]; then
         # Combined message for all installations
         local MODULE_NAMES=""
         local COMMAND_NAMES=""
@@ -523,43 +471,36 @@ install_dx_com() {
         ARCHIVE_MODE_ARGS="--archive_mode=y" # Pass this to install_module.sh
     fi
 
-    # Select download URL based on legacy mode and Python version
-    local SELECTED_COM_URL="$COM_DOWNLOAD_URL"
-    if [ "$LEGACY_MODE" = "y" ]; then
-        print_colored "LEGACY_MODE is ON." "INFO"
-        SELECTED_COM_URL="$COM_DOWNLOAD_LEGACY_URL"
-        print_colored "Using legacy download URL: $SELECTED_COM_URL" "INFO"
+    # Select download URL based on Python version
+    local SELECTED_COM_URL=""
+    local PYTHON_VERSION_TAG=""
+    if [ -n "$PYTHON_VERSION" ]; then
+        # Use user-specified Python version
+        PYTHON_VERSION_TAG="cp${PYTHON_VERSION//./}"
+        print_colored "Using user-specified Python version: ${PYTHON_VERSION} (${PYTHON_VERSION_TAG})" "INFO"
     else
-        # Detect Python version and select appropriate URL
-        local PYTHON_VERSION_TAG=""
-        if [ -n "$PYTHON_VERSION" ]; then
-            # Use user-specified Python version
-            PYTHON_VERSION_TAG="cp${PYTHON_VERSION//./}"
-            print_colored "Using user-specified Python version: ${PYTHON_VERSION} (${PYTHON_VERSION_TAG})" "INFO"
-        else
-            # Detect current Python version
-            PYTHON_VERSION_TAG=$(python3 -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')" 2>/dev/null)
-            if [ -z "$PYTHON_VERSION_TAG" ]; then
-                print_colored "ERROR: Failed to detect Python version." "ERROR"
-                popd >&2
-                exit 1
-            fi
-            print_colored "Detected Python version tag: ${PYTHON_VERSION_TAG}" "INFO"
-        fi
-
-        # Select URL based on Python version
-        local VERSION_URL_VAR="COM_${PYTHON_VERSION_TAG^^}_DOWNLOAD_URL"
-        local VERSION_SPECIFIC_URL="${!VERSION_URL_VAR}"
-
-        if [ -n "$VERSION_SPECIFIC_URL" ]; then
-            SELECTED_COM_URL="$VERSION_SPECIFIC_URL"
-            print_colored "Using Python ${PYTHON_VERSION_TAG} specific wheel download URL: $SELECTED_COM_URL" "INFO"
-        else
-            print_colored "ERROR: No download URL found for Python ${PYTHON_VERSION_TAG}." "ERROR"
-            print_colored "Please ensure ${VERSION_URL_VAR} is defined in compiler.properties." "ERROR"
+        # Detect current Python version
+        PYTHON_VERSION_TAG=$(python3 -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')" 2>/dev/null)
+        if [ -z "$PYTHON_VERSION_TAG" ]; then
+            print_colored "ERROR: Failed to detect Python version." "ERROR"
             popd >&2
             exit 1
         fi
+        print_colored "Detected Python version tag: ${PYTHON_VERSION_TAG}" "INFO"
+    fi
+
+    # Select URL based on Python version
+    local VERSION_URL_VAR="COM_${PYTHON_VERSION_TAG^^}_DOWNLOAD_URL"
+    local VERSION_SPECIFIC_URL="${!VERSION_URL_VAR}"
+
+    if [ -n "$VERSION_SPECIFIC_URL" ]; then
+        SELECTED_COM_URL="$VERSION_SPECIFIC_URL"
+        print_colored "Using Python ${PYTHON_VERSION_TAG} specific wheel download URL: $SELECTED_COM_URL" "INFO"
+    else
+        print_colored "ERROR: No download URL found for Python ${PYTHON_VERSION_TAG}." "ERROR"
+        print_colored "Please ensure ${VERSION_URL_VAR} is defined in compiler.properties." "ERROR"
+        popd >&2
+        exit 1
     fi
 
     # Install dx-com
@@ -587,8 +528,8 @@ install_dx_com() {
         fi
     fi
 
-    # --- Wheel Installation (Non-legacy mode only, dx_com only) ---
-    if [ "$LEGACY_MODE" != "y" ] && [ "$ARCHIVE_MODE" != "y" ]; then
+    # --- Wheel Installation (dx_com only) ---
+    if [ "$ARCHIVE_MODE" != "y" ]; then
         print_colored "INFO: Checking for wheel package installation..." "INFO"
 
         # Determine the dx_com directory (OUTPUT_DIR equivalent)
@@ -892,17 +833,8 @@ while [[ $# -gt 0 ]]; do
         --target=*)
             TARGET_PKG="${1#*=}"
             ;;
-        --username=*)
-            CLI_USERNAME="${1#*=}"
-            ;;
-        --password=*)
-            CLI_PASSWORD="${1#*=}"
-            ;;
         --archive_mode=*)
             ARCHIVE_MODE="${1#*=}"
-            ;;
-        --legacy)
-            LEGACY_MODE="y"
             ;;
         --docker_volume_path=*)
             DOCKER_VOLUME_PATH="${1#*=}"

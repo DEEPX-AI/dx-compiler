@@ -1,6 +1,44 @@
 
 # RELEASE_NOTES
 
+## DX-Compiler v2.3.0 / 2026-03-30
+
+-   DX-COM: v2.3.0
+-   DX-TRON: v2.0.1
+
+----------
+
+Here are the **DX-Compiler v2.3.0** Release Notes.
+
+### DX-COM (v2.3.0)
+
+### 1. Changed
+
+-   Relaxed Python package dependency constraints to improve installation flexibility.
+-   Reduced NPU inference latency for most models.
+-   Improved compiler performance to reduce compilation time.
+
+### 2. Fixed
+
+-   Fixed various DX-COM compiler stability issues.
+
+### 3. Added
+
+-   **TopK-Optimized Post-Processing Pipeline**: Added an optimized post-processing pipeline for supported DFL-based YOLO models that applies TopK filtering before bounding box decoding, reducing CPU post-processing workload and improving runtime efficiency.
+-   **Batched Convolution Support**: Added support for batched convolution.
+-   **Expanded Linux Distribution Validation**: In addition to previously supported Ubuntu 20.04, 22.04, and 24.04, DX-COM was verified on Fedora 42-45, Red Hat 9-10, and CentOS Stream 9-10 in this release.
+
+### 4. Known Issues
+
+-   Significant FPS degradation has been observed in models using PReLU as an activation function. This will be resolved in an upcoming release.
+-   The following models from [DX ModelZoo](https://developer.deepx.ai/modelzoo/) show high accuracy variability depending on the host CPU and calibration dataset used: OSNet0_5, RepVGGA2, YoloV9C, DnCNN series.
+
+### DX-TRON (v2.0.1)
+
+No changes in this release.
+
+----------
+
 ## DX-Compiler v2.2.1 / 2026-02-11
 
 -   DX-COM: v2.2.1
@@ -281,4 +319,3 @@ We believe DX-Compiler v1.0.0 will be an indispensable tool for developers looki
 ### DX-TRON (v0.0.8)
 
 -   The dx_tron module (v0.0.8) is currently available for download at [developer.deepx.ai](http://developer.deepx.ai/ "http://developer.deepx.ai"). This module is part of the DX-Compiler, and its official inclusion in the main release will be in an upcoming version.
-

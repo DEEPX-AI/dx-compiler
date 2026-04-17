@@ -28,7 +28,7 @@ Defines the input name and shape of the ONNX model.
 
 !!! warning "Model Input Restrictions"
     - The batch size **must** be fixed to 1.  
-    - **Only** a single input is supported with CLI. For multi-input models, use the Python API with DataLoader (see [Python Wheel Package Usage](02_06_Execution_of_DX-COM.md#python-wheel-package-usage)).  
+    - **Only** a single input is supported when compiling from a JSON configuration with the `dxcom` command. For multi-input models, use the `dx_com` Python module with DataLoader (see [Python Wheel Package Usage](02_06_Execution_of_DX-COM.md#python-wheel-package-usage)).  
     - Input name **must** exactly match ONNX model definition.
 
 Example  
@@ -106,14 +106,11 @@ For all available preprocessing operations, see [Appendix: Preprocessing Operati
 
 **For Multi-Input Models or Non-Image Data**  
 
-If you need to compile multi-input models or provide non-image data, use the Python wheel package with torch DataLoader instead of JSON configuration. See [Python Wheel Package Usage](02_06_Execution_of_DX-COM.md#python-wheel-package-usage).  
+If you need to compile multi-input models or provide non-image data, use the `dx_com` Python module with torch DataLoader instead of JSON configuration. See [Python Wheel Package Usage](02_06_Execution_of_DX-COM.md#python-wheel-package-usage).  
 
 ---
 
 ## Optional Parameters: Quantization Device
-
-!!! note "Wheel Package Only"
-    `quantization_device` is **only supported when DX-COM is installed via the Python wheel package**. The standalone executable does not support GPU quantization.
 
 Specifies the device used for quantization during compilation. By default, DX-COM automatically detects available hardware and uses GPU if a CUDA-compatible GPU is available, otherwise falls back to CPU. You can override this behavior by explicitly setting the device.
 
@@ -221,21 +218,24 @@ Support the optional `num_samples` parameter. Recommended value: 1024.
 
 ## Optional Parameters: PPU Configuration
 
-The Post-Processing Unit (PPU) is a hardware-accelerated engine within the NPU designed to offload compute-intensive detection tasks from the host CPU. By executing these tasks directly on silicon, the PPU ensures lower latency and reduced CPU utilization—critical for resource-constrained edge environments.  
+The Post-Processing Unit (PPU) is a hardware module inside the NPU for accelerating selected post-processing steps in supported object detection models. The `ppu` configuration section exists to enable this hardware path and provide the parameters required to use it.
 
-The PPU automates the following operations at the hardware level:  
+In this section, `type = 0` and `type = 1` still configure PPU hardware paths. `type = 2` is different: it does **not** use the PPU hardware. Instead, it enables an additional CPU-side TopK-based optimization flow for compatible DFL-based YOLO models.
 
-- **Confidence Filtering:** Hardware-level removal of detection candidates below a specified threshold.  
-- **Class Prediction:** Execution of Argmax operations to identify the highest probability class per detection.  
+These configurations can automate or optimize the following operations:  
+
+- **Confidence Filtering (`type = 0`, `type = 1`)**: Removal of detection candidates below a specified threshold through the PPU hardware path.  
+- **Class Prediction (`type = 0`, `type = 1`)**: Execution of Argmax-style class selection per detection through the PPU hardware path.  
+- **TopK Candidate Reduction (`type = 2`)**: CPU-side selection of the highest-scoring candidates to reduce the work required in later CPU-side decoding and filtering stages for supported DFL-based YOLO models.  
 
 !!! warning "IMPORTANT"  
-    **NMS** (Non-Maximum Suppression) is not supported by the PPU hardware. NMS operations must be executed on the host CPU using the filtered output from the PPU.  
+    **NMS** (Non-Maximum Suppression) is not supported by the PPU hardware and must still be executed on the host CPU after compilation using the filtered model outputs.  
 
 ---
 
 ### Operational Guidelines  
 
-Before enabling the PPU, verify that your model architecture and system requirements align with the following criteria:  
+Before using the `ppu` configuration, verify that your model architecture and system requirements align with the following criteria:  
 
 Recommended Use Cases (Enable)  
 
@@ -253,13 +253,13 @@ Non-Supported Scenarios (Disable)
 
 ### Performance Impact  
 
-Shifting detection head processing from software (CPU) to hardware (NPU) provides a significant uplift in end-to-end inference speed.  
+The performance effect depends on the selected PPU type. `type = 0` and `type = 1` reduce CPU-side detection work through the PPU hardware path, while `type = 2` improves CPU-side post-processing efficiency by shrinking the candidate set before the heavier CPU-side DFL-based decoding and later filtering stages.  
 
-| Feature | CPU-based (PPU Disabled) | Hardware-based (PPU Enabled) |
+| PPU Mode | Primary Effect | Expected Benefit |
 |------|------|------|
-| Processing Site | Host CPU | NPU Hardware |
-| Inference Latency | Higher (Variable) | Lower (Deterministic) |
-| CPU Utilization | Significant | Minimal |
+| Disabled | All post-processing remains on the host CPU | Higher CPU workload |
+| `type = 0` / `type = 1` | The compiled model uses the PPU path for filtering and class prediction | Lower CPU utilization and lower end-to-end latency |
+| `type = 2` | TopK and the later decoding/filtering stages remain on the host CPU; TopK reduces the number of candidates processed later | Reduced CPU post-processing complexity and improved runtime efficiency |
 
 ---
 
@@ -269,6 +269,7 @@ Shifting detection head processing from software (CPU) to hardware (NPU) provide
 |------|--------------|------------------|
 | 0 | Anchor-Based | YOLOv3, YOLOv4, YOLOv5, YOLOv7 |
 | 1 | Anchor-Free | YOLOX, YOLOv8, YOLOv9, YOLOv10, YOLOv11, YOLOv12 |
+| 2 | DFL-Based Anchor-Free | YOLOv8, YOLOv9, YOLOv10, YOLOv11, YOLOv12 (optional CPU-side TopK optimization path; validated in DX-COM v2.3.0) |
 
 ---
 
@@ -300,7 +301,7 @@ Parameters:
 
 ---
 
-### Type 1: Anchor-Free YOLO Models
+### Type 1: Anchor-Free Models
 
 **YOLOX Example:**
 ```json
@@ -334,13 +335,49 @@ Parameters:
 
 Parameters:
 
-- `type`: Set to `1` for anchor-free models
+- `type`: Set to `1` for the standard anchor-free PPU path
 - `conf_thres`: Confidence threshold (fixed at compile time)
 - `num_classes`: Number of detection classes
 - `layer`: List of layer configurations
     - `bbox`: Bounding box output layer
-    - `obj_conf`: Object confidence layer (YOLOX only)
+    - `obj_conf`: Object confidence layer
     - `cls_conf`: Class confidence layer
+
+---
+
+### Type 2: DFL-Based Anchor-Free Models (CPU-Side TopK Optimization)
+
+`ppu.type = 2` is an optional CPU-side TopK optimization path for compatible DFL-based anchor-free YOLO models. It does **not** use the PPU hardware. Post-processing still runs on the CPU, and TopK is also performed on the CPU. By reducing the number of candidate boxes that continue into later CPU-side DFL-based decoding and filtering stages, this option reduces post-processing complexity and improves runtime efficiency.
+
+This option is intended for DFL-based YOLO families that expose separate per-scale `bbox` and `cls_conf` head nodes. It is an optional CPU-side optimization path in addition to the standard anchor-free PPU configuration. In internal validation for DX-COM v2.3.0, this path was compile-verified with YOLOv8, YOLOv9, YOLOv10, YOLOv11, and YOLOv12 variants using compatible head mappings.
+
+```json
+{
+  "ppu": {
+    "type": 2,
+    "topk": 512,
+    "num_classes": 80,
+    "layer": [
+      {"bbox": "bbox_head_p3", "cls_conf": "cls_head_p3"},
+      {"bbox": "bbox_head_p4", "cls_conf": "cls_head_p4"},
+      {"bbox": "bbox_head_p5", "cls_conf": "cls_head_p5"}
+    ]
+  }
+}
+```
+
+Parameters:
+
+- `type`: Set to `2` to compile the CPU-side TopK-optimized flow
+- `topk`: Number of candidates kept before later decoding stages
+    - If omitted, DX-COM uses the internal default value
+    - `512` is a practical starting point for validated YOLO examples
+- `num_classes`: Number of detection classes
+- `layer`: List of per-scale detection head mappings
+    - `bbox`: Final bbox head node name for a detection scale
+    - `cls_conf`: Final class-confidence head node name for the same scale
+
+Use this option only when the model head structure is compatible with this workflow. A DFL-based output is important, but it is not the only requirement. You must also provide correct per-scale `bbox` and `cls_conf` node mappings in the JSON configuration.
 
 ---
 
@@ -350,7 +387,7 @@ To configure PPU, you need to identify specific node names in your ONNX model:
 
 **Step 1.** Open your model in [Netron](https://netron.app) to visualize the ONNX graph
 
-**Step 2.** For Type 0 (Anchor-based YOLO):
+**Step 2-1.** For Type 0 (Anchor-based YOLO):
 
 - Trace backwards from model outputs to locate detection head Conv layers
 - These Conv layers output feature maps with shape `[1, num_anchors*(5+num_classes), H, W]`
@@ -358,20 +395,29 @@ To configure PPU, you need to identify specific node names in your ONNX model:
 
 ![Figure. YOLOv7 detection head showing the three Conv layers (highlighted in red)](./../resources/yolov7-class-n2-ppu.png){ width=600px }
 
-**Step 3.** For Type 1 (YOLOX):
+**Step 2-2.** For Type 1 (standard anchor-free PPU path, YOLOX example):
 
 - Find three types of Conv nodes for each detection scale: `bbox`, `obj_conf`, `cls_conf`
 - This results in 9 Conv layers total (3 scales × 3 branches)
 
 ![Figure. YOLOX Multi-Scale Detection Head Architecture](./../resources/YOLOX-head.png){ width=600px }
 
-**Step 4.** For Type 1 (YOLOv8 and later):
+**Step 2-3.** For Type 1 (YOLOv8 and later):
 
 - Trace backwards from the final `Concat` operation
 - Identify `bbox` (often from `Mul` or `Add`) and `cls_conf` (often from `Sigmoid`)
-- Only **one layer** entry is needed
+- Use the node names that match the `layer` format required by `type = 1`
 
 ![Figure. YOLOv8 Detection Head Architecture](./../resources/YOLOV8-head.png){ width=350px }
+
+**Step 2-4.** For Type 2 (CPU-side TopK optimization path):
+
+- Inspect the ONNX tail and locate the final per-scale bbox and class head nodes
+- Identify three detection scales and pair the matching `bbox` and `cls_conf` nodes for each scale
+- For validated examples, the correct nodes were the final Conv nodes in the decoupled head branches
+- Some models may already include TopK-style operations in the ONNX tail, but you should still map the compatible per-scale `bbox` / `cls_conf` nodes for the `type = 2` configuration
+
+![Figure. YOLOv8 Detection Head Architecture 1](./../resources/YOLOV8-head-1.png){ width=600px }
 
 ---
 
@@ -383,28 +429,34 @@ The following preprocessing operations can be applied to input data when using `
     To maximize performance, the compiler may automatically integrate specific preprocessing operations directly into the NPU execution graph. This hardware-level integration reduces host CPU load and minimizes data transfer latency.  
 
     Optimization depends on input data types and model architecture; therefore, integration **is not guaranteed** for all operations.  
-    
-    **How to Verify and Optimize:**  
+
+    **How to Verify and Optimize:**
+
     After compilation, inspect the compilation logs for `[INFO] - Added nodes: messages.` This indicates which operations have been offloaded to the NPU.  
 
-    **1. Identify Integrated Nodes:**  Check your log for entries similar to the following: `[INFO] - Added nodes: ['Normalize', 'Cast', 'Transpose']`  
+    **1. Identify Integrated Nodes:**
+
+    Check your log for entries similar to the following: `[INFO] - Added nodes: ['Normalize', 'Cast', 'Transpose']`
+
     ```
     [INFO] - Added nodes: Div(x=255) -> Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ```
-    
-    **2. Update Runtime Code:** If an operation is listed in the "Added nodes" log, it is now handled by the NPU hardware. You must remove these operations from your host-side runtime code to prevent redundant processing and performance degradation.  
-  
-    | Status in Log | Action Required | Result|
+
+    **2. Update Runtime Code:**
+
+    If an operation is listed in the "Added nodes" log, it is now handled by the NPU hardware. You must remove these operations from your host-side runtime code to prevent redundant processing and performance degradation.  
+
+    | Status in Log | Action Required | Result |
     |------|------|------|
     | Node Added | Remove from Host Code | Hardware Acceleration Enabled |
     | Node Not Added | Keep in Host Code | Software Preprocessing (CPU) |
-      
+
     ```python
     # If preprocessing is NOT integrated into NPU:
     img = img / 255.0
     normalized = (img - mean) / std
     output = model.run(normalized)
-    
+
     # If preprocessing IS integrated into NPU (log shows "Added nodes"):
     output = model.run(img)  # Skip preprocessing - NPU handles it automatically
     ```

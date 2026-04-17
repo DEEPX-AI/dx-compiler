@@ -1,6 +1,12 @@
 # Common Use Cases
 
-This chapter provides practical, real-world scenarios with ready-to-use examples. Each use case demonstrates the implementation using both CLI and Python API where applicable. 
+This chapter provides practical, real-world scenarios with ready-to-use examples. Each use case demonstrates the implementation using the `dxcom` command and the `dx_com` Python module where applicable. 
+
+!!! note "Additional Dependencies"
+    Some examples in this chapter use `torchvision` for image preprocessing. Install it before running these examples:
+    ```bash
+    pip install torchvision
+    ```
 
 ---
 
@@ -8,10 +14,10 @@ This chapter provides practical, real-world scenarios with ready-to-use examples
 
 **Scenario**: Compiling a pre-trained ResNet50 or MobileNetV1 model using standard image preprocessing.  
 
-- **Option A: CLI Method** – Best for quick, standard builds.  
-- **Option B: Python API Method** – Best for integration into automated scripts.  
+- **Option A: `dxcom` Command** – Best for quick, standard builds.  
+- **Option B: `dx_com` Python Module** – Best for integration into automated scripts.  
 
-### Option A: CLI Method
+### Option A: `dxcom` Command
 
 **Configuration File** (`resnet50_config.json`):
 ```json
@@ -37,14 +43,14 @@ This chapter provides practical, real-world scenarios with ready-to-use examples
 
 **Command**:
 ```bash
-./dx_com/dx_com \
+dxcom \
   -m ResNet50_sim.onnx \
   -c resnet50_config.json \
   -o output/resnet50 \
   --opt_level 1
 ```
 
-### Option B: Python API Method
+### Option B: `dx_com` Python Module
 
 **Complete Script** (`compile_resnet50.py`):
 ```python
@@ -107,10 +113,10 @@ python3 compile_resnet50.py
 
 **Scenario**: A stereo camera system requiring two image inputs with different dimensions.  
 
-!!! note "Python API Only"
-    Multi-input models are **only supported via Python API**. CLI does not support multiple inputs.
+!!! note "dx_com Python Module Only"
+    Multi-input models are **only supported via the `dx_com` Python module**. The `dxcom` command does not support multiple inputs.
 
-### Python API Method
+### `dx_com` Python Module
 
 ```python
 import dx_com
@@ -202,6 +208,9 @@ print("Stereo model compilation complete!")
 
 ## Use Case 3: Performance Optimization for Edge Devices
 
+!!! warning "Experimental Feature"
+    `aggressive_partitioning` is currently experimental and may produce unexpected results for some models.
+
 **Scenario**: Deploying on embedded systems with restricted CPU resources. The goal is to maximize NPU offloading while maintaining short compilation times.  
 
 ### Configuration for Aggressive Partitioning
@@ -224,12 +233,12 @@ print("Stereo model compilation complete!")
 }
 ```
 
-You can compile using either **CLI** or **Python API**. Choose one:  
+You can compile using either the **`dxcom` command** or the **`dx_com` Python module**. Choose one:  
 
-### Option A: CLI Method
+### Option A: `dxcom` Command
 
 ```bash
-./dx_com/dx_com \
+dxcom \
   -m efficient_model.onnx \
   -c config.json \
   -o output/efficient \
@@ -237,7 +246,7 @@ You can compile using either **CLI** or **Python API**. Choose one:
   --opt_level 0
 ```
 
-### Option B: Python API Method
+### Option B: `dx_com` Python Module
 
 ```python
 import dx_com
@@ -263,10 +272,10 @@ dx_com.compile(
 
 **Scenario**: Processing non-visual data such as audio spectrograms, time-series data, or 3D point clouds.  
 
-!!! note "Python API Only"
-    Non-image data types are **only supported via Python API**. CLI only supports image data.
+!!! note "dx_com Python Module Only"
+    Non-image data types are **only supported via the `dx_com` Python module**. The `dxcom` command only supports image data.
 
-### Python API Method
+### `dx_com` Python Module
 
 ```python
 import dx_com
@@ -321,10 +330,10 @@ dx_com.compile(
 !!! note "Version Support"
     DXQ (`enhanced_scheme`) is supported in **DX-COM v2.1.0 and later**.
 
-- **Option A: CLI Method** – Set `enhanced_scheme` in the JSON config file.  
-- **Option B: Python API Method** – Pass `enhanced_scheme` as a parameter directly.  
+- **Option A: `dxcom` Command** – Set `enhanced_scheme` in the JSON config file.  
+- **Option B: `dx_com` Python Module** – Pass `enhanced_scheme` as a parameter directly.  
 
-### Option A: CLI Method
+### Option A: `dxcom` Command
 
 **Configuration File** (`config.json`):
 ```json
@@ -357,7 +366,7 @@ dxcom \
   --opt_level 1
 ```
 
-### Option B: Python API Method
+### Option B: `dx_com` Python Module
 
 ```python
 import dx_com
@@ -375,7 +384,7 @@ dx_com.compile(
 ```
 
 !!! note "GPU Device Selection"
-    By default, DX-COM automatically uses GPU if available. In multi-GPU environments, you can specify a device via `quantization_device` in the JSON config or Python API parameter (e.g., `"cuda:1"`). See [Quantization Device](02_05_JSON_File_Configuration.md#optional-parameters-quantization-device) for details.
+    By default, DX-COM automatically uses GPU if available. In multi-GPU environments, you can specify a device via `quantization_device` in the JSON config or the `dx_com.compile()` parameter (e.g., `"cuda:1"`). See [Quantization Device](02_05_JSON_File_Configuration.md#optional-parameters-quantization-device) for details.
 
 For all available DXQ schemes (DXQ-P0 to DXQ-P5) and their parameters, see [Enhanced Quantization Scheme (DXQ)](02_05_JSON_File_Configuration.md#optional-parameters-enhanced-quantization-scheme-dxq).
 
