@@ -65,16 +65,25 @@ PyTorch (.pt)          ONNX (.onnx)                    DXNN (.dxnn)
 | `@dx-model-converter` | PyTorch 모델을 ONNX 포맷으로 변환 |
 | `@dx-dxnn-compiler` | DX-COM을 사용하여 ONNX 모델을 DXNN으로 컴파일 |
 
-### 스킬 (OpenCode 전용)
+### 스킬 (모든 플랫폼)
 
 | 스킬 | 설명 |
 |---|---|
-| `/dx-convert-model` | PyTorch → ONNX 변환 단계별 워크플로우 |
-| `/dx-compile-model` | ONNX → DXNN 컴파일 단계별 워크플로우 |
-| `/dx-validate-compile` | 컴파일된 .dxnn 모델 출력 검증 |
 | `/dx-brainstorm-and-plan` | 컴파일 작업 전 브레인스토밍 및 계획 수립 (프로세스 스킬) |
+| `/dx-compile-model` | ONNX → DXNN 컴파일 단계별 워크플로우 |
+| `/dx-convert-model` | PyTorch → ONNX 변환 단계별 워크플로우 |
+| `/dx-dispatching-parallel-agents` | 독립 작업을 병렬 에이전트로 디스패치 |
+| `/dx-executing-plans` | 리뷰 체크포인트가 포함된 구현 계획 실행 |
+| `/dx-receiving-code-review` | 코드 리뷰 피드백 수신 및 처리 |
+| `/dx-requesting-code-review` | 병합 전 코드 리뷰 요청 |
+| `/dx-skill-router` | 적절한 스킬로 작업 라우팅 |
+| `/dx-subagent-driven-development` | 독립 서브 에이전트를 활용한 계획 실행 |
+| `/dx-systematic-debugging` | 수정 제안 전 체계적 디버깅 |
 | `/dx-tdd` | 테스트 주도 개발 — 각 단계별 점진적 검증 (프로세스 스킬) |
+| `/dx-validate-compile` | 컴파일된 .dxnn 모델 출력 검증 |
 | `/dx-verify-completion` | 완료 선언 전 검증 — 증거 기반 확인 (프로세스 스킬) |
+| `/dx-writing-plans` | 스펙 또는 요구사항으로부터 구현 계획 작성 |
+| `/dx-writing-skills` | 스킬 정의 생성 또는 편집 |
 
 ## 지원하는 AI 도구
 
@@ -85,7 +94,7 @@ PyTorch (.pt)          ONNX (.onnx)                    DXNN (.dxnn)
 |---|---|---|---|
 | **Claude Code** | CLI | 프로젝트 루트의 `CLAUDE.md` | 자유 대화; Context Routing Table이 자동 디스패치 |
 | **GitHub Copilot** | VS Code | `.github/copilot-instructions.md` | Copilot Chat에서 `@dx-compiler-builder "프롬프트"` |
-| **Cursor** | IDE | `.cursor/rules/dx-compiler.mdc` | 자유 대화; `alwaysApply` 규칙이 자동 로드 |
+| **Cursor** | IDE | `.cursor/rules/` (19개 파일: `dx-compiler.mdc`, 에이전트 `.mdc` 3개, `skill-*.mdc` 15개) | 자유 대화; `alwaysApply` 규칙이 자동 로드 |
 | **OpenCode** | CLI | `AGENTS.md` + `opencode.json` | `@dx-compiler-builder "프롬프트"` 또는 `/dx-compile-model` |
 
 ### 처음 사용할 때
@@ -120,39 +129,66 @@ cursor dx-all-suite/dx-compiler
 | `.github/copilot-instructions.md` | ✅ | — | — | — | Auto |
 | `CLAUDE.md` | — | — | ✅ | — | Auto |
 | `AGENTS.md` + `opencode.json` | — | ✅ | — | — | Auto |
-| `.cursor/rules/dx-compiler.mdc` | — | — | — | ✅ | Auto |
+| `.cursor/rules/` (19개 파일) | — | — | — | ✅ | Auto |
 
 #### 에이전트 파일 (수동 @mention)
 
-| 에이전트 | Copilot (`@mention`) | OpenCode (`@mention`) |
-|----------|------|---------|
-| `dx-compiler-builder` | `.github/agents/dx-compiler-builder.agent.md` | `.opencode/agents/dx-compiler-builder.md` |
-| `dx-dxnn-compiler` | `.github/agents/dx-dxnn-compiler.agent.md` | `.opencode/agents/dx-dxnn-compiler.md` |
-| `dx-model-converter` | `.github/agents/dx-model-converter.agent.md` | `.opencode/agents/dx-model-converter.md` |
+| 에이전트 | Copilot (`@mention`) | Claude Code (`@mention`) | OpenCode (`@mention`) |
+|----------|------|---------|---------|
+| `dx-compiler-builder` | `.github/agents/dx-compiler-builder.agent.md` | `.claude/agents/dx-compiler-builder.md` | `.opencode/agents/dx-compiler-builder.md` |
+| `dx-dxnn-compiler` | `.github/agents/dx-dxnn-compiler.agent.md` | `.claude/agents/dx-dxnn-compiler.md` | `.opencode/agents/dx-dxnn-compiler.md` |
+| `dx-model-converter` | `.github/agents/dx-model-converter.agent.md` | `.claude/agents/dx-model-converter.md` | `.opencode/agents/dx-model-converter.md` |
 
-#### 스킬 파일 (OpenCode 전용 — `/slash-command`)
+#### 스킬 파일 (모든 플랫폼)
+
+스킬은 모든 플랫폼에 존재합니다:
+
+- `.deepx/skills/` — 정식 정의 (15개 스킬)
+- `.github/skills/` — Copilot 인라인 사본
+- `.claude/skills/` — Claude 씬 래퍼
+- `.opencode/agents/` — OpenCode, 스킬 참조를 통해
+- `.cursor/rules/skill-*.mdc` — Cursor 규칙
 
 | 스킬 | 파일 |
 |------|------|
-| `/dx-brainstorm-and-plan` | `.opencode/skills/dx-brainstorm-and-plan/SKILL.md` |
-| `/dx-compile-model` | `.opencode/skills/dx-compile-model/SKILL.md` |
-| `/dx-convert-model` | `.opencode/skills/dx-convert-model/SKILL.md` |
-| `/dx-validate-compile` | `.opencode/skills/dx-validate-compile/SKILL.md` |
-| `/dx-verify-completion` | `.opencode/skills/dx-verify-completion/SKILL.md` |
-| `/dx-tdd` | `.opencode/skills/dx-tdd/SKILL.md` |
+| `/dx-brainstorm-and-plan` | `.deepx/skills/dx-brainstorm-and-plan/SKILL.md` |
+| `/dx-compile-model` | `.deepx/skills/dx-compile-model/SKILL.md` |
+| `/dx-convert-model` | `.deepx/skills/dx-convert-model/SKILL.md` |
+| `/dx-dispatching-parallel-agents` | `.deepx/skills/dx-dispatching-parallel-agents/SKILL.md` |
+| `/dx-executing-plans` | `.deepx/skills/dx-executing-plans/SKILL.md` |
+| `/dx-receiving-code-review` | `.deepx/skills/dx-receiving-code-review/SKILL.md` |
+| `/dx-requesting-code-review` | `.deepx/skills/dx-requesting-code-review/SKILL.md` |
+| `/dx-skill-router` | `.deepx/skills/dx-skill-router/SKILL.md` |
+| `/dx-subagent-driven-development` | `.deepx/skills/dx-subagent-driven-development/SKILL.md` |
+| `/dx-systematic-debugging` | `.deepx/skills/dx-systematic-debugging/SKILL.md` |
+| `/dx-tdd` | `.deepx/skills/dx-tdd/SKILL.md` |
+| `/dx-validate-compile` | `.deepx/skills/dx-validate-compile/SKILL.md` |
+| `/dx-verify-completion` | `.deepx/skills/dx-verify-completion/SKILL.md` |
+| `/dx-writing-plans` | `.deepx/skills/dx-writing-plans/SKILL.md` |
+| `/dx-writing-skills` | `.deepx/skills/dx-writing-skills/SKILL.md` |
 
 #### 공유 지식 베이스 (`.deepx/`)
 
-`.deepx/` 디렉토리는 모든 에이전트 플랫폼이 공유하는 플랫폼 비의존적 지식 베이스입니다.
-자동 로딩되지 않으며, 에이전트와 스킬이 작업 실행 중 필요한 파일을 직접 참조합니다.
+`.deepx/` 디렉토리는 모든 플랫폼별 파일의 **정식 소스(canonical source)**입니다. `dx-agentic-gen` 생성기가 에이전트, 스킬, 템플릿을 Copilot (`.github/`), Claude Code (`.claude/`), OpenCode (`.opencode/`), Cursor (`.cursor/rules/`)용 플랫폼별 파일로 변환합니다. 런타임 지식 파일(memory, instructions, toolsets)은 작업 실행 중 에이전트가 필요 시 읽습니다.
 
 | 디렉토리 | 파일 | 설명 |
 |-----------|------|------|
-| `.deepx/agents/` | `dx-compiler-builder.md`, `dx-dxnn-compiler.md`, `dx-model-converter.md` | 에이전트 원본 정의 (`.github/agents/` 및 `.opencode/agents/`의 원본) |
-| `.deepx/skills/` | 6개 파일 (`dx-compile-model.md`, `dx-convert-model.md`, `dx-brainstorm-and-plan.md`, `dx-tdd.md`, `dx-validate-compile.md`, `dx-verify-completion.md`) | 상세 스킬 워크플로우 |
+| `.deepx/agents/` | `dx-compiler-builder.md`, `dx-dxnn-compiler.md`, `dx-model-converter.md` | 에이전트 원본 정의 — `dx-agentic-gen`이 `.github/agents/`, `.claude/agents/`, `.opencode/agents/`, `.cursor/rules/`로 플랫폼 사본을 생성 |
+| `.deepx/skills/` | 15개 스킬 (`dx-brainstorm-and-plan`, `dx-compile-model`, `dx-convert-model`, `dx-dispatching-parallel-agents`, `dx-executing-plans`, `dx-receiving-code-review`, `dx-requesting-code-review`, `dx-skill-router`, `dx-subagent-driven-development`, `dx-systematic-debugging`, `dx-tdd`, `dx-validate-compile`, `dx-verify-completion`, `dx-writing-plans`, `dx-writing-skills`) | 상세 스킬 워크플로우 |
+| `.deepx/templates/` | `{en,ko}/*.tmpl` | 인스트럭션 파일 템플릿 (상위 디렉토리 탐색을 통한 프래그먼트, 스위트 루트까지) |
 | `.deepx/toolsets/` | `dxcom-api.md`, `dxcom-cli.md`, `config-schema.md` | API 및 CLI 레퍼런스 |
 | `.deepx/instructions/` | `coding-standards.md`, `compilation-workflow.md` | 코딩 규칙 및 워크플로우 |
 | `.deepx/memory/` | `common_pitfalls.md`, `MEMORY.md` | 영구 지식 — 공통 실수 및 세션 메모리 |
+
+#### 생성 파이프라인
+
+모든 플랫폼별 파일(`.github/`, `.claude/`, `.opencode/`, `.cursor/rules/`)은 `dx-agentic-gen`이 `.deepx/`로부터 생성합니다:
+
+```bash
+dx-agentic-gen generate --repo dx-compiler
+```
+
+pre-commit 훅이 `.deepx/` 소스와 생성된 플랫폼 파일 간의 차이를 감지합니다. **플랫폼 파일을 직접 편집하지 마세요** — 항상 정식 `.deepx/` 소스를 편집하고 생성기를 다시 실행하세요.
 
 ## 사용 시나리오
 

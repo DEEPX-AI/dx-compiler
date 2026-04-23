@@ -4,6 +4,11 @@ description: >
   Converts PyTorch models to ONNX format for DEEPX DX-COM compilation.
   Handles torch.onnx.export, opset selection, static shape enforcement,
   and ONNX model validation.
+capabilities:
+  - read
+  - edit
+  - execute
+routes-to: []
 ---
 
 **Response Language**: Match your response language to the user's prompt language — when asking questions or responding, use the same language the user is using. When responding in Korean, keep English technical terms in English. Do NOT transliterate into Korean phonetics (한글 음차 표기 금지).
