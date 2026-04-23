@@ -1,6 +1,30 @@
 
 # RELEASE_NOTES
 
+## DX-Compiler v2.3.1 / 2026-04-23
+
+-   DX-COM: v2.3.0
+-   DX-TRON: v2.0.1
+
+----------
+
+Here are the **DX-Compiler v2.3.1** Release Notes.
+
+### Installer
+
+### 1. Fixed
+
+-   Fixed `uninstall.sh` not removing installed packages and extracted module directories.
+    -   `dx_com` Python package is now properly uninstalled via `pip3 uninstall` before the virtual environment is removed.
+    -   `dxtron` Debian package is now properly removed via `apt-get remove`.
+    -   `dx_com/` and `dx_tron/` directories are now deleted on uninstall.
+
+### 2. Added
+
+-   Added `--target=<dx_com|dx_tron|all>` option to `uninstall.sh` (default: `all`), consistent with `install.sh`.
+
+----------
+
 ## DX-Compiler v2.3.0 / 2026-03-30
 
 -   DX-COM: v2.3.0
