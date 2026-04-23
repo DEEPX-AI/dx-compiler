@@ -65,16 +65,25 @@ PyTorch (.pt)          ONNX (.onnx)                    DXNN (.dxnn)
 | `@dx-model-converter` | Converts PyTorch models to ONNX format |
 | `@dx-dxnn-compiler` | Compiles ONNX models to DXNN using DX-COM |
 
-### Skills (OpenCode only)
+### Skills (All Platforms)
 
 | Skill | Description |
 |---|---|
-| `/dx-convert-model` | Step-by-step PyTorch to ONNX conversion workflow |
-| `/dx-compile-model` | Step-by-step ONNX to DXNN compilation workflow |
-| `/dx-validate-compile` | Validate compiled .dxnn model output |
 | `/dx-brainstorm-and-plan` | Brainstorm and plan before any compilation task (process skill) |
+| `/dx-compile-model` | Step-by-step ONNX to DXNN compilation workflow |
+| `/dx-convert-model` | Step-by-step PyTorch to ONNX conversion workflow |
+| `/dx-dispatching-parallel-agents` | Dispatch independent tasks to parallel agents |
+| `/dx-executing-plans` | Execute implementation plans with review checkpoints |
+| `/dx-receiving-code-review` | Receive and process code review feedback |
+| `/dx-requesting-code-review` | Request code review before merging |
+| `/dx-skill-router` | Route tasks to appropriate skills |
+| `/dx-subagent-driven-development` | Execute plans with independent sub-agents |
+| `/dx-systematic-debugging` | Systematic debugging before proposing fixes |
 | `/dx-tdd` | Test-driven development — validate each step incrementally (process skill) |
+| `/dx-validate-compile` | Validate compiled .dxnn model output |
 | `/dx-verify-completion` | Verify before claiming completion — evidence before assertions (process skill) |
+| `/dx-writing-plans` | Write implementation plans from specs or requirements |
+| `/dx-writing-skills` | Create or edit skill definitions |
 
 ## Supported AI Tools
 
@@ -85,7 +94,7 @@ the `.deepx/` knowledge base through its own configuration mechanism.
 |---|---|---|---|
 | **Claude Code** | CLI | `CLAUDE.md` at project root | Free-form conversation; Context Routing Table dispatches automatically |
 | **GitHub Copilot** | VS Code | `.github/copilot-instructions.md` | `@dx-compiler-builder "prompt"` in Copilot Chat |
-| **Cursor** | IDE | `.cursor/rules/dx-compiler.mdc` | Free-form conversation; rules loaded by `alwaysApply` |
+| **Cursor** | IDE | `.cursor/rules/` (19 files: `dx-compiler.mdc`, 3 agent `.mdc` files, 15 `skill-*.mdc` files) | Free-form conversation; rules loaded by `alwaysApply` |
 | **OpenCode** | CLI | `AGENTS.md` + `opencode.json` | `@dx-compiler-builder "prompt"` or `/dx-compile-model` |
 
 ### First-Time Setup
@@ -120,40 +129,66 @@ Each AI coding agent auto-loads different configuration files at the dx-compiler
 | `.github/copilot-instructions.md` | ✅ | — | — | — | Auto |
 | `CLAUDE.md` | — | — | ✅ | — | Auto |
 | `AGENTS.md` + `opencode.json` | — | ✅ | — | — | Auto |
-| `.cursor/rules/dx-compiler.mdc` | — | — | — | ✅ | Auto |
+| `.cursor/rules/` (19 files) | — | — | — | ✅ | Auto |
 
 #### Agent Files (Manual @mention)
 
-| Agent | Copilot (`@mention`) | OpenCode (`@mention`) |
-|-------|------|---------|
-| `dx-compiler-builder` | `.github/agents/dx-compiler-builder.agent.md` | `.opencode/agents/dx-compiler-builder.md` |
-| `dx-dxnn-compiler` | `.github/agents/dx-dxnn-compiler.agent.md` | `.opencode/agents/dx-dxnn-compiler.md` |
-| `dx-model-converter` | `.github/agents/dx-model-converter.agent.md` | `.opencode/agents/dx-model-converter.md` |
+| Agent | Copilot (`@mention`) | Claude Code (`@mention`) | OpenCode (`@mention`) |
+|-------|------|---------|---------|
+| `dx-compiler-builder` | `.github/agents/dx-compiler-builder.agent.md` | `.claude/agents/dx-compiler-builder.md` | `.opencode/agents/dx-compiler-builder.md` |
+| `dx-dxnn-compiler` | `.github/agents/dx-dxnn-compiler.agent.md` | `.claude/agents/dx-dxnn-compiler.md` | `.opencode/agents/dx-dxnn-compiler.md` |
+| `dx-model-converter` | `.github/agents/dx-model-converter.agent.md` | `.claude/agents/dx-model-converter.md` | `.opencode/agents/dx-model-converter.md` |
 
-#### Skill Files (OpenCode Only — `/slash-command`)
+#### Skill Files (All Platforms)
+
+Skills exist across all platforms:
+
+- `.deepx/skills/` — canonical definitions (15 skills)
+- `.github/skills/` — Copilot inline copies
+- `.claude/skills/` — Claude thin wrappers
+- `.opencode/agents/` — OpenCode, via skill references
+- `.cursor/rules/skill-*.mdc` — Cursor rules
 
 | Skill | File |
 |-------|------|
-| `/dx-brainstorm-and-plan` | `.opencode/skills/dx-brainstorm-and-plan/SKILL.md` |
-| `/dx-compile-model` | `.opencode/skills/dx-compile-model/SKILL.md` |
-| `/dx-convert-model` | `.opencode/skills/dx-convert-model/SKILL.md` |
-| `/dx-validate-compile` | `.opencode/skills/dx-validate-compile/SKILL.md` |
-| `/dx-verify-completion` | `.opencode/skills/dx-verify-completion/SKILL.md` |
-| `/dx-tdd` | `.opencode/skills/dx-tdd/SKILL.md` |
+| `/dx-brainstorm-and-plan` | `.deepx/skills/dx-brainstorm-and-plan/SKILL.md` |
+| `/dx-compile-model` | `.deepx/skills/dx-compile-model/SKILL.md` |
+| `/dx-convert-model` | `.deepx/skills/dx-convert-model/SKILL.md` |
+| `/dx-dispatching-parallel-agents` | `.deepx/skills/dx-dispatching-parallel-agents/SKILL.md` |
+| `/dx-executing-plans` | `.deepx/skills/dx-executing-plans/SKILL.md` |
+| `/dx-receiving-code-review` | `.deepx/skills/dx-receiving-code-review/SKILL.md` |
+| `/dx-requesting-code-review` | `.deepx/skills/dx-requesting-code-review/SKILL.md` |
+| `/dx-skill-router` | `.deepx/skills/dx-skill-router/SKILL.md` |
+| `/dx-subagent-driven-development` | `.deepx/skills/dx-subagent-driven-development/SKILL.md` |
+| `/dx-systematic-debugging` | `.deepx/skills/dx-systematic-debugging/SKILL.md` |
+| `/dx-tdd` | `.deepx/skills/dx-tdd/SKILL.md` |
+| `/dx-validate-compile` | `.deepx/skills/dx-validate-compile/SKILL.md` |
+| `/dx-verify-completion` | `.deepx/skills/dx-verify-completion/SKILL.md` |
+| `/dx-writing-plans` | `.deepx/skills/dx-writing-plans/SKILL.md` |
+| `/dx-writing-skills` | `.deepx/skills/dx-writing-skills/SKILL.md` |
 
 #### Shared Knowledge Base (`.deepx/`)
 
-The `.deepx/` directory is a platform-agnostic knowledge base read on demand by all
-agent platforms. It is NOT auto-loaded — agents and skills reference specific files
-as needed during task execution.
+The `.deepx/` directory is the **canonical source** for all platform-specific files. The `dx-agentic-gen` generator transforms agents, skills, and templates into platform-specific files for Copilot (`.github/`), Claude Code (`.claude/`), OpenCode (`.opencode/`), and Cursor (`.cursor/rules/`). Runtime knowledge files (memory, instructions, toolsets) are read on demand by agents during task execution.
 
 | Directory | Files | Description |
 |-----------|-------|-------------|
-| `.deepx/agents/` | `dx-compiler-builder.md`, `dx-dxnn-compiler.md`, `dx-model-converter.md` | Authoritative agent definitions (source of truth for `.github/agents/` and `.opencode/agents/` condensed copies) |
-| `.deepx/skills/` | 6 files (`dx-compile-model.md`, `dx-convert-model.md`, `dx-brainstorm-and-plan.md`, `dx-tdd.md`, `dx-validate-compile.md`, `dx-verify-completion.md`) | Detailed skill workflows |
+| `.deepx/agents/` | `dx-compiler-builder.md`, `dx-dxnn-compiler.md`, `dx-model-converter.md` | Authoritative agent definitions — `dx-agentic-gen` generates platform copies to `.github/agents/`, `.claude/agents/`, `.opencode/agents/`, and `.cursor/rules/` |
+| `.deepx/skills/` | 15 skills (`dx-brainstorm-and-plan`, `dx-compile-model`, `dx-convert-model`, `dx-dispatching-parallel-agents`, `dx-executing-plans`, `dx-receiving-code-review`, `dx-requesting-code-review`, `dx-skill-router`, `dx-subagent-driven-development`, `dx-systematic-debugging`, `dx-tdd`, `dx-validate-compile`, `dx-verify-completion`, `dx-writing-plans`, `dx-writing-skills`) | Detailed skill workflows |
+| `.deepx/templates/` | `{en,ko}/*.tmpl` | Instruction file templates (fragments via parent traversal to suite root) |
 | `.deepx/toolsets/` | `dxcom-api.md`, `dxcom-cli.md`, `config-schema.md` | API and CLI reference |
 | `.deepx/instructions/` | `coding-standards.md`, `compilation-workflow.md` | Coding conventions and workflow rules |
 | `.deepx/memory/` | `common_pitfalls.md`, `MEMORY.md` | Persistent knowledge — pitfalls and session memory |
+
+#### Generation Pipeline
+
+All platform-specific files (`.github/`, `.claude/`, `.opencode/`, `.cursor/rules/`) are generated from `.deepx/` by `dx-agentic-gen`:
+
+```bash
+dx-agentic-gen generate --repo dx-compiler
+```
+
+A pre-commit hook enforces no drift between `.deepx/` sources and generated platform files. **Platform files should never be edited directly** — always edit the canonical `.deepx/` source and re-run the generator.
 
 ## User Scenarios
 

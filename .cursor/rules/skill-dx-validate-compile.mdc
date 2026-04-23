@@ -1,0 +1,6 @@
+---
+description: "Compilation validation and verification"
+alwaysApply: false
+---
+
+Read and follow the skill documentation at `.deepx/skills/dx-validate-compile/SKILL.md`.

@@ -6,13 +6,19 @@ description: >
   or dx-dxnn-compiler (ONNX → DXNN).
 argument-hint: 'e.g., compile yolo26n.onnx to DXNN'
 capabilities:
-  - Task classification (PT → ONNX, ONNX → DXNN, full pipeline)
-  - Input format detection
-  - Calibration method recommendation (EMA/MinMax)
-  - Multi-step pipeline orchestration
+  - read
+  - edit
+  - search
+  - execute
+  - sub-agent
+  - ask-user
 routes-to:
-  - dx-model-converter
-  - dx-dxnn-compiler
+  - label: Convert PT to ONNX
+    target: dx-model-converter
+    description: Route PyTorch-to-ONNX conversion tasks
+  - label: Compile ONNX to DXNN
+    target: dx-dxnn-compiler
+    description: Route ONNX-to-DXNN compilation tasks
 ---
 
 **Response Language**: Match your response language to the user's prompt language — when asking questions or responding, use the same language the user is using. When responding in Korean, keep English technical terms in English. Do NOT transliterate into Korean phonetics (한글 음차 표기 금지).
