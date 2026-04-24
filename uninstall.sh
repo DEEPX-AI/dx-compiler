@@ -36,9 +36,29 @@ show_help() {
     exit 0
 }
 
+# Delete a single module entry: if it is a symlink, also remove the real target;
+# otherwise treat it as a plain directory.
+delete_module_entry() {
+    local entry="$1"
+    if [ -L "$entry" ]; then
+        local real_path
+        real_path=$(readlink -f "$entry")
+        if [ -e "$real_path" ]; then
+            print_colored_v2 "INFO" "Deleting original path: $real_path"
+            delete_dir "$real_path"
+        fi
+        print_colored_v2 "INFO" "Deleting symlink: $entry"
+        rm -f "$entry"
+    else
+        delete_dir "$entry"
+    fi
+}
+
 uninstall_common_files() {
     delete_symlinks "$DOWNLOAD_DIR"
-    delete_symlinks "$PROJECT_ROOT"
+    # Note: do NOT call delete_symlinks "$PROJECT_ROOT" here.
+    # Module symlinks (dx_com/, dx_tron/) are handled individually per target
+    # to avoid accidentally removing modules that were not selected.
     delete_symlinks "${VENV_PATH}"
     delete_symlinks "${VENV_PATH}-local"
     delete_dir "${VENV_PATH}"
@@ -47,11 +67,11 @@ uninstall_common_files() {
 }
 
 uninstall_dx_com_files() {
-    delete_dir "${PROJECT_ROOT}/dx_com"
+    delete_module_entry "${PROJECT_ROOT}/dx_com"
 }
 
 uninstall_dx_tron_files() {
-    delete_dir "${PROJECT_ROOT}/dx_tron"
+    delete_module_entry "${PROJECT_ROOT}/dx_tron"
 }
 
 uninstall_dx_com() {
