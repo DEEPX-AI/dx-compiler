@@ -92,12 +92,6 @@ uninstall_dx_tron() {
 main() {
     echo "Uninstalling ${PROJECT_NAME} ..."
 
-    # Warn if venv is still active in the calling shell
-    if [ -n "$VIRTUAL_ENV" ]; then
-        print_colored_v2 "WARNING" "Virtual environment '$(basename "$VIRTUAL_ENV")' is still active in your shell."
-        print_colored_v2 "HINT" "After uninstall completes, please run: deactivate"
-    fi
-
     case $TARGET_PKG in
         dx_com)
             uninstall_dx_com
@@ -119,6 +113,12 @@ main() {
             show_help "error" "Invalid target '$TARGET_PKG'. Valid targets are: dx_com, dx_tron, all"
             ;;
     esac
+
+    # Warn if venv is still active in the calling shell
+    if [ -n "$VIRTUAL_ENV" ]; then
+        print_colored_v2 "WARNING" "Virtual environment '$(basename "$VIRTUAL_ENV")' is still active in your shell."
+        print_colored_v2 "HINT" "After uninstall completes, please run: deactivate"
+    fi
 
     echo "Uninstalling ${PROJECT_NAME} done"
 }
