@@ -346,10 +346,6 @@ cd dx-compiler
 | `[DX-AGENTIC-DEV: START]` | 에이전트 응답의 첫 줄 |
 | `[DX-AGENTIC-DEV: DONE (output-dir: <relative_path>)]` | 모든 작업 완료 후 마지막 줄. `<relative_path>`는 프로젝트 루트 기준 세션 출력 디렉터리의 상대 경로입니다. 파일이 생성되지 않은 경우 `(output-dir: ...)` 부분을 생략합니다. |
 
-이 마커는 `test.sh agentic-e2e-manual`에서 자동 세션 종료 및 `/share html` (Copilot CLI 전용)
-트랜스크립트 저장에 사용됩니다. 핸드오프로 호출된 하위 에이전트는 센티넬을
-출력하지 않으며, 최상위 에이전트만 출력합니다.
-
 규칙:
 
 1. **필수** — 첫 번째 응답의 절대적 첫 줄에 `[DX-AGENTIC-DEV: START]`를 출력합니다. 다른 텍스트, tool call, reasoning보다 반드시 먼저 출력해야 합니다. 사용자가 "알아서 진행해"라고 해도 생략 불가 — 자동 테스트가 실패합니다.

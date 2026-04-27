@@ -348,10 +348,6 @@ Agents output fixed markers at the start and end of each task for automated test
 | `[DX-AGENTIC-DEV: START]` | First line of the agent's response |
 | `[DX-AGENTIC-DEV: DONE (output-dir: <relative_path>)]` | Last line after all work is complete. `<relative_path>` is the session output directory relative to the project root. If no files were generated, omit the `(output-dir: ...)` part. |
 
-These markers are used by `test.sh agentic-e2e-manual` for automatic session
-termination and `/share html` (Copilot CLI only) transcript saving. Sub-agents invoked via handoff
-do not output sentinels — only the top-level agent does.
-
 Rules:
 
 1. **CRITICAL** — Output `[DX-AGENTIC-DEV: START]` as the absolute first line of your first response, before any other text. This is non-negotiable even if the user says to proceed autonomously.
