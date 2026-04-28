@@ -5,6 +5,7 @@ description: 'Converts PyTorch models to ONNX format for DEEPX DX-COM compilatio
 
   '
 tools:
+- agent/runSubagent
 - edit/createDirectory
 - edit/createFile
 - edit/editFiles
