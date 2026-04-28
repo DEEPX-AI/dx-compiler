@@ -3,7 +3,7 @@ description: 'Converts PyTorch models to ONNX format for DEEPX DX-COM compilatio
   static shape enforcement, and ONNX model validation.
 
   '
-mode: normal
+mode: subagent
 tools:
   bash: true
   edit: true

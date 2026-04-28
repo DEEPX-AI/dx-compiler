@@ -286,9 +286,15 @@ dxcom \
 ```
 
 **Python API method**:
+
+> **MANDATORY**: Even when using the Python API, you MUST write `config.json` to
+> disk in `${WORK_DIR}/` (Phase 2) BEFORE calling `dx_com.compile()`. Pass the
+> file path — never a dict — so that `config.json` exists as a required artifact.
+
 ```python
 import dx_com
 
+# config.json must already exist on disk (written in Phase 2)
 dx_com.compile(
     model=f"{WORK_DIR}/model.onnx",
     output_dir=f"{WORK_DIR}/",

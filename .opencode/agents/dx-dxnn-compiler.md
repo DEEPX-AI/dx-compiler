@@ -3,7 +3,7 @@ description: 'Compiles ONNX models to .dxnn format using DEEPX DX-COM (v2.2.1). 
   data preparation, PPU configuration for YOLO models, and output validation with DX-TRON.
 
   '
-mode: normal
+mode: subagent
 tools:
   bash: true
   edit: true

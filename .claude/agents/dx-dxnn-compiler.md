@@ -5,6 +5,7 @@ description: 'Compiles ONNX models to .dxnn format using DEEPX DX-COM (v2.2.1). 
 
   '
 tools:
+- Agent
 - Bash
 - Edit
 - Glob
