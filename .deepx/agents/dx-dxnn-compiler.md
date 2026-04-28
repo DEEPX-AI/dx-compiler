@@ -8,6 +8,7 @@ capabilities:
   - read
   - edit
   - execute
+  - sub-agent
 routes-to: []
 ---
 
