@@ -117,7 +117,7 @@ dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
    **system local timezone** (NOT UTC). Use `$(date +%Y%m%d-%H%M%S)` in Bash or
    `datetime.now().strftime('%Y%m%d-%H%M%S')` in Python. Do NOT use `date -u`,
    `datetime.utcnow()`, or `datetime.now(timezone.utc)`.
-`<agent>` identifies the coding tool: `claude` (Claude Code), `copilot` (Copilot CLI), `cursor` (Cursor), `opencode` (OpenCode).
+- **`<agent>`**: the coding agent identifier — use `claude`, `copilot`, `cursor`, or `opencode`.
 10. **Calibration symlink**: Symlink `dx_com/calibration_dataset/` into working directory
 11. **No auto-simplification**: Do NOT run `onnx-simplifier` unless the user explicitly requests it
 12. **Ultralytics YOLO export**: Must set `Detect.export=True` or use `model.export(format="onnx")` — standard `torch.onnx.export()` produces 6 outputs instead of 1. Always verify single output post-export.
@@ -188,6 +188,7 @@ prevent overwrites.
 **system local timezone** (NOT UTC). Use `$(date +%Y%m%d-%H%M%S)` in Bash or
 `datetime.now().strftime('%Y%m%d-%H%M%S')` in Python. Do NOT use `date -u`,
 `datetime.utcnow()`, or `datetime.now(timezone.utc)`.
+- **`<agent>`**: the coding agent identifier — use `claude`, `copilot`, `cursor`, or `opencode`.
 
 **Working directory contents** after compilation:
 ```
