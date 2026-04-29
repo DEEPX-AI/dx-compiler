@@ -159,7 +159,7 @@ cd dx-compiler
 컴파일 세션은 결과물을 함께 보관하고 덮어쓰기를 방지하기 위해
 고유한 작업 디렉토리를 사용합니다.
 
-**세션 ID 형식**: `YYYYMMDD-HHMMSS_<model>_<task>` — 타임스탬프는 반드시
+**세션 ID 형식**: `YYYYMMDD-HHMMSS_<agent>_<model>_<task>` — 타임스탬프는 반드시
 **시스템 로컬 타임존**을 사용해야 합니다 (UTC 아님). Bash에서는 `$(date +%Y%m%d-%H%M%S)`,
 Python에서는 `datetime.now().strftime('%Y%m%d-%H%M%S')`를 사용하세요.
 `date -u`, `datetime.utcnow()`, 또는 `datetime.now(timezone.utc)`를 사용하지 마세요.

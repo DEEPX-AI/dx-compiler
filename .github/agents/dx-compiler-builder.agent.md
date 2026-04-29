@@ -445,11 +445,12 @@ self-contained.
 > and re-compile from scratch. Do NOT run `ls dx-agentic-dev/` or check for
 > existing `.onnx`/`.dxnn` files from past runs.
 
-**Session ID format**: `YYYYMMDD-HHMMSS_<model>_<task>` (local timezone)
+**Session ID format**: `YYYYMMDD-HHMMSS_<agent>_<model>_<task>` (local timezone)
+`<agent>` identifies the coding tool: `claude` (Claude Code), `copilot` (Copilot CLI), `cursor` (Cursor), `opencode` (OpenCode).
 
 Examples:
-- `20260403-143022_yolo26x_pt_to_dxnn`
-- `20260403-143022_resnet50_onnx_to_dxnn`
+- `20260403-143022_claude_yolo26x_pt_to_dxnn`
+- `20260403-143022_claude_resnet50_onnx_to_dxnn`
 
 **Working directory structure**:
 ```
