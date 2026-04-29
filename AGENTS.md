@@ -179,10 +179,11 @@ dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
 7. **Always validate**: Run DX-TRON inspection after every compilation
 8. **No hardcoded paths**: Use relative paths for calibration data (`./calibration_dataset`)
 9. **Output isolation**: All artifacts go to `dx-agentic-dev/<session_id>/`.
-   **Session ID format**: `YYYYMMDD-HHMMSS_<model>_<task>` — the timestamp MUST use the
+   **Session ID format**: `YYYYMMDD-HHMMSS_<agent>_<model>_<task>` — the timestamp MUST use the
    **system local timezone** (NOT UTC). Use `$(date +%Y%m%d-%H%M%S)` in Bash or
    `datetime.now().strftime('%Y%m%d-%H%M%S')` in Python. Do NOT use `date -u`,
    `datetime.utcnow()`, or `datetime.now(timezone.utc)`.
+`<agent>` identifies the coding tool: `claude` (Claude Code), `copilot` (Copilot CLI), `cursor` (Cursor), `opencode` (OpenCode).
 10. **Calibration symlink**: Symlink `dx_com/calibration_dataset/` into working directory
 11. **No auto-simplification**: Do NOT run `onnx-simplifier` unless the user explicitly requests it
 12. **Ultralytics YOLO export**: Must set `Detect.export=True` or use `model.export(format="onnx")` — standard `torch.onnx.export()` produces 6 outputs instead of 1. Always verify single output post-export.
@@ -249,7 +250,7 @@ All compilation artifacts go to `dx-agentic-dev/<session_id>/` by default. Each
 compilation session uses a unique working directory to keep artifacts together and
 prevent overwrites.
 
-**Session ID format**: `YYYYMMDD-HHMMSS_<model>_<task>` — the timestamp MUST use the
+**Session ID format**: `YYYYMMDD-HHMMSS_<agent>_<model>_<task>` — the timestamp MUST use the
 **system local timezone** (NOT UTC). Use `$(date +%Y%m%d-%H%M%S)` in Bash or
 `datetime.now().strftime('%Y%m%d-%H%M%S')` in Python. Do NOT use `date -u`,
 `datetime.utcnow()`, or `datetime.now(timezone.utc)`.
