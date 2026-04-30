@@ -54,6 +54,37 @@ tools:
 > ```
 > If ANY artifact shows `✗ MISSING`, go back and generate it. Do NOT present the
 > final report with missing artifacts.
+>
+> **Cross-project sessions** (compilation + dx_app demo app): `verify.py` MUST also
+> be placed in the **app session directory** (`dx-runtime/dx_app/dx-agentic-dev/<session>/`)
+> so that the end-to-end test harness can discover it when scanning all output dirs.
+> Copy or regenerate `verify.py` into the app session after placing it in the compiler
+> session. OpenCode-based runs are specifically required to do this.
+
+> **R31 — Session Layout HARD GATE (dual-session layout is MANDATORY)**:
+> In cross-project sessions (compile + app generation), artifacts MUST be placed in
+> **two separate session directories**:
+> - **Compiler artifacts** → `dx-compiler/dx-agentic-dev/<session_id>/`
+>   (`compile.py`, `config.json`, `*.dxnn`, `verify.py`, `session.log`, etc.)
+> - **App artifacts** → `dx-runtime/dx_app/dx-agentic-dev/<session_id>/`
+>   (`*_sync.py`, `factory/`, `run.sh`, `setup.sh`, etc.)
+>
+> **NEVER merge both into a single `dx_app/dx-agentic-dev/` directory.** The test suite
+> asserts `assert any("dx-compiler" in str(d) for d in output_dirs)` — if no `dx-compiler`
+> path exists in the output, `test_compilation_artifacts` fails regardless of whether
+> the `.dxnn` was produced correctly. This layout has been a recurring failure for tools
+> that place everything in the app directory (cursor iter-4 and iter-6, opencode iter-6).
+>
+> **R46 — Do NOT copy `.dxnn` to the app session directory**:
+> The `.dxnn` file lives in `dx-compiler/dx-agentic-dev/<session_id>/`. The app session
+> (`dx_app/dx-agentic-dev/<session_id>/`) MUST reference it via a relative path or
+> `config.json` variable — NOT by copying the file. Copying wastes 6–7 MB per run and
+> breaks the audit trail (timestamps diverge). In `yolo26n_sync.py` / `run.sh`, use:
+> ```python
+> MODEL_PATH = "../../dx-compiler/dx-agentic-dev/<compiler_session_id>/yolo26n.dxnn"
+> ```
+> or store the path in `config.json` and read it at runtime. Never `shutil.copy` or
+> `cp` the `.dxnn` file into the app session directory.
 
 # dx-dxnn-compiler — ONNX → DXNN Agent
 
@@ -160,6 +191,11 @@ if it fails. If the sanity check **still fails after install.sh**:
 
 Before any compilation, set up the session working directory and calibration data.
 
+> **Calibration Data**: Use the 100 JPEG images in `dx_com/calibration_dataset/` (symlinked
+> as `./calibration_dataset` in the session directory). Standard `calibration_num=100` with
+> a custom PyTorch DataLoader. The compilation time (15–40 min) is dominated by the dxcom
+> graph optimization, not by how many distinct calibration images are loaded.
+
 > **NEVER reuse previous session artifacts.** Do NOT check, list, browse, or
 > reference files from previous sessions in `dx-agentic-dev/`. Each compilation
 > run MUST create a new session directory with a fresh timestamp. Even if a
@@ -223,26 +259,86 @@ Record the input name and shape — these are required for config.json.
 
 ### Phase 2: Generate config.json
 
-Create a config.json matching the model's requirements:
+> **⚠️ HARD GATE — default_loader PROHIBITION (R24)**: `default_loader` produces
+> **HWC** tensors. All YOLO variants (yolo26n, yolov8, yolov9, yolov10, yolov11,
+> yolov12, yolov3, yolov5, yolov7, YOLOX) expect **NCHW** input and will **always**
+> fail with a shape mismatch when `default_loader` is used. **NEVER use
+> `default_loader` for NCHW models.** Symptom: `DataLoaderError: expected [1,3,H,W]
+> got [1,H,W,3]`. Fix: use the custom PyTorch DataLoader with `transforms.ToTensor()`
+> (see below). Remove `default_loader` from config.json entirely when passing a
+> Python `dataloader=` argument to `dx_com.compile()`.
+
+Create a config.json matching the model's requirements. For NCHW models (all YOLO
+variants), omit `default_loader` and use the Python DataLoader approach below:
 
 ```json
 {
   "inputs": {"images": [1, 3, 640, 640]},
   "calibration_method": "ema",
-  "calibration_num": 100,
-  "default_loader": {
-    "dataset_path": "./calibration_dataset",
-    "file_extensions": ["jpeg", "png", "jpg"],
-    "preprocessings": [
-      {"resize": {"width": 640, "height": 640}},
-      {"normalize": {"mean": [0.0, 0.0, 0.0], "std": [1.0, 1.0, 1.0]}}
-    ]
-  }
+  "calibration_num": 100
 }
 ```
 
-**IMPORTANT**: `dataset_path` MUST be a relative path (`./calibration_dataset`)
-pointing to the symlink created in Phase 0. Never use absolute paths.
+**IMPORTANT**: `dataset_path` (when using `default_loader`) is resolved relative to the
+working directory where `dx_com.compile()` is called, NOT relative to the config file's
+location. Use `./calibration_dataset` (relative to `${WORK_DIR}/`) when running from the
+session directory. For autopilot cross-project sessions where the calling directory
+is ambiguous, prefer absolute paths (e.g., `os.path.abspath("...")`).
+
+#### Custom PyTorch DataLoader — Recommended for NCHW models (R10)
+
+For NCHW models (e.g., yolo26n, yolov8, all YOLO variants), use a custom
+`torch.utils.data.DataLoader` instead of `default_loader`. Use the 100 JPEG images
+from `calibration_dataset/` (symlinked in the session directory). Compilation time
+is 15–40 min depending on model size — this is dominated by dxcom graph optimization,
+not calibration data loading:
+
+```python
+# compile.py — custom NCHW DataLoader using calibration_dataset/ (100 images)
+import torch, numpy as np
+from pathlib import Path
+from PIL import Image
+from torch.utils.data import Dataset, DataLoader
+
+class CalibDataset(Dataset):
+    """Loads calibration images from calibration_dataset/ in NCHW float32."""
+    def __init__(self, calib_dir: str, num_samples: int = 100, size: int = 640):
+        images = sorted(Path(calib_dir).glob("*.jpg")) + sorted(Path(calib_dir).glob("*.jpeg"))
+        assert images, f"No JPEG images found in {calib_dir}"
+        # cycle through available images to reach num_samples
+        self.images = [images[i % len(images)] for i in range(num_samples)]
+        self.size = size
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, i):
+        img = Image.open(self.images[i]).convert("RGB").resize((self.size, self.size))
+        return (np.array(img, dtype=np.float32) / 255.0).transpose(2, 0, 1)  # CHW float32
+
+calib_loader = DataLoader(
+    CalibDataset("./calibration_dataset", num_samples=100, size=640),
+    batch_size=1, shuffle=False,
+)
+import dx_com
+dx_com.compile(
+    model=f"{WORK_DIR}/model.onnx",
+    output_dir=f"{WORK_DIR}/",
+    config=f"{WORK_DIR}/config.json",
+    dataloader=calib_loader,
+    opt_level=1,
+    gen_log=True,
+)
+```
+
+When using a custom DataLoader, **omit** `default_loader` from config.json:
+```json
+{
+  "inputs": {"images": [1, 3, 640, 640]},
+  "calibration_method": "ema",
+  "calibration_num": 100
+}
+```
 
 **Auto-inference rules**:
 - `inputs` key name must exactly match ONNX input node name
@@ -275,6 +371,67 @@ dx_com.compile(
 **Note**: All paths in DX-COM commands should reference files inside the working
 directory. The `dataset_path` in config.json is `./calibration_dataset` (relative),
 which resolves correctly when `dxcom` is run from `${WORK_DIR}/`.
+
+#### Background Compilation + compile.pid Pattern (R12/R42 — MANDATORY for ALL sessions)
+
+The `compile.pid` + `subprocess.Popen` pattern is **MANDATORY for ALL compiler sessions**,
+not just autopilot cross-project sessions. It ensures:
+- Compilation survives agent CLI disconnection (SSL/SIGHUP via `start_new_session=True`)
+- The Phase 5.8 Pre-DONE gate can verify compilation finished before emitting DONE
+- The test harness (`_wait_for_background_compilation`) can poll for completion
+
+**Observed in iter-8**: opencode and claude_code used synchronous `dx_com.compile()` calls
+without `compile.pid`. While compilation succeeded, this pattern is fragile in
+disconnection scenarios. Use the background pattern below for ALL compiler sessions.
+
+```python
+# compile.py — background compilation with PID tracking
+import subprocess, os, json
+from pathlib import Path
+
+WORK_DIR = Path(__file__).parent
+
+# Write config.json first (synchronous — fast)
+config = {
+    "inputs": {"images": [1, 3, 640, 640]},
+    "calibration_method": "ema",
+    "calibration_num": 100,
+}
+(WORK_DIR / "config.json").write_text(json.dumps(config, indent=2))
+
+# Launch compilation in the background (detached from parent process group)
+proc = subprocess.Popen(
+    ["python", "-c", """
+import dx_com, json
+from pathlib import Path
+WORK_DIR = Path('WORK_DIR_PLACEHOLDER')
+dx_com.compile(
+    model=str(WORK_DIR / 'model.onnx'),
+    output_dir=str(WORK_DIR) + '/',
+    config=str(WORK_DIR / 'config.json'),
+    opt_level=1,
+    gen_log=True,
+)
+""".replace("WORK_DIR_PLACEHOLDER", str(WORK_DIR))],
+    stdout=open(WORK_DIR / "compile_out.log", "w"),
+    stderr=subprocess.STDOUT,
+    start_new_session=True,  # R27: detach from parent process group so compilation
+                              # survives if the agent CLI exits (SSL disconnect, SIGHUP)
+)
+# Save PID for monitoring
+(WORK_DIR / "compile.pid").write_text(str(proc.pid))
+print(f"Compilation started: PID={proc.pid}, log={WORK_DIR}/compile_out.log")
+print("Proceeding to generate all other artifacts in parallel...")
+# DO NOT wait here — proceed immediately to generate factory, app code, setup.sh, run.sh, verify.py
+```
+
+**Rules for background compilation (HARD GATE):**
+1. After launching compilation, **IMMEDIATELY** generate ALL other artifacts:
+   factory, `<model>_sync.py`, `setup.sh`, `run.sh`, `verify.py`, `README.md`
+2. Check whether `.dxnn` was produced **ONLY AFTER** all other artifacts are written
+3. **NEVER** sleep-poll for `.dxnn`: `for i in ...; do sleep N; ls *.dxnn; done` is prohibited
+4. If `.dxnn` is not yet ready, generation is still complete — runtime will finish compilation
+
 
 ### Phase 4: Configure PPU (Detection Models Only)
 
@@ -633,6 +790,79 @@ echo "  Reference model: $REF_DXNN (exit=$REF_RESULT)" >> "${WORK_DIR}/session.l
 echo "  Generated model: ${MODEL_NAME}.dxnn (exit=$GEN_RESULT)" >> "${WORK_DIR}/session.log"
 ```
 
+### Phase 5.8: Pre-DONE .dxnn Existence Check (R25/R30 — HARD GATE)
+
+**Gate**: `.dxnn` file MUST exist before emitting DONE. This check is MANDATORY in
+all sessions, especially cross-project sessions where compilation runs as a background
+subprocess.
+
+> **R30 — CRITICAL: DO NOT EMIT DONE WHILE compile.py IS STILL RUNNING.**
+> Background compilation (via `subprocess.Popen`) runs after the agent writes all other
+> artifacts. You MUST WAIT for it to finish before emitting DONE. Emitting DONE while
+> `compile.py` is still running in the background means the test harness collects files
+> BEFORE `.dxnn` exists — causing `test_dxnn_compiled` to fail even if compilation
+> eventually succeeds 3 minutes later. This is exactly what happened to claude_code in
+> iteration 6: DONE at 00:53, `.dxnn` arrived at 00:56, test collected at 00:53 → FAIL.
+>
+> **Step 1 — Confirm compilation is done** (run in bash before DONE):
+> ```bash
+> # Read PID from compile.pid and wait for the process to finish
+> if [ -f "${WORK_DIR}/compile.pid" ]; then
+>     COMPILE_PID=$(cat "${WORK_DIR}/compile.pid")
+>     echo "Waiting for compilation (PID=${COMPILE_PID}) to finish..."
+>     # Poll until process exits (max 20 min)
+>     for i in $(seq 1 120); do
+>         if ! kill -0 "${COMPILE_PID}" 2>/dev/null; then
+>             echo "Compilation process ${COMPILE_PID} has exited."
+>             break
+>         fi
+>         sleep 10
+>     done
+> fi
+> ```
+>
+> **Step 2 — Verify .dxnn exists** (Python check):
+
+```python
+# Mandatory pre-DONE check — run this BEFORE emitting [DX-AGENTIC-DEV: DONE]
+import os, time
+from pathlib import Path
+
+WORK_DIR = Path("...")  # your session working directory
+MODEL_NAME = "yolo26n"  # model name without extension
+
+dxnn = WORK_DIR / f"{MODEL_NAME}.dxnn"
+
+if not dxnn.exists():
+    # Check if background compilation PID is still running
+    pid_file = WORK_DIR / "compile.pid"
+    if pid_file.exists():
+        pid = int(pid_file.read_text().strip())
+        print(f"Waiting for background compilation (PID={pid}) to finish...")
+        try:
+            os.waitpid(pid, 0)  # block until compilation process exits
+        except ChildProcessError:
+            pass  # process already exited (may have been adopted by init)
+    # Final existence check
+    assert dxnn.exists(), (
+        f"HARD GATE: {dxnn} not found after waiting for compilation.\n"
+        f"Files in {WORK_DIR}: {list(WORK_DIR.iterdir())}\n"
+        "Cannot emit DONE without .dxnn. Check compile_out.log for errors."
+    )
+
+print(f"Pre-DONE check PASSED: {dxnn} exists ({dxnn.stat().st_size} bytes)")
+```
+
+**If the check fails**:
+1. Read `compile_out.log` or `compile_output.log` to find the compilation error.
+2. Fix the error (wrong config, HWC/NCHW mismatch, etc.) and re-run `compile.py`.
+3. Do NOT emit DONE until `.dxnn` exists.
+
+> **NEVER emit `[DX-AGENTIC-DEV: DONE]` without a `.dxnn` file in the session directory.**
+> Doing so causes the E2E test suite to fail with `test_dxnn_compiled: No .dxnn files found`.
+> The background compilation finishing AFTER DONE does NOT satisfy the gate — the test
+> collects files at DONE time, not 3 minutes later.
+
 ### Phase 6: Final Report
 
 > **STOP**: If you have not completed Phase 5.5 (artifacts), Phase 5.6
@@ -645,21 +875,49 @@ Before presenting the final report, save the session log:
 > NOT a hand-written summary. Append each command and its output immediately
 > after execution. NEVER write a summary with `cat << 'EOF'`.
 
+**R23 — Structured session.log format** (reference: opencode `224919` session.log quality):
+
 ```bash
-# ── Session Logging Pattern (append after each command) ──────────────
-# At Phase 0 (start of session), initialize the log:
-echo "# Session: ${SESSION_ID}" > "${WORK_DIR}/session.log"
-echo "# Date: $(date)" >> "${WORK_DIR}/session.log"
+# ── Session Log Init (Phase 0) ─────────────────────────────────────────────
+echo "===== SESSION LOG: ${SESSION_ID} =====" > "${WORK_DIR}/session.log"
+echo "Date: $(date)" >> "${WORK_DIR}/session.log"
+echo "Agent: copilot | cursor | claude | opencode" >> "${WORK_DIR}/session.log"
 echo "" >> "${WORK_DIR}/session.log"
 
-# After EVERY command execution, immediately append the command and its
-# actual output (do NOT wait until end of session):
-echo "$(date '+%H:%M:%S') \$ dxcom -m model.onnx -c config.json -o ./ --gen_log" >> "${WORK_DIR}/session.log"
-echo "<paste actual dxcom output here>" >> "${WORK_DIR}/session.log"
+# ── Block 1: sanity_check ──────────────────────────────────────────────────
+echo "--- sanity_check ---" >> "${WORK_DIR}/session.log"
+echo "$ bash dx-runtime/scripts/sanity_check.sh --dx_rt" >> "${WORK_DIR}/session.log"
+<paste actual sanity_check output here> >> "${WORK_DIR}/session.log"
+echo "RESULT: PASS" >> "${WORK_DIR}/session.log"   # or FAIL
 echo "" >> "${WORK_DIR}/session.log"
 
-echo "$(date '+%H:%M:%S') \$ python verify.py" >> "${WORK_DIR}/session.log"
-echo "<paste actual verify.py output here>" >> "${WORK_DIR}/session.log"
+# ── Block 2: compilation ───────────────────────────────────────────────────
+echo "--- compilation ---" >> "${WORK_DIR}/session.log"
+echo "$ python compile.py  # or: dx_com.compile(config)" >> "${WORK_DIR}/session.log"
+<paste first 5 lines of dxcom output> >> "${WORK_DIR}/session.log"
+echo "..." >> "${WORK_DIR}/session.log"
+<paste last 5 lines of dxcom output (including OK/FAIL status)> >> "${WORK_DIR}/session.log"
+echo "RESULT: PASS  (model.dxnn, <size> MB, ~<N> min)" >> "${WORK_DIR}/session.log"
+echo "" >> "${WORK_DIR}/session.log"
+
+# ── Block 3: verify.py ─────────────────────────────────────────────────────
+echo "--- verify.py ---" >> "${WORK_DIR}/session.log"
+echo "$ python verify.py" >> "${WORK_DIR}/session.log"
+<paste actual verify.py output here> >> "${WORK_DIR}/session.log"
+echo "RESULT: PASS  (ratio=1.00, N detections ONNX=DXNN)" >> "${WORK_DIR}/session.log"
+echo "" >> "${WORK_DIR}/session.log"
+
+# ── Block 4: inference ─────────────────────────────────────────────────────
+echo "--- inference ---" >> "${WORK_DIR}/session.log"
+echo "$ python model_sync.py --input bus.jpg" >> "${WORK_DIR}/session.log"
+<paste actual inference output here (FPS, latency, detections)> >> "${WORK_DIR}/session.log"
+echo "RESULT: PASS  (<N> FPS, <M> ms NPU)" >> "${WORK_DIR}/session.log"
+echo "" >> "${WORK_DIR}/session.log"
+
+# ── Block 5: artifacts ─────────────────────────────────────────────────────
+echo "--- artifacts ---" >> "${WORK_DIR}/session.log"
+ls -lh "${WORK_DIR}" >> "${WORK_DIR}/session.log"
+echo "RESULT: PASS" >> "${WORK_DIR}/session.log"
 ```
 
 > **In agent/copilot environments**: Each command is a separate tool call.
@@ -667,9 +925,12 @@ echo "<paste actual verify.py output here>" >> "${WORK_DIR}/session.log"
 > to `session.log` in the next tool call. Do NOT defer logging to the end.
 
 **What session.log MUST contain** (actual output, not summaries):
+- A `===== SESSION LOG: <session_id> =====` header line
 - Every shell command executed (prefixed with `$`)
-- The real stdout/stderr output of each command
-- Compilation output (from `dxcom`)
+- One named block per phase: `sanity_check`, `compilation`, `verify.py`, `inference`, `artifacts`
+- Each block ends with `RESULT: PASS` or `RESULT: FAIL`
+- The real stdout/stderr output of each command (first+last 5 lines for long output)
+- Compilation output (from `dxcom`) including model size and duration
 - Verification output (from `verify.py`)
 - Any error messages and recovery steps
 

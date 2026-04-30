@@ -128,3 +128,28 @@ output/
 - Combine `--aggressive_partitioning` with `--gen_log` to see what was moved to NPU
 - Paths can be relative or absolute
 - Output directory is created automatically if it does not exist
+
+## ⚠️ WARNING — default_loader and NCHW Models (R24)
+
+When using the CLI (`-c config.json`), if `config.json` contains `default_loader`,
+**all NCHW models will fail** with a calibration shape mismatch:
+
+```
+DataLoaderError: shape mismatch — expected [1,3,H,W] got [1,H,W,3]
+```
+
+`default_loader` produces **HWC** tensors. All YOLO variants (yolo26n, yolov8,
+yolov9, v10, v11, v12, v3, v5, v7, YOLOX) expect **NCHW** input.
+
+**Fix**: Do NOT use the CLI `dxcom` command for NCHW models with a file-based
+`default_loader` config. Use the Python API instead with a custom DataLoader:
+
+```python
+import dx_com
+from torch.utils.data import DataLoader
+# custom_loader produces NCHW tensors via transforms.ToTensor()
+dx_com.compile(model="model.onnx", output_dir="./", config="config.json",
+               dataloader=custom_loader, opt_level=1, gen_log=True)
+```
+
+Remove `default_loader` from `config.json` when passing a Python `dataloader=` argument.
