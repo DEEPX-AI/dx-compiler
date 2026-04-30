@@ -899,3 +899,29 @@ DX_PASSWORD=<password>
   - If the task also involves dx_app/dx_stream work, the full STOP rule applies
 - **Prevention**: The HARD GATE rules now explicitly list "reinterpreting user's 'just continue' /
   'work to completion' / autopilot instructions as permission to override" as a PROHIBITED bypass.
+
+---
+
+## 24. [DX_COMPILER] Passing Both `config=` and `dataloader=` to dx_com.compile()
+
+- **Symptom**: Compilation fails with an error about conflicting parameters when both `config=`
+  and `dataloader=` are passed to `dx_com.compile()` at the same time.
+- **Root Cause**: `dx_com.compile()` accepts either `config=` (path to config.json with
+  `default_loader` section) OR `dataloader=` (a custom PyTorch DataLoader), but NOT both.
+- **Fix**: When using a custom `DataLoader`, omit `config=` from `dx_com.compile()`. Pass
+  calibration parameters directly as keyword arguments:
+  ```python
+  # WRONG — both config= and dataloader= together:
+  dx_com.compile(..., config=cfg_path, dataloader=calib_loader, ...)
+
+  # CORRECT — use dataloader= without config=:
+  dx_com.compile(
+      model="model.onnx",
+      output_dir="./",
+      dataloader=calib_loader,
+      calibration_method="ema",
+      calibration_num=100,
+      opt_level=1,
+      gen_log=True,
+  )
+  ```

@@ -89,15 +89,37 @@ Number of calibration samples. Default: `100`.
 
 ### default_loader (required unless using Python API dataloader)
 
-> **⚠️ Layout Warning**: `default_loader` loads and preprocesses images in **HWC (height,
-> width, channels)** layout. If your model expects **NCHW** input (e.g., `[1, 3, H, W]`),
-> the shapes will mismatch and compilation will fail with a shape error. In that case,
-> use a custom Python `torch.utils.data.DataLoader` with explicit CHW conversion
-> (e.g., `transforms.ToTensor()` or `np.transpose(img, (2, 0, 1))`) instead of
-> `default_loader`. See the "Custom DataLoader" example in `dxcom-api.md`.
+> ⚠️ **WARNING — NCHW Models (R24)**: `default_loader` produces **HWC (height, width,
+> channels)** tensors. All NCHW models (e.g., **all YOLO variants** — yolo26n, yolov8,
+> yolov9, yolov10, yolov11, yolov12, yolov3, yolov5, yolov7, YOLOX) will **always**
+> fail calibration with a shape mismatch error when using `default_loader`.
+>
+> **NEVER use `default_loader` for NCHW models.** Use a PyTorch DataLoader with
+> `transforms.ToTensor()` (produces NCHW float32) instead. See the "Custom DataLoader"
+> example in `dxcom-api.md`.
+>
+> Symptom: `DataLoaderError: shape mismatch` or `expected [1,3,H,W] got [1,H,W,3]`
+> Fix: Replace `default_loader` in config.json with a Python DataLoader using
+> `transforms.ToTensor()`. Remove the `default_loader` key entirely from config.json
+> when calling `dx_com.compile(..., dataloader=custom_loader)`.
+>
+> `default_loader` is only appropriate for models expecting HWC input (rare).
 
 #### dataset_path
 Absolute or relative path to directory containing calibration images.
+
+> **⚠️ Path resolution**: `dataset_path` is resolved relative to the **working
+> directory where `dx_com.compile()` is called** (typically the repository root
+> or the session directory), NOT relative to the config file's location.
+> In autopilot sessions where `dx_com.compile()` may be called from the repo root,
+> always prefer **absolute paths** to avoid `DataNotFoundError`:
+> ```python
+> import os, json
+> config["default_loader"]["dataset_path"] = os.path.abspath("dx_com/calibration_dataset")
+> ```
+> If using a relative path, ensure it is relative to the directory from which
+> `dx_com.compile()` will be invoked (e.g., `./calibration_dataset` when running
+> from `${WORK_DIR}/`).
 
 #### file_extensions
 Array of file extensions to include (without dot):
