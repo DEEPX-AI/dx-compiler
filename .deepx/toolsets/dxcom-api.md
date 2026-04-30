@@ -4,9 +4,22 @@
 
 ## Installation
 
+dx-com is a **private package** — it is NOT available on public PyPI.
+
+Installation methods (in order of preference):
 ```bash
-pip install dx-com
+# 1. Activate the pre-installed compiler venv (RECOMMENDED):
+source dx-compiler/venv-dx-compiler-local/bin/activate
+
+# 2. Run the compiler installer (creates/updates the venv):
+bash dx-compiler/install.sh
+
+# 3. Install from local wheel (if available in the venv):
+pip install dx-compiler/dist/dx_com-*.whl
 ```
+
+> **NEVER use `pip install dx-com`** — this will fail with "No matching distribution found"
+> because dx-com is not published to PyPI. Always use one of the methods above.
 
 ## Import
 

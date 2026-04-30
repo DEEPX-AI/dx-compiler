@@ -570,12 +570,14 @@ in the session working directory. **Never skip this phase.**
    #!/bin/bash
    set -e
    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+   REAL_SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
    cd "$SCRIPT_DIR"
 
    echo "=== Setting up environment ==="
 
    # ── Step 1: Verify dx-runtime installation ──
-   RUNTIME_DIR="../../dx-runtime"
+   # Use REAL path to resolve symlinks correctly
+   RUNTIME_DIR="$REAL_SCRIPT_DIR/../../dx-runtime"
    if [ -f "$RUNTIME_DIR/scripts/sanity_check.sh" ]; then
        if ! bash "$RUNTIME_DIR/scripts/sanity_check.sh" --dx_rt 2>/dev/null; then
            echo "dx-runtime not fully installed. Running install.sh..."
@@ -589,17 +591,36 @@ in the session working directory. **Never skip this phase.**
        echo "WARNING: sanity_check.sh not found. Install dx-runtime manually."
    fi
 
-   # ── Step 2: Verify dxcom (DX-COM compiler) installation ──
-   COMPILER_DIR="../../dx-compiler"
-   if ! command -v dxcom &>/dev/null && ! python3 -c "import dx_com" 2>/dev/null; then
-       echo "dxcom not found. Installing DX-COM compiler..."
-       if [ -f "$COMPILER_DIR/install.sh" ]; then
-           bash "$COMPILER_DIR/install.sh"
+   # ── Step 2: Verify/activate dxcom (DX-COM compiler) ──
+   # dx-com is a PRIVATE package (not on PyPI). Use the compiler venv.
+   if ! python3 -c "import dx_com" 2>/dev/null; then
+       echo "dxcom not found in current env. Searching for compiler venv..."
+       # Search for compiler venv relative to real script location
+       COMPILER_VENV=""
+       for _candidate in \
+           "$REAL_SCRIPT_DIR/../../venv-dx-compiler-local" \
+           "$REAL_SCRIPT_DIR/../../../dx-compiler/venv-dx-compiler-local" \
+           "$REAL_SCRIPT_DIR/../../../../dx-compiler/venv-dx-compiler-local"; do
+           if [ -d "$_candidate" ]; then
+               COMPILER_VENV="$(cd "$_candidate" && pwd)"
+               break
+           fi
+       done
+
+       if [ -n "$COMPILER_VENV" ]; then
+           echo "Found compiler venv: $COMPILER_VENV"
+           source "$COMPILER_VENV/bin/activate"
+       elif [ -f "$REAL_SCRIPT_DIR/../../install.sh" ]; then
+           echo "Running dx-compiler installer..."
+           bash "$REAL_SCRIPT_DIR/../../install.sh"
+           source "$REAL_SCRIPT_DIR/../../venv-dx-compiler-local/bin/activate"
        else
-           echo "WARNING: dx-compiler/install.sh not found. Install dxcom manually."
+           echo "ERROR: Cannot find dx-com. Install manually:"
+           echo "  cd <dx-compiler-dir> && bash install.sh"
+           exit 1
        fi
    else
-       echo "dxcom is already installed."
+       echo "dxcom is already available."
    fi
 
    # ── Step 3: Create/activate venv (MANDATORY for Ubuntu 24.04+ PEP 668) ──
@@ -978,6 +999,36 @@ Before presenting the final report, save the session log:
 > **CRITICAL**: `session.log` must contain **actual command execution output**,
 > NOT a hand-written summary. Append each command and its output immediately
 > after execution. NEVER write a summary with `cat << 'EOF'`.
+
+**session.log Anti-Patterns (PROHIBITED):**
+```bash
+# WRONG — heredoc fabrication
+cat << 'EOF' > session.log
+Compilation started at ...
+EOF
+
+# WRONG — echo/printf fabrication  
+echo "=== Compilation Log ===" > session.log
+printf "Step 1: ..." > session.log
+```
+
+**Correct approach — capture real output:**
+```bash
+# Capture command output as it runs
+bash compile.sh 2>&1 | tee session.log
+
+# Or append incrementally
+echo "=== Running sanity check ===" | tee -a session.log
+bash sanity_check.sh --dx_rt 2>&1 | tee -a session.log
+```
+
+If the agent cannot run a command interactively (e.g., background compilation),
+capture the output file:
+```bash
+# Background compilation already writes to compile_out.log
+# Copy/append real output to session.log
+cat compile_out.log >> session.log
+```
 
 **R23 — Structured session.log format** (reference: opencode `224919` session.log quality):
 
