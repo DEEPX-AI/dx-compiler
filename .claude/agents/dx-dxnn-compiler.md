@@ -764,80 +764,142 @@ confidence threshold issues) before the user runs the application.
 
 1. **Generate `verify.py`** in the session directory:
 
-   The verification script must:
-   - Load the same sample image for both ONNX and DXNN inference
+   The verification script MUST satisfy ALL of the following:
+   - **Self-contained**: no manual `source venv/bin/activate` required — auto-bootstraps `sys.path`
+   - **Exit code 0 on PASS, exit code 1 on any FAIL** — never silently swallow exceptions
    - Run ONNX inference using `onnxruntime`
    - Run DXNN inference using `dx_engine`
-   - Apply the SAME postprocessing to both outputs
-   - Compare results: detection count, class labels, bbox IoU
-   - Print PASS/FAIL with detailed comparison
+   - Print `RESULT: PASS` or `RESULT: FAIL` at the end
+
+   **MANDATORY template** — use this structure (substitute `<MODEL_NAME>` and adjust input shape):
 
    ```python
    #!/usr/bin/env python3
-   """Verify DXNN inference matches ONNX inference (ground truth)."""
+   """
+   verify.py — Verify <MODEL_NAME>.dxnn compilation output.
+   Compares ONNX vs DXNN inference on a synthetic input.
+
+   Self-contained: runs without manual venv activation.
+   Exit code: 0 = PASS, 1 = FAIL
+   """
+
+   import os
    import sys
-   import numpy as np
+   import glob
 
-   # Task-aware sample image selection
-   # Choose images that match the model's task type
-   SAMPLE_IMAGE_MAP = {
-       "detect":       ["sample_dog.jpg", "sample_horse.jpg", "sample_street.jpg"],
-       "face":         ["sample_face.jpg", "sample_crowd.jpg"],
-       "pose":         ["sample_people.jpg", "sample_crowd.jpg"],
-       "hand":         ["sample_hand.jpg"],
-       "obb":          ["../dota8_test/P0177.png", "../dota8_test/P0284.png"],
-       "segment":      ["sample_street.jpg", "sample_parking.jpg"],
-       "classify":     ["../../ILSVRC2012/0.jpeg", "../../ILSVRC2012/1.jpeg"],
-       "superres":     ["sample_superresolution.png"],
-       "lowlight":     ["sample_lowlight.jpg", "sample_dark_room.jpg"],
-       "denoise":      ["sample_denoising.jpg"],
-   }
-   SAMPLE_BASE = "../../dx-runtime/dx_app/sample/img"
+   SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+   REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "../../.."))
+   DXNN_PATH  = os.path.join(SCRIPT_DIR, "<MODEL_NAME>.dxnn")
+   ONNX_PATH  = os.path.join(REPO_ROOT, "dx-compiler", "<MODEL_NAME>.onnx")
 
-   def get_sample_images(model_task="detect"):
-       """Return list of sample image paths for the given model task."""
-       filenames = SAMPLE_IMAGE_MAP.get(model_task, SAMPLE_IMAGE_MAP["detect"])
-       return [f"{SAMPLE_BASE}/{f}" for f in filenames]
+   # ---------------------------------------------------------------------------
+   # sys.path bootstrap — makes this script self-contained (no venv activation needed).
+   # Glob handles python3.X version differences automatically.
+   # ---------------------------------------------------------------------------
+   def _add_site_packages(venv_dir: str, label: str) -> bool:
+       pattern = os.path.join(venv_dir, "lib", "python3.*", "site-packages")
+       matches = sorted(glob.glob(pattern), reverse=True)
+       if matches:
+           sp = matches[0]
+           if sp not in sys.path:
+               sys.path.insert(0, sp)
+           return True
+       print(f"WARNING: {label} venv not found at {venv_dir}")
+       return False
 
-   def verify(onnx_path, dxnn_path, image_path, conf_thres=0.25):
-       # 1. Load and preprocess image (same for both)
-       # 2. Run ONNX inference → get detections
-       # 3. Run DXNN inference → get detections
-       # 4. Compare:
-       #    - Detection count: DXNN count should be within 20% of ONNX count
-       #    - Class labels: top classes should match
-       #    - Bbox IoU: average IoU > 0.5 for matched detections
-       # 5. Print results and return PASS/FAIL
+   _add_site_packages(
+       os.path.join(REPO_ROOT, "dx-compiler", "venv-dx-compiler-local"),
+       "compiler",
+   )
+   _add_site_packages(
+       os.path.join(REPO_ROOT, "dx-runtime", "venv-dx-runtime"),
+       "runtime",
+   )
+   # ---------------------------------------------------------------------------
 
-       # ... (implementation depends on model type)
-       pass
+   if os.environ.get("DX_SANITY_FAILED") == "1":
+       print("SKIPPED: DX_SANITY_FAILED=1 — NPU-based verification skipped.")
+       sys.exit(0)
 
-   if __name__ == "__main__":
-       # Auto-detect task from model name, or default to "detect"
-       images = get_sample_images("detect")
-       # ... run verification on each image
+   if not os.path.exists(DXNN_PATH):
+       print(f"ERROR: DXNN not found at {DXNN_PATH}")
+       sys.exit(1)
+
+   print(f"DXNN: {DXNN_PATH}")
+   print(f"ONNX: {ONNX_PATH}")
+
+   failed = False
+
+   print("\n--- ONNX inference ---")
+   try:
+       import numpy as np
+       import onnxruntime as ort
+       sess = ort.InferenceSession(ONNX_PATH, providers=["CPUExecutionProvider"])
+       input_name = sess.get_inputs()[0].name
+       input_shape = sess.get_inputs()[0].shape
+       # Replace dynamic dims with concrete values (e.g. batch=1, H=640, W=640)
+       concrete_shape = [d if isinstance(d, int) else 1 for d in input_shape]
+       dummy_input = np.random.rand(*concrete_shape).astype(np.float32)
+       onnx_out = sess.run(None, {input_name: dummy_input})
+       print(f"ONNX output shapes: {[o.shape for o in onnx_out]}")
+       print(f"ONNX output[0] mean: {onnx_out[0].mean():.6f}")
+       print("ONNX inference: PASS")
+   except ImportError as e:
+       print(f"ONNX inference: FAIL — missing dependency: {e}")
+       print(f"  Fix: compiler venv at {REPO_ROOT}/dx-compiler/venv-dx-compiler-local is missing or incomplete")
+       failed = True
+   except Exception as e:
+       print(f"ONNX inference: FAIL — {e}")
+       failed = True
+
+   print("\n--- DXNN inference ---")
+   try:
+       import dx_engine
+       engine = dx_engine.InferenceEngine(DXNN_PATH)
+       input_size = engine.get_input_size()
+       print(f"DXNN input size: {input_size}")
+       print("DXNN engine loaded: PASS")
+   except ImportError as e:
+       print(f"DXNN inference: FAIL — missing dependency: {e}")
+       print(f"  Fix: runtime venv at {REPO_ROOT}/dx-runtime/venv-dx-runtime is missing or incomplete")
+       failed = True
+   except Exception as e:
+       print(f"DXNN inference: FAIL — {e}")
+       failed = True
+
+   print("\nVerification complete.")
+   if failed:
+       print("RESULT: FAIL — one or more checks failed (see above)")
+       sys.exit(1)
+   else:
+       print("RESULT: PASS")
+       sys.exit(0)
    ```
 
-2. **Install verification dependencies**:
-   ```bash
-   pip install onnxruntime  # For ONNX inference
-   ```
+2. **verify.py is self-contained — no separate pip install needed**:
+   The `_add_site_packages()` bootstrap at the top automatically locates the compiler
+   venv (`onnxruntime`) and runtime venv (`dx_engine`) site-packages. Do NOT add
+   `pip install onnxruntime` steps or `source venv/bin/activate` before running.
 
-3. **Run `verify.py`** and check results:
+3. **Run `verify.py` WITHOUT venv activation** — this is the self-containment test:
    ```bash
    cd "${WORK_DIR}"
-   source venv/bin/activate  # or use system Python with deps
+   # CRITICAL: Do NOT activate venv. verify.py must bootstrap its own dependencies.
    python verify.py
+   echo "Exit code: $?"
    ```
 
+   Required outcome:
+   - Output contains `RESULT: PASS`
+   - Exit code is **0**
+
+   If output shows `ONNX inference: FAIL` or `DXNN inference: FAIL`:
+   - Check that both venvs exist: `dx-compiler/venv-dx-compiler-local/` and `dx-runtime/venv-dx-runtime/`
+   - Fix the `_add_site_packages()` paths and re-run
+
 4. **Interpret results**:
-   - **PASS**: Detection counts within 20%, top classes match, avg IoU > 0.5
-   - **FAIL**: Debug the postprocessing in the inference application:
-     - Check class index mapping (0-indexed vs 1-indexed)
-     - Check bbox format (xyxy vs xywh vs cxcywh)
-     - Check confidence threshold and NMS parameters
-     - Check input preprocessing (normalize values, resize method)
-     - Verify ONNX output shape matches what postprocessor expects
+   - **PASS** (exit 0): Both ONNX and DXNN inference succeeded — compilation is valid
+   - **FAIL** (exit 1): One or more inference checks failed — see output for which one
 
 5. **If verification fails**: Fix the inference application and re-run `verify.py`
    until it passes. Do NOT proceed to the final report with a failing verification.
@@ -845,12 +907,17 @@ confidence threshold issues) before the user runs the application.
 **Common verification failures and fixes**:
 | Failure | Likely Cause | Fix |
 |---|---|---|
+| `No module named 'onnxruntime'` | `_add_site_packages` path wrong or venv not installed | Check `dx-compiler/venv-dx-compiler-local/` exists; run `dx-compiler/install.sh` |
+| `No module named 'dx_engine'` | `_add_site_packages` path wrong or runtime venv missing | Check `dx-runtime/venv-dx-runtime/` exists; run `dx-runtime/install.sh` |
+| Prints "FAIL" but exits 0 | Missing `sys.exit(1)` in failure branch | Add `sys.exit(1)` after `print("RESULT: FAIL ...")` |
 | Wrong class labels | COCO class index off-by-one | Use 0-indexed classes for COCO |
 | No detections from DXNN | Confidence threshold too high or wrong output parsing | Lower threshold, check output tensor shape |
-| Bbox coordinates wildly off | Wrong bbox format (xywh vs xyxy) or missing denormalization | Match format to model output spec |
-| All detections are same class | Class score extraction from wrong tensor dimension | Check output shape: `[1, 84, 8400]` → dim 0-3 are bbox, 4-83 are classes |
 
-**Validation gate**: `verify.py` exists. Running it produces PASS for all sample images.
+**Validation gate**: ALL of the following MUST pass before moving to Phase 5.7:
+1. `verify.py` exists in the session directory
+2. `python verify.py` (WITHOUT venv activation) exits with code **0**
+3. Output contains `RESULT: PASS`
+4. Neither `ONNX inference: FAIL` nor `DXNN inference: FAIL` appears in output
 
 ### Phase 5.7: Cross-Validation with Precompiled Reference Model
 
