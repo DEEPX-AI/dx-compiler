@@ -1,7 +1,7 @@
 
 # RELEASE_NOTES
 
-## DX-Compiler v2.3.1 / 2026-04-23
+## DX-Compiler v2.3.1 / 2026-05-06
 
 -   DX-COM: v2.3.0
 -   DX-TRON: v2.0.1
