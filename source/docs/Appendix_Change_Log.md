@@ -1,3 +1,24 @@
+
+## v2.3.1 (May 2026)
+
+DX-Compiler Version
+
+-   DX-COM: v2.3.0
+-   DX-TRON: v2.0.1
+
+#### Fixed
+
+-   Fixed `uninstall.sh` not removing installed packages and extracted module directories.
+    -   `dx_com` Python package is now properly uninstalled via `pip3 uninstall` before the virtual environment is removed.
+    -   `dxtron` Debian package is now properly removed via `apt-get remove`.
+    -   `dx_com/` and `dx_tron/` directories are now deleted on uninstall.
+
+#### Added
+
+-   Added `--target=<dx_com|dx_tron|all>` option to `uninstall.sh` (default: `all`), consistent with `install.sh`.
+
+---
+
 ## v2.3.0 (March 2026)
 
 DX-Compiler Version

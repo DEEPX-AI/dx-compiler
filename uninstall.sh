@@ -12,11 +12,13 @@ source ${PROJECT_ROOT}/scripts/color_env.sh
 source ${PROJECT_ROOT}/scripts/common_util.sh
 
 ENABLE_DEBUG_LOGS=0
+TARGET_PKG="all"
 
 show_help() {
     echo -e "Usage: ${COLOR_CYAN}$(basename "$0") [OPTIONS]${COLOR_RESET}"
     echo -e ""
     echo -e "Options:"
+    echo -e "  ${COLOR_GREEN}[--target=<module_name>]${COLOR_RESET}              Uninstall specific module (dx_com | dx_tron | all) (default: all)"
     echo -e "  ${COLOR_GREEN}[-v|--verbose]${COLOR_RESET}                        Enable verbose (debug) logging"
     echo -e "  ${COLOR_GREEN}[-h|--help]${COLOR_RESET}                           Display this help message and exit"
     echo -e ""
@@ -34,28 +36,109 @@ show_help() {
     exit 0
 }
 
+# Delete a single module entry: if it is a symlink, also remove the real target;
+# otherwise treat it as a plain directory.
+delete_module_entry() {
+    local entry="$1"
+    if [ -L "$entry" ]; then
+        local real_path
+        real_path=$(readlink -f "$entry")
+        if [ -e "$real_path" ]; then
+            print_colored_v2 "INFO" "Deleting original path: $real_path"
+            delete_dir "$real_path"
+        fi
+        print_colored_v2 "INFO" "Deleting symlink: $entry"
+        rm -f "$entry"
+    else
+        delete_dir "$entry"
+    fi
+}
+
 uninstall_common_files() {
     delete_symlinks "$DOWNLOAD_DIR"
-    delete_symlinks "$PROJECT_ROOT"
+    # Note: do NOT call delete_symlinks "$PROJECT_ROOT" here.
+    # Module symlinks (dx_com/, dx_tron/) are handled individually per target
+    # to avoid accidentally removing modules that were not selected.
     delete_symlinks "${VENV_PATH}"
     delete_symlinks "${VENV_PATH}-local"
     delete_dir "${VENV_PATH}"
     delete_dir "${VENV_PATH}-local"
-    delete_dir "${DOWNLOAD_DIR}" 
+    delete_dir "${DOWNLOAD_DIR}"
 }
 
-uninstall_project_specific_files() {
-    print_colored_v2 "INFO" "Uninstalling ${PROJECT_NAME} specific files..."
+uninstall_dx_com_files() {
+    delete_module_entry "${PROJECT_ROOT}/dx_com"
+}
+
+uninstall_dx_tron_files() {
+    delete_module_entry "${PROJECT_ROOT}/dx_tron"
+}
+
+uninstall_dx_com() {
+    print_colored_v2 "INFO" "Uninstalling dx_com Python package..."
+
+    local pip_cmd=""
+    if [ -f "${VENV_PATH}-local/bin/pip3" ]; then
+        pip_cmd="${VENV_PATH}-local/bin/pip3"
+    elif [ -f "${VENV_PATH}/bin/pip3" ]; then
+        pip_cmd="${VENV_PATH}/bin/pip3"
+    fi
+
+    if [ -n "$pip_cmd" ]; then
+        if "$pip_cmd" uninstall -y dx_com 2>/dev/null; then
+            print_colored_v2 "INFO" "dx_com uninstalled successfully."
+        else
+            print_colored_v2 "WARNING" "dx_com was not installed or already removed."
+        fi
+    else
+        print_colored_v2 "WARNING" "No virtual environment found. Skipping pip uninstall of dx_com."
+    fi
+}
+
+uninstall_dx_tron() {
+    print_colored_v2 "INFO" "Uninstalling dxtron DEB package..."
+
+    if dpkg -l dxtron &>/dev/null; then
+        if sudo apt-get remove -y dxtron; then
+            print_colored_v2 "INFO" "dxtron uninstalled successfully."
+        else
+            print_colored_v2 "WARNING" "Failed to uninstall dxtron. You may need to remove it manually."
+        fi
+    else
+        print_colored_v2 "WARNING" "dxtron is not installed. Skipping."
+    fi
 }
 
 main() {
     echo "Uninstalling ${PROJECT_NAME} ..."
 
-    # Remove symlinks from DOWNLOAD_DIR and PROJECT_ROOT for 'Common' Rules
-    uninstall_common_files
+    case $TARGET_PKG in
+        dx_com)
+            uninstall_dx_com
+            uninstall_dx_com_files
+            uninstall_common_files
+            ;;
+        dx_tron)
+            uninstall_dx_tron
+            uninstall_dx_tron_files
+            ;;
+        all)
+            uninstall_dx_com
+            uninstall_dx_tron
+            uninstall_dx_com_files
+            uninstall_dx_tron_files
+            uninstall_common_files
+            ;;
+        *)
+            show_help "error" "Invalid target '$TARGET_PKG'. Valid targets are: dx_com, dx_tron, all"
+            ;;
+    esac
 
-    # Uninstall the project specific files
-    uninstall_project_specific_files
+    # Warn if venv is still active in the calling shell
+    if [ -n "$VIRTUAL_ENV" ]; then
+        print_colored_v2 "WARNING" "Virtual environment '$(basename "$VIRTUAL_ENV")' is still active in your shell."
+        print_colored_v2 "HINT" "After uninstall completes, please run: deactivate"
+    fi
 
     echo "Uninstalling ${PROJECT_NAME} done"
 }
@@ -63,6 +146,9 @@ main() {
 # parse args
 for i in "$@"; do
     case "$1" in
+        --target=*)
+            TARGET_PKG="${1#*=}"
+            ;;
         -v|--verbose)
             ENABLE_DEBUG_LOGS=1
             ;;
