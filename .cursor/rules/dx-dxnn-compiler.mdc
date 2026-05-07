@@ -218,13 +218,15 @@ Before any compilation, set up the session working directory and calibration dat
    ls "${WORK_DIR}/calibration_dataset/" | head -3
    ```
 
-4. **Copy ONNX model** into working directory (recommended for session reproducibility):
+4. **Copy ONNX model** into working directory (**STRONGLY RECOMMENDED**):
    ```bash
    cp model.onnx "${WORK_DIR}/"
    ```
-   > Retaining a copy of the source ONNX in the session directory makes the session
-   > self-contained — verify.py can re-run and re-compilation is possible without
-   > external dependencies. Symlinks are acceptable if the source path is stable.
+   > **Why retain ONNX?** The session directory should be self-contained —
+   > verify.py needs the ONNX for numerical comparison, and re-compilation is
+   > possible without external dependencies. Without the ONNX in the session dir,
+   > reproducibility tests will emit warnings. Symlinks are acceptable if the
+   > source path is stable (e.g., `dx-modelzoo/` within the same repo).
 
 All subsequent phases operate inside `${WORK_DIR}/`.
 
@@ -361,16 +363,26 @@ dx_com.compile(
 directory. The `dataset_path` in config.json is `./calibration_dataset` (relative),
 which resolves correctly when `dxcom` is run from `${WORK_DIR}/`.
 
-#### Background Compilation + compile.pid Pattern (R12 — RECOMMENDED)
+#### Background Compilation + compile.pid Pattern (R12/R42 — STRONGLY RECOMMENDED)
 
-The `compile.pid` + `subprocess.Popen` pattern is **recommended** for compiler sessions,
-especially in cross-project autopilot scenarios. It ensures:
+The `compile.pid` + `subprocess.Popen` pattern is **strongly recommended** for all
+compiler sessions, and **MANDATORY** in cross-project autopilot scenarios (suite-level
+R42 compliance). It ensures:
 - Compilation survives agent CLI disconnection (SSL/SIGHUP via `start_new_session=True`)
 - The Phase 5.8 Pre-DONE gate can verify compilation finished before emitting DONE
 - The test harness (`_wait_for_background_compilation`) can poll for completion
+- Parallel artifact generation is possible during compilation (critical for autopilot)
 
-Note: Synchronous `dx_com.compile()` is acceptable when the agent session can tolerate
-blocking (e.g., compiler-only sessions with no parallel artifact generation needed).
+> **R42 context**: The suite-level instructions (`AGENTS.md`, `CLAUDE.md`) mark
+> synchronous `dx_com.compile()` as **PROHIBITED** in the main process for cross-project
+> sessions. Compiler-only sessions MAY use synchronous compilation if no parallel
+> artifact generation is needed, but `compile.pid` is still preferred for consistency
+> and test harness compatibility.
+>
+> **OpenCode specific**: opencode delegates to a claude subagent. The subagent MUST
+> use background compilation because the parent session may have parallel work queued.
+> Synchronous compilation in opencode contexts has caused R42 compliance warnings in
+> iter-18 and iter-19.
 
 ```python
 # compile.py — background compilation with PID tracking
