@@ -657,8 +657,8 @@ class CalibDataset(Dataset):
         img = Image.open(self.files[idx]).convert("RGB")
         img = img.resize((self.w, self.h))
         arr = np.array(img, dtype=np.float32)          # HWC
-        arr = np.transpose(arr, (2, 0, 1))             # CHW
-        return torch.from_numpy(arr).unsqueeze(0)      # NCHW [1,C,H,W]
+        arr = np.transpose(arr, (2, 0, 1))             # CHW [C,H,W]
+        return torch.from_numpy(arr)                   # CHW — DataLoader adds batch dim automatically
 
 dataset = CalibDataset("./calibration_dataset", (1, 3, 360, 640))
 dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
@@ -673,6 +673,10 @@ dx_com.compile(model="model.onnx", output_dir=".", dataloader=dataloader,
 - Always match the preprocessing to the model's expected input range and format
 - The Python API automatically handles the config.json-equivalent settings
   (calibration method, etc.) via function parameters
+- **NEVER use `unsqueeze(0)` in `__getitem__`** — PyTorch DataLoader automatically
+  adds the batch dimension. Using `unsqueeze(0)` produces shape `[1,1,C,H,W]`
+  instead of the expected `[1,C,H,W]`, causing `DataLoaderError: Input shape mismatch`.
+  Return CHW tensor `[C,H,W]` from `__getitem__`; DataLoader produces `[N,C,H,W]`.
 
 **Prevention**: Before running `dxcom` CLI, check if the ONNX model input is
 NCHW. If yes, prefer the Python API with a custom DataLoader to avoid this issue.
