@@ -159,7 +159,14 @@ dx-agentic-dev/<session_id>/calibration_dataset  (symlink)
 |---|---|---|
 | EMA | `"ema"` | Default. Best for most models |
 | MinMax | `"minmax"` | When EMA produces poor accuracy |
-| DXQ-P3 | via `enhanced_scheme` | Highest accuracy, 3-5x slower |
+
+### Q-PRO (DXQ-P0 ~ DXQ-P5) — Advanced, NOT Default
+
+Q-PRO enhanced quantization (`enhanced_scheme`) provides higher accuracy but is
+3-5x slower and requires GPU. **Do NOT use by default.** Only apply when:
+1. End-user explicitly requests Q-PRO/DXQ-P/enhanced quantization
+2. GPU is available and verified (`quantization_device: "cuda:0"`)
+3. User confirms they accept the additional calibration time
 
 ### GPU Calibration
 Use GPU for faster calibration:

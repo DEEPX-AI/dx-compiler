@@ -224,20 +224,13 @@ Before any compilation, set up the session working directory and calibration dat
    ls "${WORK_DIR}/calibration_dataset/" | head -3
    ```
 
-4. **Copy ONNX model** into working directory (NEVER symlink — must be a real binary copy):
+4. **Copy ONNX model** into working directory (recommended for session reproducibility):
    ```bash
    cp model.onnx "${WORK_DIR}/"
-   # Verify it is a real file ≥ 1 MB (NOT a symlink):
-   python3 -c "
-   from pathlib import Path
-   p = Path('${WORK_DIR}/model.onnx')
-   if p.is_symlink(): raise RuntimeError('ONNX must be a real copy, not a symlink')
-   if p.stat().st_size < 1048576: raise RuntimeError('ONNX file too small — expected ≥ 1 MB')
-   print(f'ONNX copy OK: {p.stat().st_size // 1024} KB')
-   "
    ```
-   > **MANDATORY**: `test_onnx_retained_in_compiler_session` checks for a real binary ≥ 1 MB.
-   > `ln -sf` or any symlink FAILS this test. Use only `cp` or `shutil.copy`.
+   > Retaining a copy of the source ONNX in the session directory makes the session
+   > self-contained — verify.py can re-run and re-compilation is possible without
+   > external dependencies. Symlinks are acceptable if the source path is stable.
 
 All subsequent phases operate inside `${WORK_DIR}/`.
 
@@ -259,14 +252,12 @@ Record the input name and shape — these are required for config.json.
 
 ### Phase 2: Generate config.json
 
-> **⚠️ HARD GATE — default_loader PROHIBITION (R24)**: `default_loader` produces
-> **HWC** tensors. All YOLO variants (yolo26n, yolov8, yolov9, yolov10, yolov11,
-> yolov12, yolov3, yolov5, yolov7, YOLOX) expect **NCHW** input and will **always**
-> fail with a shape mismatch when `default_loader` is used. **NEVER use
-> `default_loader` for NCHW models.** Symptom: `DataLoaderError: expected [1,3,H,W]
-> got [1,H,W,3]`. Fix: use the custom PyTorch DataLoader with `transforms.ToTensor()`
-> (see below). Remove `default_loader` from config.json entirely when passing a
-> Python `dataloader=` argument to `dx_com.compile()`.
+> **Note — default_loader vs custom DataLoader**: When using `default_loader` in
+> config.json for NCHW models (e.g., YOLO variants), ensure the `preprocessings`
+> list includes a `transpose` step to convert from HWC to CHW format if needed.
+> Alternatively, use a custom PyTorch DataLoader with `transforms.ToTensor()` (which
+> outputs CHW directly). When passing a Python `dataloader=` argument to
+> `dx_com.compile()`, omit `default_loader` from config.json.
 
 Create a config.json matching the model's requirements. For NCHW models (all YOLO
 variants), omit `default_loader` and use the Python DataLoader approach below:
@@ -285,84 +276,44 @@ location. Use `./calibration_dataset` (relative to `${WORK_DIR}/`) when running 
 session directory. For autopilot cross-project sessions where the calling directory
 is ambiguous, prefer absolute paths (e.g., `os.path.abspath("...")`).
 
-#### Custom PyTorch DataLoader — MANDATORY: augmentation-based approach (R10/R29/REC-W1)
+#### Custom PyTorch DataLoader
 
-> **⛔ R29 CALIBRATION STRATEGY STOP BLOCK — READ BEFORE WRITING compile.py**
->
-> Your calibration DataLoader MUST use **single-image augmentation** (load 1 image, apply
-> random transforms each `__getitem__` call). The following class NAMES are PROHIBITED
-> because they indicate a 100-distinct-image strategy that causes 62-min timeouts:
->
-> | Class name | Status |
-> |-----------|--------|
-> | `CalibDataset` | ❌ BANNED — causes 62-min timeouts |
-> | `CalibrationDataset` | ❌ BANNED — same 62-min penalty |
-> | `YoloCalibDataset` | ❌ BANNED — same 62-min penalty |
-> | `YOLOCalibDataset` | ❌ BANNED — same 62-min penalty |
-> | `YoloCalibrationDataset` | ❌ BANNED — iter-19 copilot variant; contains banned substring |
-> | `*CalibrationDataset` | ❌ BANNED — any class ending in `CalibrationDataset` is prohibited |
-> | `*CalibDataset` | ❌ BANNED — any class ending in `CalibDataset` is prohibited |
-> | `ImageFolder` | ❌ BANNED — wrong format |
-> | `DefaultDataset` | ❌ BANNED — wrong format |
->
-> ⚠️ **Non-Claude backends (e.g., cursor GPT backend / MODEL NOTICE triggered)**:
-> If you received a MODEL NOTICE warning, you are especially likely to generate a banned
-> class name. Read this block carefully — the test harness WILL fail your run if a banned
-> name is found in compile.py.
->
-> **KEY PRINCIPLE**: Load **ONE** image, apply **RANDOM augmentation** each `__getitem__`
-> call. Do NOT cycle through 100 distinct images at 37 s/image (~62 min total).
-> Use `transforms.Compose` with `RandomHorizontalFlip` and `ColorJitter` to produce
-> 100 diverse calibration batches from 1 source image (~1 min total).
->
-> If your class iterates over `self.images[idx % len(images)]` or `sorted(Path(...).glob("*.jpg"))`,
-> **STOP AND REWRITE** using the MANDATORY TEMPLATE below.
-
-**MANDATORY TEMPLATE** — Copy this and rename the class to whatever fits your codebase:
+When the default loader is insufficient, provide a custom `torch.utils.data.DataLoader`.
+Follow the SDK pattern from `source/docs/02_07_Common_Use_Cases.md`:
 
 ```python
-# compile.py — MANDATORY TEMPLATE: single-image + augmentation calibration
-# KEY PRINCIPLE: Load ONE image, apply RANDOM augmentation each __getitem__ call.
-# Do NOT use self.images[idx % len(images)] — cycling 100 images takes 62 min.
-# Do NOT name this class CalibDataset, CalibrationDataset, YoloCalibDataset,
-# YOLOCalibDataset, YoloCalibrationDataset, ImageFolder, or DefaultDataset — all are banned.
-# Also banned: ANY class name ending in CalibDataset or CalibrationDataset (REC-X2).
+# compile.py — custom DataLoader following SDK pattern
+import os
 import numpy as np
-from pathlib import Path
 from PIL import Image
 from torchvision import transforms
 from torch.utils.data import Dataset, DataLoader
 
-class AugCalibDataset(Dataset):
-    """Load ONE calibration image; return a randomly augmented tensor each __getitem__.
-
-    Fast: 1 source image × 100 augmented calls = ~1 min calibration time.
-    Banned alternatives: CalibDataset, CalibrationDataset, YoloCalibDataset,
-    YOLOCalibDataset, ImageFolder, DefaultDataset (all cause 62-min timeouts).
-    """
-    def __init__(self, calib_dir: str, num_samples: int = 100, size: int = 640):
-        images = sorted(Path(calib_dir).glob("*.jpg")) + sorted(Path(calib_dir).glob("*.jpeg"))
-        assert images, f"No JPEG images found in {calib_dir}"
-        self.image_path = images[0]     # ONE real image
-        self.num_samples = num_samples
-        self.size = size
-        self.augment = transforms.Compose([
-            transforms.RandomHorizontalFlip(),
-            transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1),
-            transforms.Resize((size, size)),
-            transforms.ToTensor(),      # → [0,1] CHW float32
+class CalibDataset(Dataset):
+    """Load calibration images from a directory."""
+    def __init__(self, image_dir: str, img_size: int = 640):
+        self.image_dir = image_dir
+        self.image_files = sorted([
+            f for f in os.listdir(image_dir)
+            if f.endswith(('.jpg', '.png', '.jpeg'))
+        ])
+        assert self.image_files, f"No images found in {image_dir}"
+        self.transform = transforms.Compose([
+            transforms.Resize((img_size, img_size)),
+            transforms.ToTensor(),
         ])
 
     def __len__(self):
-        return self.num_samples
+        return len(self.image_files)
 
-    def __getitem__(self, i):
-        img = Image.open(self.image_path).convert("RGB")
-        return self.augment(img).numpy()  # CHW float32, random augmentation each call
+    def __getitem__(self, idx):
+        img_path = os.path.join(self.image_dir, self.image_files[idx])
+        image = Image.open(img_path).convert('RGB')
+        return self.transform(image).numpy()  # CHW float32
 
 calib_loader = DataLoader(
-    AugCalibDataset("./calibration_dataset", num_samples=100, size=640),
-    batch_size=1, shuffle=False,
+    CalibDataset("./calibration_dataset", img_size=640),
+    batch_size=1, shuffle=True,
 )
 import dx_com
 dx_com.compile(
@@ -416,17 +367,16 @@ dx_com.compile(
 directory. The `dataset_path` in config.json is `./calibration_dataset` (relative),
 which resolves correctly when `dxcom` is run from `${WORK_DIR}/`.
 
-#### Background Compilation + compile.pid Pattern (R12/R42 — MANDATORY for ALL sessions)
+#### Background Compilation + compile.pid Pattern (R12 — RECOMMENDED)
 
-The `compile.pid` + `subprocess.Popen` pattern is **MANDATORY for ALL compiler sessions**,
-not just autopilot cross-project sessions. It ensures:
+The `compile.pid` + `subprocess.Popen` pattern is **recommended** for compiler sessions,
+especially in cross-project autopilot scenarios. It ensures:
 - Compilation survives agent CLI disconnection (SSL/SIGHUP via `start_new_session=True`)
 - The Phase 5.8 Pre-DONE gate can verify compilation finished before emitting DONE
 - The test harness (`_wait_for_background_compilation`) can poll for completion
 
-**Observed in iter-8**: opencode and claude_code used synchronous `dx_com.compile()` calls
-without `compile.pid`. While compilation succeeded, this pattern is fragile in
-disconnection scenarios. Use the background pattern below for ALL compiler sessions.
+Note: Synchronous `dx_com.compile()` is acceptable when the agent session can tolerate
+blocking (e.g., compiler-only sessions with no parallel artifact generation needed).
 
 ```python
 # compile.py — background compilation with PID tracking
@@ -469,51 +419,17 @@ print("Proceeding to generate all other artifacts in parallel...")
 # DO NOT wait here — proceed immediately to generate factory, app code, setup.sh, run.sh, verify.py
 ```
 
-**Rules for background compilation (HARD GATE):**
+**Guidelines for compilation workflow:**
 
-> **⛔ BLOCKING — Rule 5 must run BEFORE subprocess.Popen. Do NOT launch compilation
-> until the self-check below exits with code 0 and writes `CALIB_STRATEGY_OK:` to session.log.**
+**Step A — Write compile.py first**
 
-**Step A — Write compile.py first (no subprocess yet)**
+**Step B — Launch compilation (background or synchronous):**
 
-**Step B — Run Rule 5 self-check (BEFORE launching compilation):**
-
-5. **Rule 5 — Mandatory calibration self-check (REC-G/REC-W1/REC-X3 BLOCKING)**:
-   After writing `compile.py` but BEFORE calling `subprocess.Popen`, run this check.
-   If it fails, STOP and rewrite compile.py with augmentation. Do NOT proceed to Step C.
-   ```bash
-   python3 -c "
-   import ast, sys
-   with open('${WORK_DIR}/compile.py') as f: src = f.read()
-   tree = ast.parse(src)
-   banned_exact = {'CalibDataset','CalibrationDataset','YoloCalibDataset','YOLOCalibDataset',
-                   'YoloCalibrationDataset','ImageFolder','DefaultDataset'}
-   classes = {n.name for n in ast.walk(tree) if isinstance(n, ast.ClassDef)}
-   # REC-X3: also catch any class whose name ends in CalibDataset or CalibrationDataset
-   found_banned = {c for c in classes if c in banned_exact
-                   or c.endswith('CalibDataset') or c.endswith('CalibrationDataset')}
-   if found_banned: sys.exit(f'BANNED calibration class found: {found_banned}. Use augmentation-based DataLoader.')
-   aug_ok = any(k in src for k in ['RandomHorizontalFlip','ColorJitter','augment'])
-   if not aug_ok: sys.exit('No augmentation transforms found. Use transforms.Compose with RandomHorizontalFlip and ColorJitter.')
-   print('CALIB_STRATEGY_OK: augmentation-based DataLoader confirmed')
-   " | tee -a "${WORK_DIR}/session.log"
-   ```
-   The output **`CALIB_STRATEGY_OK:`** MUST appear in session.log.
-   The test `test_compile_self_check_ran` checks for this prefix and fails if absent.
-   **This check exits with code 1 if a banned class is found** — it is a BLOCKING gate.
-   **If the check fails (non-zero exit), STOP and rewrite compile.py before proceeding.**
-
-6. **Rule 6 — Banned class names**: The following class names are PROHIBITED in compile.py:
-   `CalibDataset`, `CalibrationDataset`, `YoloCalibDataset`, `YOLOCalibDataset`,
-   `YoloCalibrationDataset`, `ImageFolder`, `DefaultDataset`, and ANY class whose name
-   ends in `CalibDataset` or `CalibrationDataset`. Using any of these will cause
-   `test_compile_py_avoids_slow_calibration` to fail. Use augmentation-based approach.
-
-**Step C — ONLY AFTER Rule 5 passes (exit code 0): launch background compilation:**
-1. After launching compilation, **IMMEDIATELY** generate ALL other artifacts:
+When using background compilation, after launching:
+1. **IMMEDIATELY** generate ALL other artifacts:
    factory, `<model>_sync.py`, `setup.sh`, `run.sh`, `verify.py`, `README.md`
 2. Check whether `.dxnn` was produced **ONLY AFTER** all other artifacts are written
-3. **NEVER** sleep-poll for `.dxnn`: `for i in ...; do sleep N; ls *.dxnn; done` is prohibited
+3. Avoid sleep-polling for `.dxnn` — generate other files first, check once at the end
 4. If `.dxnn` is not yet ready, generation is still complete — runtime will finish compilation
 
 
@@ -689,12 +605,7 @@ in the session working directory. **Never skip this phase.**
      `sample_face.jpg`, pose models use `sample_people.jpg`, OBB models use
      `dota8_test/P0177.png`, classification models use `ILSVRC2012/0.jpeg`).
 
-3. **README.md** — Session summary (HARD GATE: minimum 30 lines, all sections required):
-
-   > **REC-V4 (iter-17) — cursor README chronic below 30-line threshold (iter-13→17).**
-   > cursor has produced thin READMEs (14–29 lines) for 5 consecutive iterations. The
-   > minimum-content template below is MANDATORY — skipping any section causes
-   > `test_readme_quality_check` to fail.
+3. **README.md** — Session summary (include key sections: Quick Start, Generated Files, Notes):
 
    ```markdown
    # <Model> Compilation Session
@@ -703,7 +614,6 @@ in the session working directory. **Never skip this phase.**
    **Pipeline**: ONNX → DXNN
    **Device**: DX-M1
    **Date**: <YYYY-MM-DD HH:MM (KST)>
-   **Duration**: <N> min
 
    ## Quick Start
 
@@ -715,32 +625,17 @@ in the session working directory. **Never skip this phase.**
 
    ## Generated Files
 
-   | File | Size | Description |
-   |------|------|-------------|
-   | `<model>.onnx` | ~9.5 MB | Source ONNX model |
-   | `<model>.dxnn` | ~6.9 MB | Compiled DXNN model |
-   | `config.json` | 5 L | DX-COM compilation config |
-   | `compile.py` | N L | Compilation script (fast calibration) |
-   | `verify.py` | N L | ONNX vs DXNN output comparison |
-   | `setup.sh` | N L | Environment setup |
-   | `run.sh` | N L | Inference launcher |
-   | `session.log` | N L | Command output log |
-   | `compile_out.log` | ~285 KB | Raw dxcom progress output |
-   | `compile.pid` | 1 L | Background compilation PID |
-
-   ## Run Options
-
-   ```bash
-   # Verify ONNX vs DXNN outputs
-   python verify.py --image <path/to/image.jpg>
-
-   # Run inference on sample image
-   bash run.sh <path/to/image.jpg>
-   ```
+   | File | Description |
+   |------|-------------|
+   | `<model>.onnx` | Source ONNX model |
+   | `<model>.dxnn` | Compiled DXNN model |
+   | `config.json` | DX-COM compilation config |
+   | `verify.py` | ONNX vs DXNN output comparison |
+   | `setup.sh` | Environment setup |
+   | `run.sh` | Inference launcher |
 
    ## Notes
 
-   - Calibration: fast calibration strategy (1 real image, 100 augmented copies via torchvision)
    - Quantization: EMA, 100 calibration images
    - PPU config: <type>, conf=<n>, iou=<n>
    ```
@@ -1206,7 +1101,26 @@ session working directory:
 |---|---|---|
 | EMA | `"calibration_method": "ema"` | General purpose (default, recommended) |
 | MinMax | `"calibration_method": "minmax"` | When EMA produces outlier ranges |
-| DXQ-P3 | `"enhanced_scheme": {"DXQ-P3": {"num_samples": 1024}}` | Higher accuracy, slower |
+
+### Q-PRO Options (DXQ-P0 ~ DXQ-P5) — NOT Default
+
+Q-PRO enhanced quantization (`enhanced_scheme`) is an **advanced option** that is
+NOT used by default. It requires GPU for practical execution (3-5x longer calibration).
+
+**Use Q-PRO ONLY when ALL of the following conditions are met:**
+1. The end-user explicitly requests enhanced quantization or mentions DXQ-P/Q-PRO
+2. GPU is available (`quantization_device: "cuda:0"` verified working)
+3. The user confirms they accept the additional calibration time (3-5x)
+
+**Example config (only when explicitly requested by user):**
+```json
+{
+  "enhanced_scheme": {"DXQ-P3": {"num_samples": 1024}},
+  "quantization_device": "cuda:0"
+}
+```
+
+If the user does not mention Q-PRO/DXQ-P/enhanced_scheme, always use EMA (default).
 
 ## Common Compilation Errors
 
