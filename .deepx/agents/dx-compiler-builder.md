@@ -33,8 +33,13 @@ Before classifying or routing any task:
 
 1. Read `.github/copilot-instructions.md` for this level's global context (MANDATORY)
 2. Read `.deepx/memory/common_pitfalls.md` (always)
-3. Read `.deepx/toolsets/config-schema.md` (if writing config.json)
-4. Read `.deepx/toolsets/dxcom-cli.md` or `.deepx/toolsets/dxcom-api.md` (if running dxcom)
+3. Read `source/docs/` SDK official guide documents for API and feature reference (MANDATORY):
+   - `02_05_JSON_File_Configuration.md` — config.json schema and all options
+   - `02_07_Common_Use_Cases.md` — calibration patterns, DataLoader examples
+   - `02_03_Python_API.md` — dxcom Python API reference
+   - Other files as needed for the specific task
+4. Read `.deepx/toolsets/config-schema.md` (if writing config.json)
+5. Read `.deepx/toolsets/dxcom-cli.md` or `.deepx/toolsets/dxcom-api.md` (if running dxcom)
 
 ## MANDATORY OUTPUT REQUIREMENTS — READ FIRST
 
@@ -147,7 +152,7 @@ fi
 
 # Step 3: Install/verify dxcom
 echo "[3/5] Checking dxcom installation..."
-python -c "from dxcom import dxcom; print('dxcom OK')" 2>/dev/null || {
+python -c "import dx_com; print('dxcom OK')" 2>/dev/null || {
     echo "Installing dxcom..."
     pip install dxcom
 }
