@@ -83,9 +83,22 @@ echo "Working directory: ${SCRIPT_DIR}"
 
 # Step 1: Detect and activate venv
 # Search upward for the dx-runtime shared venv (preferred)
+# Auto-detect suite root
+SUITE_ROOT="$SCRIPT_DIR"
+while [ "$SUITE_ROOT" != "/" ]; do
+    if [ -d "$SUITE_ROOT/dx-runtime" ] && [ -d "$SUITE_ROOT/dx-compiler" ]; then
+        break
+    fi
+    SUITE_ROOT="$(dirname "$SUITE_ROOT")"
+done
+if [ "$SUITE_ROOT" = "/" ]; then
+    echo "ERROR: Cannot find dx-all-suite root (expected dx-runtime/ and dx-compiler/ siblings)"
+    exit 1
+fi
+
 VENV_SEARCH_DIRS=(
-    "${SCRIPT_DIR}/../../../venv-dx-runtime"
-    "${SCRIPT_DIR}/../../../../dx-runtime/venv-dx-runtime"
+    "$SUITE_ROOT/dx-runtime/venv-dx-runtime"
+    "$SUITE_ROOT/venv-dx-runtime"
 )
 VENV_FOUND=""
 for vdir in "${VENV_SEARCH_DIRS[@]}"; do
@@ -109,13 +122,13 @@ fi
 # The script returns correct exit codes, but if piped through tail/head,
 # the pipe replaces the exit code with 0 (tail always succeeds).
 echo "[2/5] Running dx-runtime sanity check..."
-SANITY_SCRIPT="${SCRIPT_DIR}/../../../dx-runtime/scripts/sanity_check.sh"
+SANITY_SCRIPT="$SUITE_ROOT/dx-runtime/scripts/sanity_check.sh"
 if [ -f "$SANITY_SCRIPT" ]; then
     SANITY_OUTPUT=$(bash "$SANITY_SCRIPT" --dx_rt 2>&1)
     echo "$SANITY_OUTPUT"
     if echo "$SANITY_OUTPUT" | grep -q "Sanity check FAILED"; then
         echo "WARNING: dx-runtime sanity check failed. Attempting install..."
-        RUNTIME_DIR="${SCRIPT_DIR}/../../../dx-runtime"
+        RUNTIME_DIR="$SUITE_ROOT/dx-runtime"
         bash "$RUNTIME_DIR/install.sh" --all --exclude-app --exclude-stream --skip-uninstall --venv-reuse
         echo "Re-checking sanity..."
         SANITY_OUTPUT=$(bash "$SANITY_SCRIPT" --dx_rt 2>&1)

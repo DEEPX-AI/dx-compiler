@@ -106,7 +106,7 @@ compare it against the generated model to isolate compilation vs verification is
 
 ```bash
 MODEL_NAME="<model_name>"
-REF_DXNN="../../dx-runtime/dx_app/assets/models/${MODEL_NAME}.dxnn"
+REF_DXNN="$SUITE_ROOT/dx-runtime/dx_app/assets/models/${MODEL_NAME}.dxnn"
 if [ -f "$REF_DXNN" ]; then
     echo "=== Cross-Validation ==="
     python verify.py --dxnn "$REF_DXNN"

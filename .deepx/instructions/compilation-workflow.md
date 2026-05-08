@@ -248,10 +248,24 @@ these mandatory artifacts in the session directory. **Never skip this phase.**
 ```bash
 #!/bin/bash
 set -e
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 cd "$SCRIPT_DIR"
-RUNTIME_DIR="../../dx-runtime"
-COMPILER_DIR="../../dx-compiler"
+
+# Auto-detect suite root
+SUITE_ROOT="$SCRIPT_DIR"
+while [ "$SUITE_ROOT" != "/" ]; do
+    if [ -d "$SUITE_ROOT/dx-runtime" ] && [ -d "$SUITE_ROOT/dx-compiler" ]; then
+        break
+    fi
+    SUITE_ROOT="$(dirname "$SUITE_ROOT")"
+done
+if [ "$SUITE_ROOT" = "/" ]; then
+    echo "ERROR: Cannot find dx-all-suite root (expected dx-runtime/ and dx-compiler/ siblings)"
+    exit 1
+fi
+
+RUNTIME_DIR="$SUITE_ROOT/dx-runtime"
+COMPILER_DIR="$SUITE_ROOT/dx-compiler"
 
 # Step 1: Verify dx-runtime (dx_rt, driver, firmware)
 if [ -f "$RUNTIME_DIR/scripts/sanity_check.sh" ]; then
@@ -294,8 +308,21 @@ echo "Setup complete. Activate: source venv/bin/activate"
 ```bash
 #!/bin/bash
 set -e
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
 cd "$SCRIPT_DIR"
+
+# Auto-detect suite root
+SUITE_ROOT="$SCRIPT_DIR"
+while [ "$SUITE_ROOT" != "/" ]; do
+    if [ -d "$SUITE_ROOT/dx-runtime" ] && [ -d "$SUITE_ROOT/dx-compiler" ]; then
+        break
+    fi
+    SUITE_ROOT="$(dirname "$SUITE_ROOT")"
+done
+if [ "$SUITE_ROOT" = "/" ]; then
+    echo "ERROR: Cannot find dx-all-suite root (expected dx-runtime/ and dx-compiler/ siblings)"
+    exit 1
+fi
 
 # Activate venv (auto-detect or error)
 if [ -z "${VIRTUAL_ENV:-}" ]; then
@@ -308,7 +335,7 @@ if [ -z "${VIRTUAL_ENV:-}" ]; then
     fi
 fi
 
-python detect_<model>.py --model <model>.dxnn --input ../../dx-runtime/dx_app/sample/img/sample_dog.jpg
+python detect_<model>.py --model <model>.dxnn --input "$SUITE_ROOT/dx-runtime/dx_app/sample/img/sample_dog.jpg"
 ```
 
 ## Phase 6.6: TDD Verification Gate

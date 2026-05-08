@@ -87,7 +87,7 @@ compilation issues from verification code issues.
 
 ```bash
 MODEL_NAME="<model_name>"
-REF_DXNN="../../dx-runtime/dx_app/assets/models/${MODEL_NAME}.dxnn"
+REF_DXNN="$SUITE_ROOT/dx-runtime/dx_app/assets/models/${MODEL_NAME}.dxnn"
 
 if [ -f "$REF_DXNN" ]; then
     echo "=== Phase 3.5: Cross-Validation ==="

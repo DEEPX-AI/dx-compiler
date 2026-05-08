@@ -604,7 +604,7 @@ without a second reference point.
 **Fix**: When a precompiled reference DXNN exists in `dx-runtime/dx_app/assets/models/`
 for the same model, run verify.py with BOTH the precompiled and generated models:
 ```bash
-REF_DXNN="../../dx-runtime/dx_app/assets/models/<model>.dxnn"
+REF_DXNN="$SUITE_ROOT/dx-runtime/dx_app/assets/models/<model>.dxnn"
 if [ -f "$REF_DXNN" ]; then
     python verify.py --dxnn "$REF_DXNN"        # Reference
     python verify.py --dxnn <model>.dxnn        # Generated

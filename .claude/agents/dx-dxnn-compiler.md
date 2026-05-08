@@ -71,11 +71,12 @@ tools:
 >
 > **R46 — Do NOT copy `.dxnn` to the app session directory**:
 > The `.dxnn` file lives in `dx-compiler/dx-agentic-dev/<session_id>/`. The app session
-> (`dx_app/dx-agentic-dev/<session_id>/`) MUST reference it via a relative path or
-> `config.json` variable — NOT by copying the file. Copying wastes 6–7 MB per run and
-> breaks the audit trail (timestamps diverge). In `yolo26n_sync.py` / `run.sh`, use:
+> (`dx_app/dx-agentic-dev/<session_id>/`) MUST reference it via `$SUITE_ROOT/dx-compiler/...`
+> (the SUITE_ROOT auto-detection pattern) or a `config.json` variable — NOT by copying
+> the file. Copying wastes 6–7 MB per run and breaks the audit trail (timestamps diverge).
+> In `yolo26n_sync.py` / `run.sh`, use `$SUITE_ROOT/dx-compiler/...`:
 > ```python
-> MODEL_PATH = "../../dx-compiler/dx-agentic-dev/<compiler_session_id>/yolo26n.dxnn"
+> MODEL_PATH = f"{SUITE_ROOT}/dx-compiler/dx-agentic-dev/<compiler_session_id>/yolo26n.dxnn"
 > ```
 > or store the path in `config.json` and read it at runtime. Never `shutil.copy` or
 > `cp` the `.dxnn` file into the app session directory.
@@ -503,15 +504,28 @@ in the session working directory. **Never skip this phase.**
    ```bash
    #!/bin/bash
    set -e
-   SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-   REAL_SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
+   SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd -P)"
    cd "$SCRIPT_DIR"
+
+   # Auto-detect suite root
+   SUITE_ROOT="$SCRIPT_DIR"
+   while [ "$SUITE_ROOT" != "/" ]; do
+       if [ -d "$SUITE_ROOT/dx-runtime" ] && [ -d "$SUITE_ROOT/dx-compiler" ]; then
+           break
+       fi
+       SUITE_ROOT="$(dirname "$SUITE_ROOT")"
+   done
+   if [ "$SUITE_ROOT" = "/" ]; then
+       echo "ERROR: Cannot find dx-all-suite root (expected dx-runtime/ and dx-compiler/ siblings)"
+       exit 1
+   fi
+
+   RUNTIME_DIR="$SUITE_ROOT/dx-runtime"
+   COMPILER_DIR="$SUITE_ROOT/dx-compiler"
 
    echo "=== Setting up environment ==="
 
    # ── Step 1: Verify dx-runtime installation ──
-   # Use REAL path to resolve symlinks correctly
-   RUNTIME_DIR="$REAL_SCRIPT_DIR/../../dx-runtime"
    if [ -f "$RUNTIME_DIR/scripts/sanity_check.sh" ]; then
        if ! bash "$RUNTIME_DIR/scripts/sanity_check.sh" --dx_rt 2>/dev/null; then
            echo "dx-runtime not fully installed. Running install.sh..."
@@ -529,12 +543,10 @@ in the session working directory. **Never skip this phase.**
    # dx-com is a PRIVATE package (not on PyPI). Use the compiler venv.
    if ! python3 -c "import dx_com" 2>/dev/null; then
        echo "dxcom not found in current env. Searching for compiler venv..."
-       # Search for compiler venv relative to real script location
        COMPILER_VENV=""
        for _candidate in \
-           "$REAL_SCRIPT_DIR/../../venv-dx-compiler-local" \
-           "$REAL_SCRIPT_DIR/../../../dx-compiler/venv-dx-compiler-local" \
-           "$REAL_SCRIPT_DIR/../../../../dx-compiler/venv-dx-compiler-local"; do
+           "$COMPILER_DIR/venv-dx-compiler-local" \
+           "$SUITE_ROOT/venv-dx-compiler-local"; do
            if [ -d "$_candidate" ]; then
                COMPILER_VENV="$(cd "$_candidate" && pwd)"
                break
@@ -544,10 +556,10 @@ in the session working directory. **Never skip this phase.**
        if [ -n "$COMPILER_VENV" ]; then
            echo "Found compiler venv: $COMPILER_VENV"
            source "$COMPILER_VENV/bin/activate"
-       elif [ -f "$REAL_SCRIPT_DIR/../../install.sh" ]; then
+       elif [ -f "$COMPILER_DIR/install.sh" ]; then
            echo "Running dx-compiler installer..."
-           bash "$REAL_SCRIPT_DIR/../../install.sh"
-           source "$REAL_SCRIPT_DIR/../../venv-dx-compiler-local/bin/activate"
+           bash "$COMPILER_DIR/install.sh"
+           source "$COMPILER_DIR/venv-dx-compiler-local/bin/activate"
        else
            echo "ERROR: Cannot find dx-com. Install manually:"
            echo "  cd <dx-compiler-dir> && bash install.sh"
@@ -839,7 +851,7 @@ compilation issues from verify.py code issues.
 **Prerequisite check**:
 ```bash
 MODEL_NAME="<model_name>"
-REF_DXNN="../../dx-runtime/dx_app/assets/models/${MODEL_NAME}.dxnn"
+REF_DXNN="$SUITE_ROOT/dx-runtime/dx_app/assets/models/${MODEL_NAME}.dxnn"
 if [ -f "$REF_DXNN" ]; then
     echo "Reference model found: $REF_DXNN — running cross-validation"
 else
