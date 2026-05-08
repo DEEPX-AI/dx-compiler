@@ -88,21 +88,21 @@ dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
 
 | Command | Description |
 |---------|-------------|
-| `/dx-convert-model` | Convert PyTorch model to ONNX |
-| `/dx-compile-model` | Compile ONNX model to DXNN |
-| `/dx-validate-compile` | Validate compilation output |
-| `/dx-brainstorm-and-plan` | Brainstorm, propose 2-3 approaches, spec self-review, then plan |
-| `/dx-tdd` | Validation-driven development with optional Red-Green-Refactor for unit tests |
-| `/dx-verify-completion` | Verify before claiming completion — evidence before assertions |
-| `/dx-writing-plans` | Write implementation plans with bite-sized tasks |
-| `/dx-executing-plans` | Execute plans with review checkpoints |
-| `/dx-subagent-driven-development` | Execute plans via fresh subagent per task with two-stage review |
-| `/dx-systematic-debugging` | Systematic debugging — 4-phase root cause investigation before proposing fixes |
-| `/dx-receiving-code-review` | Evaluate code review feedback with technical rigor |
-| `/dx-requesting-code-review` | Request code review after completing features |
+| `/dx-agentic-compiler-convert` | Convert PyTorch model to ONNX |
+| `/dx-agentic-compiler-compile` | Compile ONNX model to DXNN |
+| `/dx-agentic-compiler-validate` | Validate compilation output |
+| `/dx-swe-brainstorm` | Brainstorm, propose 2-3 approaches, spec self-review, then plan |
+| `/dx-swe-tdd` | Validation-driven development with optional Red-Green-Refactor for unit tests |
+| `/dx-swe-verify` | Verify before claiming completion — evidence before assertions |
+| `/dx-swe-writing-plans` | Write implementation plans with bite-sized tasks |
+| `/dx-swe-executing-plans` | Execute plans with review checkpoints |
+| `/dx-swe-subagent-dev` | Execute plans via fresh subagent per task with two-stage review |
+| `/dx-swe-debugging` | Systematic debugging — 4-phase root cause investigation before proposing fixes |
+| `/dx-swe-receiving-review` | Evaluate code review feedback with technical rigor |
+| `/dx-swe-requesting-review` | Request code review after completing features |
 | `/dx-skill-router` | Skill discovery and invocation — check skills before any action |
-| `/dx-writing-skills` | Create and edit skill files |
-| `/dx-dispatching-parallel-agents` | Dispatch parallel subagents for independent tasks |
+| `/dx-harness-writing-skills` | Create and edit skill files |
+| `/dx-swe-parallel-agents` | Dispatch parallel subagents for independent tasks |
 
 ## Critical Conventions
 
@@ -150,22 +150,22 @@ dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
 
 | If the task mentions... | Read these files |
 |---|---|
-| **PyTorch, PT, export, convert** | `.deepx/agents/dx-model-converter.md`, `.deepx/skills/dx-convert-model.md` |
-| **ONNX, compile, DXNN, dxcom** | `.deepx/agents/dx-dxnn-compiler.md`, `.deepx/skills/dx-compile-model.md` |
+| **PyTorch, PT, export, convert** | `.deepx/agents/dx-model-converter.md`, `.deepx/skills/dx-agentic-compiler-convert.md` |
+| **ONNX, compile, DXNN, dxcom** | `.deepx/agents/dx-dxnn-compiler.md`, `.deepx/skills/dx-agentic-compiler-compile.md` |
 | **CLI, command line** | `.deepx/toolsets/dxcom-cli.md` |
 | **Python API, dx_com.compile** | `.deepx/toolsets/dxcom-api.md` |
 | **config, JSON, schema** | `.deepx/toolsets/config-schema.md` |
 | **calibration, quantization, INT8** | `.deepx/instructions/compilation-workflow.md` |
 | **PPU, YOLO, detection** | `.deepx/toolsets/config-schema.md`, `.deepx/instructions/compilation-workflow.md` |
-| **validate, verify, check** | `.deepx/skills/dx-validate-compile.md` |
+| **validate, verify, check** | `.deepx/skills/dx-agentic-compiler-validate.md` |
 | **error, fail, bug** | `.deepx/memory/common_pitfalls.md` |
 | **sample, example, test compile** | `.deepx/instructions/compilation-workflow.md` (Sample Model Workflow section) |
-| **Brainstorm, plan, design** | `.deepx/skills/dx-brainstorm-and-plan.md` |
-| **TDD, validation, incremental** | `.deepx/skills/dx-tdd.md` |
-| **Completion, verify, evidence** | `.deepx/skills/dx-verify-completion.md` |
-| **Debug, root cause, investigate** | `.deepx/skills/dx-systematic-debugging/SKILL.md` |
-| **Plan, execute, subagent** | `.deepx/skills/dx-writing-plans/SKILL.md`, `.deepx/skills/dx-executing-plans/SKILL.md` |
-| **Code review, feedback** | `.deepx/skills/dx-receiving-code-review/SKILL.md`, `.deepx/skills/dx-requesting-code-review/SKILL.md` |
+| **Brainstorm, plan, design** | `.deepx/skills/dx-swe-brainstorm.md` |
+| **TDD, validation, incremental** | `.deepx/skills/dx-swe-tdd.md` |
+| **Completion, verify, evidence** | `.deepx/skills/dx-swe-verify.md` |
+| **Debug, root cause, investigate** | `.deepx/skills/dx-swe-debugging/SKILL.md` |
+| **Plan, execute, subagent** | `.deepx/skills/dx-swe-writing-plans/SKILL.md`, `.deepx/skills/dx-swe-executing-plans/SKILL.md` |
+| **Code review, feedback** | `.deepx/skills/dx-swe-receiving-review/SKILL.md`, `.deepx/skills/dx-swe-requesting-review/SKILL.md` |
 | **ALWAYS read (every task)** | `.deepx/memory/common_pitfalls.md`, `.deepx/instructions/coding-standards.md` |
 
 ## Quick Start — Sample Model Workflow
