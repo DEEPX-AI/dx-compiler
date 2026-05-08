@@ -67,23 +67,29 @@ PyTorch (.pt)          ONNX (.onnx)                    DXNN (.dxnn)
 
 ### Skills (All Platforms)
 
+#### General SWE Process
+
 | Skill | Description |
-|---|---|
-| `/dx-brainstorm-and-plan` | Brainstorm and plan before any compilation task (process skill) |
-| `/dx-compile-model` | Step-by-step ONNX to DXNN compilation workflow |
-| `/dx-convert-model` | Step-by-step PyTorch to ONNX conversion workflow |
-| `/dx-dispatching-parallel-agents` | Dispatch independent tasks to parallel agents |
-| `/dx-executing-plans` | Execute implementation plans with review checkpoints |
-| `/dx-receiving-code-review` | Receive and process code review feedback |
-| `/dx-requesting-code-review` | Request code review before merging |
+|-------|-------------|
+| `/dx-swe-brainstorm` | Brainstorm and plan before any compilation task |
+| `/dx-swe-tdd` | Test-driven development — validate each step incrementally |
+| `/dx-swe-verify` | Verify before claiming completion — evidence before assertions |
+| `/dx-swe-writing-plans` | Write implementation plans from specs or requirements |
+| `/dx-swe-executing-plans` | Execute implementation plans with review checkpoints |
+| `/dx-swe-debugging` | Systematic debugging before proposing fixes |
+| `/dx-swe-parallel-agents` | Dispatch independent tasks to parallel agents |
+| `/dx-swe-subagent-dev` | Execute plans with independent sub-agents |
+| `/dx-swe-receiving-review` | Receive and process code review feedback |
+| `/dx-swe-requesting-review` | Request code review before merging |
 | `/dx-skill-router` | Route tasks to appropriate skills |
-| `/dx-subagent-driven-development` | Execute plans with independent sub-agents |
-| `/dx-systematic-debugging` | Systematic debugging before proposing fixes |
-| `/dx-tdd` | Test-driven development — validate each step incrementally (process skill) |
-| `/dx-validate-compile` | Validate compiled .dxnn model output |
-| `/dx-verify-completion` | Verify before claiming completion — evidence before assertions (process skill) |
-| `/dx-writing-plans` | Write implementation plans from specs or requirements |
-| `/dx-writing-skills` | Create or edit skill definitions |
+
+#### DEEPX Build
+
+| Skill | Description |
+|-------|-------------|
+| `/dx-agentic-compiler-compile` | Step-by-step ONNX to DXNN compilation workflow |
+| `/dx-agentic-compiler-convert` | Step-by-step PyTorch to ONNX conversion workflow |
+| `/dx-agentic-compiler-validate` | Validate compiled .dxnn model output |
 
 ## Supported AI Tools
 
@@ -95,7 +101,7 @@ the `.deepx/` knowledge base through its own configuration mechanism.
 | **Claude Code** | CLI | `CLAUDE.md` at project root | Free-form conversation; Context Routing Table dispatches automatically |
 | **GitHub Copilot** | VS Code | `.github/copilot-instructions.md` | `@dx-compiler-builder "prompt"` in Copilot Chat |
 | **Cursor** | IDE | `.cursor/rules/` (19 files: `dx-compiler.mdc`, 3 agent `.mdc` files, 15 `skill-*.mdc` files) | Free-form conversation; rules loaded by `alwaysApply` |
-| **OpenCode** | CLI | `AGENTS.md` + `opencode.json` | `@dx-compiler-builder "prompt"` or `/dx-compile-model` |
+| **OpenCode** | CLI | `AGENTS.md` + `opencode.json` | `@dx-compiler-builder "prompt"` or `/dx-agentic-compiler-compile` |
 
 ### First-Time Setup
 
@@ -151,21 +157,20 @@ Skills exist across all platforms:
 
 | Skill | File |
 |-------|------|
-| `/dx-brainstorm-and-plan` | `.deepx/skills/dx-brainstorm-and-plan/SKILL.md` |
-| `/dx-compile-model` | `.deepx/skills/dx-compile-model/SKILL.md` |
-| `/dx-convert-model` | `.deepx/skills/dx-convert-model/SKILL.md` |
-| `/dx-dispatching-parallel-agents` | `.deepx/skills/dx-dispatching-parallel-agents/SKILL.md` |
-| `/dx-executing-plans` | `.deepx/skills/dx-executing-plans/SKILL.md` |
-| `/dx-receiving-code-review` | `.deepx/skills/dx-receiving-code-review/SKILL.md` |
-| `/dx-requesting-code-review` | `.deepx/skills/dx-requesting-code-review/SKILL.md` |
+| `/dx-swe-brainstorm` | `.deepx/skills/dx-swe-brainstorm/SKILL.md` |
+| `/dx-agentic-compiler-compile` | `.deepx/skills/dx-agentic-compiler-compile/SKILL.md` |
+| `/dx-agentic-compiler-convert` | `.deepx/skills/dx-agentic-compiler-convert/SKILL.md` |
+| `/dx-swe-parallel-agents` | `.deepx/skills/dx-swe-parallel-agents/SKILL.md` |
+| `/dx-swe-executing-plans` | `.deepx/skills/dx-swe-executing-plans/SKILL.md` |
+| `/dx-swe-receiving-review` | `.deepx/skills/dx-swe-receiving-review/SKILL.md` |
+| `/dx-swe-requesting-review` | `.deepx/skills/dx-swe-requesting-review/SKILL.md` |
 | `/dx-skill-router` | `.deepx/skills/dx-skill-router/SKILL.md` |
-| `/dx-subagent-driven-development` | `.deepx/skills/dx-subagent-driven-development/SKILL.md` |
-| `/dx-systematic-debugging` | `.deepx/skills/dx-systematic-debugging/SKILL.md` |
-| `/dx-tdd` | `.deepx/skills/dx-tdd/SKILL.md` |
-| `/dx-validate-compile` | `.deepx/skills/dx-validate-compile/SKILL.md` |
-| `/dx-verify-completion` | `.deepx/skills/dx-verify-completion/SKILL.md` |
-| `/dx-writing-plans` | `.deepx/skills/dx-writing-plans/SKILL.md` |
-| `/dx-writing-skills` | `.deepx/skills/dx-writing-skills/SKILL.md` |
+| `/dx-swe-subagent-dev` | `.deepx/skills/dx-swe-subagent-dev/SKILL.md` |
+| `/dx-swe-debugging` | `.deepx/skills/dx-swe-debugging/SKILL.md` |
+| `/dx-swe-tdd` | `.deepx/skills/dx-swe-tdd/SKILL.md` |
+| `/dx-agentic-compiler-validate` | `.deepx/skills/dx-agentic-compiler-validate/SKILL.md` |
+| `/dx-swe-verify` | `.deepx/skills/dx-swe-verify/SKILL.md` |
+| `/dx-swe-writing-plans` | `.deepx/skills/dx-swe-writing-plans/SKILL.md` |
 
 #### Shared Knowledge Base (`.deepx/`)
 
@@ -174,7 +179,6 @@ The `.deepx/` directory is the **canonical source** for all platform-specific fi
 | Directory | Files | Description |
 |-----------|-------|-------------|
 | `.deepx/agents/` | `dx-compiler-builder.md`, `dx-dxnn-compiler.md`, `dx-model-converter.md` | Authoritative agent definitions — `dx-agentic-gen` generates platform copies to `.github/agents/`, `.claude/agents/`, `.opencode/agents/`, and `.cursor/rules/` |
-| `.deepx/skills/` | 15 skills (`dx-brainstorm-and-plan`, `dx-compile-model`, `dx-convert-model`, `dx-dispatching-parallel-agents`, `dx-executing-plans`, `dx-receiving-code-review`, `dx-requesting-code-review`, `dx-skill-router`, `dx-subagent-driven-development`, `dx-systematic-debugging`, `dx-tdd`, `dx-validate-compile`, `dx-verify-completion`, `dx-writing-plans`, `dx-writing-skills`) | Detailed skill workflows |
 | `.deepx/templates/` | `{en,ko}/*.tmpl` | Instruction file templates (fragments via parent traversal to suite root) |
 | `.deepx/toolsets/` | `dxcom-api.md`, `dxcom-cli.md`, `config-schema.md` | API and CLI reference |
 | `.deepx/instructions/` | `coding-standards.md`, `compilation-workflow.md` | Coding conventions and workflow rules |
@@ -240,7 +244,7 @@ anchor-based YOLOv3–v7, type 1 for anchor-free YOLOv8+).
 | **Claude Code** | Open `dx-compiler/` and type the prompt directly. |
 | **GitHub Copilot** | `@dx-model-converter` followed by the prompt. |
 | **Cursor** | Open `dx-compiler/` and type the prompt. |
-| **OpenCode** | `/dx-convert-model` or `@dx-model-converter` followed by the prompt. |
+| **OpenCode** | `/dx-agentic-compiler-convert` or `@dx-model-converter` followed by the prompt. |
 
 ### Scenario 2: Compile ONNX to DXNN
 
@@ -255,7 +259,7 @@ anchor-based YOLOv3–v7, type 1 for anchor-free YOLOv8+).
 | **Claude Code** | Open `dx-compiler/` and type the prompt directly. |
 | **GitHub Copilot** | `@dx-dxnn-compiler` followed by the prompt. |
 | **Cursor** | Open `dx-compiler/` and type the prompt. |
-| **OpenCode** | `/dx-compile-model` or `@dx-dxnn-compiler` followed by the prompt. |
+| **OpenCode** | `/dx-agentic-compiler-compile` or `@dx-dxnn-compiler` followed by the prompt. |
 
 ### Scenario 3: Full Pipeline PT → DXNN
 

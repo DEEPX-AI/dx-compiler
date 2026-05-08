@@ -103,21 +103,21 @@ cd dx-compiler
 
 | 명령 | 설명 |
 |---------|-------------|
-| `/dx-convert-model` | PyTorch 모델을 ONNX로 변환 |
-| `/dx-compile-model` | ONNX 모델을 DXNN으로 컴파일 |
-| `/dx-validate-compile` | 컴파일 출력 검증 |
-| `/dx-brainstorm-and-plan` | 브레인스토밍, 2-3가지 접근법 제안, 스펙 자체 검토 후 계획 |
-| `/dx-tdd` | 검증 주도 개발, 선택적 Red-Green-Refactor 단위 테스트 |
-| `/dx-verify-completion` | 프로세스: 완료 선언 전 검증 — 주장 전에 증거 |
-| `/dx-writing-plans` | 세분화된 태스크로 구현 계획 작성 |
-| `/dx-executing-plans` | 리뷰 체크포인트와 함께 계획 실행 |
-| `/dx-subagent-driven-development` | 태스크별 신규 서브에이전트로 계획 실행, 2단계 리뷰 |
-| `/dx-systematic-debugging` | 체계적 디버깅 — 수정 제안 전 4단계 근본 원인 조사 |
-| `/dx-receiving-code-review` | 코드 리뷰 피드백을 기술적 엄밀성으로 평가 |
-| `/dx-requesting-code-review` | 기능 완료 후 코드 리뷰 요청 |
+| `/dx-agentic-compiler-convert` | PyTorch 모델을 ONNX로 변환 |
+| `/dx-agentic-compiler-compile` | ONNX 모델을 DXNN으로 컴파일 |
+| `/dx-agentic-compiler-validate` | 컴파일 출력 검증 |
+| `/dx-swe-brainstorm` | 브레인스토밍, 2-3가지 접근법 제안, 스펙 자체 검토 후 계획 |
+| `/dx-swe-tdd` | 검증 주도 개발, 선택적 Red-Green-Refactor 단위 테스트 |
+| `/dx-swe-verify` | 프로세스: 완료 선언 전 검증 — 주장 전에 증거 |
+| `/dx-swe-writing-plans` | 세분화된 태스크로 구현 계획 작성 |
+| `/dx-swe-executing-plans` | 리뷰 체크포인트와 함께 계획 실행 |
+| `/dx-swe-subagent-dev` | 태스크별 신규 서브에이전트로 계획 실행, 2단계 리뷰 |
+| `/dx-swe-debugging` | 체계적 디버깅 — 수정 제안 전 4단계 근본 원인 조사 |
+| `/dx-swe-receiving-review` | 코드 리뷰 피드백을 기술적 엄밀성으로 평가 |
+| `/dx-swe-requesting-review` | 기능 완료 후 코드 리뷰 요청 |
 | `/dx-skill-router` | 스킬 탐색 및 호출 — 모든 작업 전 스킬 확인 |
-| `/dx-writing-skills` | 스킬 파일 생성 및 편집 |
-| `/dx-dispatching-parallel-agents` | 독립 태스크를 위한 병렬 서브에이전트 디스패치 |
+| `/dx-harness-writing-skills` | 스킬 파일 생성 및 편집 |
+| `/dx-swe-parallel-agents` | 독립 태스크를 위한 병렬 서브에이전트 디스패치 |
 
 ## 핵심 규칙
 
@@ -200,20 +200,20 @@ config.json에서 항상 상대 경로 (`./calibration_dataset`)를 사용하세
 
 | 작업에 언급된 내용... | 읽을 파일 |
 |---|---|
-| **PyTorch, PT, export, convert** | `.deepx/agents/dx-model-converter.md`, `.deepx/skills/dx-convert-model.md` |
-| **ONNX, compile, DXNN, dxcom** | `.deepx/agents/dx-dxnn-compiler.md`, `.deepx/skills/dx-compile-model.md` |
+| **PyTorch, PT, export, convert** | `.deepx/agents/dx-model-converter.md`, `.deepx/skills/dx-agentic-compiler-convert.md` |
+| **ONNX, compile, DXNN, dxcom** | `.deepx/agents/dx-dxnn-compiler.md`, `.deepx/skills/dx-agentic-compiler-compile.md` |
 | **CLI, command line** | `.deepx/toolsets/dxcom-cli.md` |
 | **Python API, dx_com.compile** | `.deepx/toolsets/dxcom-api.md` |
 | **config, JSON, schema** | `.deepx/toolsets/config-schema.md` |
 | **calibration, quantization, INT8** | `.deepx/instructions/compilation-workflow.md` |
 | **PPU, YOLO, detection** | `.deepx/toolsets/config-schema.md`, `.deepx/instructions/compilation-workflow.md` |
-| **validate, verify, check** | `.deepx/skills/dx-validate-compile.md` |
+| **validate, verify, check** | `.deepx/skills/dx-agentic-compiler-validate.md` |
 | **error, fail, bug** | `.deepx/memory/common_pitfalls.md` |
 | **sample, example, test compile** | `.deepx/instructions/compilation-workflow.md` (샘플 모델 워크플로우 섹션) |
 | **항상 읽기 (모든 작업)** | `.deepx/memory/common_pitfalls.md`, `.deepx/instructions/coding-standards.md` |
-| **Brainstorm, plan, design** | `.deepx/skills/dx-brainstorm-and-plan.md` |
-| **TDD, validation, incremental** | `.deepx/skills/dx-tdd.md` |
-| **Completion, verify, evidence** | `.deepx/skills/dx-verify-completion.md` |
+| **Brainstorm, plan, design** | `.deepx/skills/dx-swe-brainstorm.md` |
+| **TDD, validation, incremental** | `.deepx/skills/dx-swe-tdd.md` |
+| **Completion, verify, evidence** | `.deepx/skills/dx-swe-verify.md` |
 
 {{FRAGMENT:no-placeholder-code}}
 {{FRAGMENT:experimental-features-prohibited}}

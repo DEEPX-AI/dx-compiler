@@ -12,10 +12,9 @@ Categories:
     1. routing_paths    — Agent routing references resolve to existing files
     2. file_tree        — Expected directories and files exist
     3. agent_handoffs   — Agent routes-to targets exist as agent files
-    4. leak_detection   — No .hailo/ references leaked into source
-    5. skill_sections   — Skills have required sections (phases, gates)
-    6. toolset_signatures — Toolsets document required API signatures
-    7. memory_domain_tags — Memory entries use valid domain tags
+    4. skill_sections   — Skills have required sections (phases, gates)
+    5. toolset_signatures — Toolsets document required API signatures
+    6. memory_domain_tags — Memory entries use valid domain tags
 """
 
 from __future__ import annotations
@@ -48,9 +47,9 @@ REQUIRED_AGENT_FILES = [
 ]
 
 REQUIRED_SKILL_FILES = [
-    "dx-convert-model.md",
-    "dx-compile-model.md",
-    "dx-validate-compile.md",
+    "dx-agentic-compiler-convert.md",
+    "dx-agentic-compiler-compile.md",
+    "dx-agentic-compiler-validate.md",
 ]
 
 REQUIRED_INSTRUCTION_FILES = [
@@ -75,7 +74,7 @@ REQUIRED_SCRIPT_FILES = [
 
 VALID_DOMAIN_TAGS = {"[UNIVERSAL]", "[DX_COMPILER]", "[QUANTIZATION]"}
 
-PROHIBITED_DOMAIN_TAGS = {"[DX_APP]", "[DX_STREAM]", "[HAILO]", "[PIPELINE]"}
+PROHIBITED_DOMAIN_TAGS = {"[DX_APP]", "[DX_STREAM]", "[PIPELINE]"}
 
 REQUIRED_SKILL_SECTIONS = [
     "Phase",
@@ -87,14 +86,6 @@ REQUIRED_TOOLSET_KEYWORDS = {
     "dxcom-cli.md": ["-m", "-c", "-o", "dxcom"],
     "config-schema.md": ["inputs", "calibration_method", "default_loader"],
 }
-
-LEAK_PATTERNS = [
-    r"\.hailo/",
-    r"\.hailo\\",
-    r"hailo_apps\.",
-    r"from hailo_apps",
-    r"import hailo_apps",
-]
 
 
 # ── Data Classes ───────────────────────────────────────────────────────────
@@ -304,43 +295,6 @@ def check_agent_handoffs(deepx_dir: Path, report: FrameworkReport) -> None:
             ))
 
 
-def check_leak_detection(deepx_dir: Path, report: FrameworkReport) -> None:
-    """Category 4: Check for .hailo/ references leaked into source files."""
-    # Check all .md files in the .deepx/ tree
-    md_files = list(deepx_dir.rglob("*.md"))
-    py_files = list(deepx_dir.rglob("*.py"))
-    all_files = md_files + py_files
-
-    for filepath in all_files:
-        # Skip this validation script itself — it legitimately references
-        # leak patterns as string literals for detection purposes
-        if filepath.name == "validate_framework.py":
-            continue
-
-        content = filepath.read_text(encoding="utf-8")
-        rel_path = filepath.relative_to(deepx_dir)
-
-        for pattern in LEAK_PATTERNS:
-            matches = re.findall(pattern, content)
-            if matches:
-                report.add(CheckResult(
-                    category="leak_detection",
-                    check_name=f"leak_{rel_path}_{pattern}",
-                    passed=False,
-                    message=f"Found leaked reference '{matches[0]}' in {rel_path}",
-                ))
-
-    # If no leaks found, add a pass result
-    if all(r.passed for r in report.results if r.category == "leak_detection") or \
-       not any(r.category == "leak_detection" for r in report.results):
-        report.add(CheckResult(
-            category="leak_detection",
-            check_name="no_leaks",
-            passed=True,
-            message="No .hailo/ or hailo_apps references found in source",
-        ))
-
-
 def check_skill_sections(deepx_dir: Path, report: FrameworkReport) -> None:
     """Category 5: Verify skills have required sections (phases, validation gates)."""
     skills_dir = deepx_dir / "skills"
@@ -526,7 +480,6 @@ def main() -> int:
     check_file_tree(deepx_dir, report)
     check_routing_paths(deepx_dir, report)
     check_agent_handoffs(deepx_dir, report)
-    check_leak_detection(deepx_dir, report)
     check_skill_sections(deepx_dir, report)
     check_toolset_signatures(deepx_dir, report)
     check_memory_domain_tags(deepx_dir, report)

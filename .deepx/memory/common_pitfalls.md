@@ -616,7 +616,7 @@ fi
 - Reference PASS, Generated FAIL → compilation problem (fix config, quantization)
 - Both PASS → compilation correct
 
-See `dx-dxnn-compiler.md` Phase 5.7 and `dx-validate-compile.md` Phase 3.5.
+See `dx-dxnn-compiler.md` Phase 5.7 and `dx-agentic-compiler-validate.md` Phase 3.5.
 
 ---
 
