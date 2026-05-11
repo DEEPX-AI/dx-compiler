@@ -266,6 +266,15 @@ Record the input name and shape — these are required for config.json.
 > outputs CHW directly). When passing a Python `dataloader=` argument to
 > `dx_com.compile()`, omit `default_loader` from config.json.
 
+> **⚠ Calibration input range by model family** (SDK requirement):
+> - **YOLO models**: Input range MUST be `[0, 1]`. Use `transforms.ToTensor()` which
+>   automatically converts `[0, 255]` uint8 → `[0, 1]` float32. If using `default_loader`,
+>   add `{"div": 255}` to `preprocessings`. Feeding raw `[0, 255]` values causes
+>   calibration mismatch and incorrect quantization.
+> - **ImageNet classification models**: Use `normalize(mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225])`
+>   after `ToTensor()`.
+> - **General rule**: Match the preprocessing used during training.
+
 Create a config.json matching the model's requirements. For NCHW models (all YOLO
 variants), omit `default_loader` and use the Python DataLoader approach below:
 
@@ -698,43 +707,17 @@ confidence threshold issues) before the user runs the application.
    verify.py — Verify <MODEL_NAME>.dxnn compilation output.
    Compares ONNX vs DXNN inference on a synthetic input.
 
-   Self-contained: runs without manual venv activation.
+   Requires: run setup.sh first, then activate venv before executing.
    Exit code: 0 = PASS, 1 = FAIL
    """
 
    import os
    import sys
-   import glob
 
    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
    REPO_ROOT  = os.path.abspath(os.path.join(SCRIPT_DIR, "../../.."))
    DXNN_PATH  = os.path.join(SCRIPT_DIR, "<MODEL_NAME>.dxnn")
    ONNX_PATH  = os.path.join(REPO_ROOT, "dx-compiler", "<MODEL_NAME>.onnx")
-
-   # ---------------------------------------------------------------------------
-   # sys.path bootstrap — makes this script self-contained (no venv activation needed).
-   # Glob handles python3.X version differences automatically.
-   # ---------------------------------------------------------------------------
-   def _add_site_packages(venv_dir: str, label: str) -> bool:
-       pattern = os.path.join(venv_dir, "lib", "python3.*", "site-packages")
-       matches = sorted(glob.glob(pattern), reverse=True)
-       if matches:
-           sp = matches[0]
-           if sp not in sys.path:
-               sys.path.insert(0, sp)
-           return True
-       print(f"WARNING: {label} venv not found at {venv_dir}")
-       return False
-
-   _add_site_packages(
-       os.path.join(REPO_ROOT, "dx-compiler", "venv-dx-compiler-local"),
-       "compiler",
-   )
-   _add_site_packages(
-       os.path.join(REPO_ROOT, "dx-runtime", "venv-dx-runtime"),
-       "runtime",
-   )
-   # ---------------------------------------------------------------------------
 
    if os.environ.get("DX_SANITY_FAILED") == "1":
        print("SKIPPED: DX_SANITY_FAILED=1 — NPU-based verification skipped.")
@@ -795,17 +778,18 @@ confidence threshold issues) before the user runs the application.
        sys.exit(0)
    ```
 
-2. **verify.py is self-contained — no separate pip install needed**:
-   The `_add_site_packages()` bootstrap at the top automatically locates the compiler
-   venv (`onnxruntime`) and runtime venv (`dx_engine`) site-packages. Do NOT add
-   `pip install onnxruntime` steps or `source venv/bin/activate` before running.
+2. **verify.py runs inside setup.sh venv** — dependencies are provided by the venv:
+   The `setup.sh` script creates a venv with `onnxruntime`, `numpy`, and links to
+   `dx_engine` site-packages. Activate the venv before running `verify.py`. Do NOT
+   add `_add_site_packages()` or `sys.path` bootstrap — the venv handles it.
 
-3. **Run `verify.py` WITHOUT venv activation** — this is the self-containment test:
+3. **Run `verify.py` WITH venv activation** — this is the verification test:
    ```bash
    cd "${WORK_DIR}"
-   # CRITICAL: Do NOT activate venv. verify.py must bootstrap its own dependencies.
+   source venv/bin/activate
    python verify.py
    echo "Exit code: $?"
+   deactivate
    ```
 
    Required outcome:
@@ -826,8 +810,8 @@ confidence threshold issues) before the user runs the application.
 **Common verification failures and fixes**:
 | Failure | Likely Cause | Fix |
 |---|---|---|
-| `No module named 'onnxruntime'` | `_add_site_packages` path wrong or venv not installed | Check `dx-compiler/venv-dx-compiler-local/` exists; run `dx-compiler/install.sh` |
-| `No module named 'dx_engine'` | `_add_site_packages` path wrong or runtime venv missing | Check `dx-runtime/venv-dx-runtime/` exists; run `dx-runtime/install.sh` |
+| `No module named 'onnxruntime'` | venv not activated or `setup.sh` not run | Run `setup.sh` first, then `source venv/bin/activate` |
+| `No module named 'dx_engine'` | venv missing runtime site-packages | Check `setup.sh` links runtime venv site-packages |
 | Prints "FAIL" but exits 0 | Missing `sys.exit(1)` in failure branch | Add `sys.exit(1)` after `print("RESULT: FAIL ...")` |
 | Wrong class labels | COCO class index off-by-one | Use 0-indexed classes for COCO |
 | No detections from DXNN | Confidence threshold too high or wrong output parsing | Lower threshold, check output tensor shape |
