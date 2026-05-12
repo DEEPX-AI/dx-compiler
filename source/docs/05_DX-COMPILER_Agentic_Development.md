@@ -1,4 +1,4 @@
-# AI-Powered Development for DX-COM (Beta)
+# DEEPX Agentic Development for DX-COM - dx-agentic-dev (Beta)
 
 > **Beta Feature** — Agentic development support is under active development.
 > Skill definitions and routing behavior may change between releases.
@@ -20,7 +20,7 @@ Supported workflows include:
 
 | Requirement | Details |
 |---|---|
-| **DX-COM** | v2.2.1+ installed (`pip install dx-com` or from DEEPX package repository) |
+| **DX-COM** | Installed via [DX-COM installation guide](02_02_Installation_of_DX-COM.md) (`pip install dx-com` or DEEPX package repository) |
 | **AI coding agent** (one of) | Claude Code, GitHub Copilot (VS Code), Cursor, or OpenCode |
 | **Python** | 3.8–3.12 |
 | **ONNX** | opset 11–21 |
@@ -294,7 +294,7 @@ When you provide a model and calibration data, the agent automatically infers:
 All compilation artifacts go to `dx-agentic-dev/<session_id>/` by default.
 This keeps each compilation session self-contained and reproducible.
 
-**Session ID format**: `YYYYMMDD-HHMMSS_<model>_<task>`
+**Session ID format**: `YYYYMMDD-HHMMSS_<agent>_<model>_<task>` where `<agent>` is `claude`, `copilot`, `cursor`, or `opencode`
 
 | Output Type | Path | When |
 |---|---|---|
