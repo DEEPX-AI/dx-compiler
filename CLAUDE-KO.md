@@ -249,7 +249,7 @@ cd dx-compiler
 **시스템 로컬 타임존**을 사용해야 합니다 (UTC 아님). Bash에서는 `$(date +%Y%m%d-%H%M%S)`,
 Python에서는 `datetime.now().strftime('%Y%m%d-%H%M%S')`를 사용하세요.
 사용하지 마세요.
-- **`<agent>`**: 코딩 에이전트 식별자 — `claude`, `copilot`, `cursor`, `opencode` 중 하나를 사용하세요.
+- **`<agent>`**: 코딩 에이전트 식별자 — `claude`, `codex`, `copilot`, `cursor`, `opencode` 중 하나를 사용하세요.
 
 ```bash
 SESSION_ID="$(date +%Y%m%d-%H%M%S)_yolo26x_onnx_to_dxnn"

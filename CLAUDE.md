@@ -253,7 +253,7 @@ prevent overwrites.
 **system local timezone** (NOT UTC). Use `$(date +%Y%m%d-%H%M%S)` in Bash or
 `datetime.now().strftime('%Y%m%d-%H%M%S')` in Python. Do NOT use `date -u`,
 `datetime.utcnow()`, or `datetime.now(timezone.utc)`.
-- **`<agent>`**: the coding agent identifier — use `claude`, `copilot`, `cursor`, or `opencode`.
+- **`<agent>`**: the coding agent identifier — use `claude`, `codex`, `copilot`, `cursor`, or `opencode`.
 
 ```bash
 SESSION_ID="$(date +%Y%m%d-%H%M%S)_yolo26x_onnx_to_dxnn"

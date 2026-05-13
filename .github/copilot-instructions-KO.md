@@ -240,7 +240,7 @@ cd dx-compiler
 **시스템 로컬 시간대**를 사용해야 합니다 (UTC가 아닙니다). Bash에서는 `$(date +%Y%m%d-%H%M%S)`,
 Python에서는 `datetime.now().strftime('%Y%m%d-%H%M%S')`를 사용하세요. `date -u`,
 사용하지 마세요.
-- **`<agent>`**: 코딩 에이전트 식별자 — `claude`, `copilot`, `cursor`, `opencode` 중 하나를 사용하세요.
+- **`<agent>`**: 코딩 에이전트 식별자 — `claude`, `codex`, `copilot`, `cursor`, `opencode` 중 하나를 사용하세요.
 
 **컴파일 후 작업 디렉토리 내용**:
 ```

@@ -294,7 +294,7 @@ When you provide a model and calibration data, the agent automatically infers:
 All compilation artifacts go to `dx-agentic-dev/<session_id>/` by default.
 This keeps each compilation session self-contained and reproducible.
 
-**Session ID format**: `YYYYMMDD-HHMMSS_<agent>_<model>_<task>` where `<agent>` is `claude`, `copilot`, `cursor`, or `opencode`
+**Session ID format**: `YYYYMMDD-HHMMSS_<agent>_<model>_<task>` where `<agent>` is `claude`, `codex`, `copilot`, `cursor`, or `opencode`
 
 | Output Type | Path | When |
 |---|---|---|
