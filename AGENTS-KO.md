@@ -197,11 +197,12 @@ dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
 7. **항상 검증**: 모든 컴파일 후 DX-TRON 검사 실행
 8. **하드코딩된 경로 금지**: 교정 데이터에 상대 경로 사용 (`./calibration_dataset`)
 9. **출력 격리**: 모든 결과물은 `dx-agentic-dev/<session_id>/`에 저장.
-   **세션 ID 형식**: `YYYYMMDD-HHMMSS_<agent>_<model>_<task>` — 타임스탬프는 반드시
+   **세션 ID 형식**: `YYYYMMDD-HHMMSS_<agent>_<coding_model>_<target_model>_<task>` — 타임스탬프는 반드시
    **시스템 로컬 타임존**을 사용해야 합니다 (UTC 아님). Bash에서는 `$(date +%Y%m%d-%H%M%S)`,
    Python에서는 `datetime.now().strftime('%Y%m%d-%H%M%S')`를 사용하세요.
 사용하지 마세요.
 - **`<agent>`**: 코딩 에이전트 식별자 — `claude`, `codex`, `copilot`, `cursor`, `opencode` 중 하나를 사용하세요.
+- **`<coding_model>`**: 코딩 모델 축약명 — 예: `sonnet46`, `opus46`, `gpt53codex`, `gpt55`.
 10. **교정 심볼릭 링크**: 작업 디렉토리에 `dx_com/calibration_dataset/`를 심볼릭 링크
 11. **자동 simplification 금지**: 사용자가 명시적으로 요청하지 않는 한 `onnx-simplifier`를 실행하지 마세요
 12. **Ultralytics YOLO export**: `Detect.export=True`를 설정하거나 `model.export(format="onnx")`를 사용해야 함 — 표준 `torch.onnx.export()`는 1개가 아닌 6개의 출력을 생성. export 후 항상 단일 출력을 확인.
@@ -265,7 +266,7 @@ cd dx-compiler
 컴파일 세션은 결과물을 함께 보관하고 덮어쓰기를 방지하기 위해
 고유한 작업 디렉토리를 사용합니다.
 
-**세션 ID 형식**: `YYYYMMDD-HHMMSS_<agent>_<model>_<task>` — 타임스탬프는 반드시
+**세션 ID 형식**: `YYYYMMDD-HHMMSS_<agent>_<coding_model>_<target_model>_<task>` — 타임스탬프는 반드시
 **시스템 로컬 타임존**을 사용해야 합니다 (UTC 아님). Bash에서는 `$(date +%Y%m%d-%H%M%S)`,
 Python에서는 `datetime.now().strftime('%Y%m%d-%H%M%S')`를 사용하세요.
 `date -u`, `datetime.utcnow()`, 또는 `datetime.now(timezone.utc)`를 사용하지 마세요.
