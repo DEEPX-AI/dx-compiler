@@ -451,6 +451,16 @@ When using background compilation, after launching:
 2. Check whether `.dxnn` was produced **ONLY AFTER** all other artifacts are written
 3. Avoid sleep-polling for `.dxnn` — generate other files first, check once at the end
 4. If `.dxnn` is not yet ready, generation is still complete — runtime will finish compilation
+5. **NEVER use `pgrep -f` to monitor the compile.pid process** — `pgrep -f "compile.py"`
+   matches the bash shell running the loop itself (self-referential), causing an infinite
+   loop that never exits even after compilation completes. Always use `kill -0 <PID>`:
+   ```bash
+   # CORRECT — check by PID
+   COMPILE_PID=$(cat compile.pid)
+   while kill -0 "$COMPILE_PID" 2>/dev/null; do sleep 10; done
+   # PROHIBITED — self-referential, infinite loop
+   # while pgrep -f "compile.py" >/dev/null 2>&1; do sleep 20; done
+   ```
 
 
 ### Phase 4: Configure PPU (Detection Models Only)
