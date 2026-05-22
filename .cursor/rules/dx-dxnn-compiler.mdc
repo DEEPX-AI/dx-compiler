@@ -10,6 +10,31 @@ alwaysApply: false
 
 **Response Language**: Match your response language to the user's prompt language — when asking questions or responding, use the same language the user is using. When responding in Korean, keep English technical terms in English. Do NOT transliterate into Korean phonetics (한글 음차 표기 금지). <!-- KOREAN-OK: rule text references the Korean notation term agents must recognize -->
 
+## Session-ID Freshness (HARD GATE — READ FIRST)
+
+**Every compile session MUST get a fresh `${SESSION_ID}` based on the current
+local clock.** Reading prior-round state files or reusing a pre-existing
+`dx-agentic-dev/<sid>/` directory is a **HARD GATE violation** (see CLAUDE.md
+"Previous session reference PROHIBITED" / AGENTS.md line 957). The harness
+scrubs stale state markers between rounds AND a test-time assertion fails any
+session whose timestamp predates the round start by >60s.
+
+```bash
+# ✓ ALWAYS create a fresh session-id at the start of the round:
+SESSION_ID="$(date +%Y%m%d-%H%M%S)_<agent>_<coding_model>_<target>_compile"
+WORK_DIR="dx-agentic-dev/${SESSION_ID}"
+mkdir -p "${WORK_DIR}"
+
+# ✗ NEVER read these stale state files — they leak prior session paths:
+#   .codex_current_work_dir   .codex_session_id   .cursor_current_session_id
+#   .current_dx_work_dir      .active_work_dir    .tmp_dx_workdir
+# ✗ NEVER reuse a pre-existing dir even if it looks "complete":
+#   cd dx-agentic-dev/20260522-023709_*_compile/  # ← HARD GATE VIOLATION
+```
+
+If compilation is slow, fix the slowness — **do not skip a compile** by
+re-entering a prior run's output dir.
+
 ## MANDATORY OUTPUT REQUIREMENTS — READ FIRST
 
 > **BEFORE starting any work**, memorize these required artifacts. Every compilation
