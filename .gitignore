@@ -12,3 +12,13 @@ calibration_images/
 *.pth
 *.dxnn
 copilot-session-*.html
+# Agent runtime / session-state markers — per-run scratch written by coding-agent
+# CLIs and the background-compilation launcher. Must never be tracked (see
+# AGENTS.md "Previous session reference PROHIBITED").
+.active_*
+.current_*
+.tmp_dx_*
+.codex_*
+.dx_session_*
+.dx_work_*
+*.pid
