@@ -36,7 +36,7 @@ The following ONNX operators are supported by the compiler.
 | Constant | Only numeric constants are supported |
 | ConstantOfShape | No restrictions |
 | Conv | **Common constraints:** <br> - `dilations` < 64 <br> - `pads` < 64 <br> - `strides` < 16 <br> **Standard Conv:** <br> - `kernel_shape` < 16 <br> **Depth-wise Conv:** <br> - `kernel_shape` ∈ {[3, 3], [5, 5]} <br> - Only constant weights are supported |
-| ConvTranspose | - `dilations` = [1, 1] <br> - `output_padding` = [0, 0] <br> - `pads` ≤ 14 <br> - `strides` ∈ [2, 8] <br> - `kernel_shape` < 16 <br> - `group` = 1 |
+| ConvTranspose | - `dilations` = [1, 1] <br> - `output_padding` = [0, 0] <br> - `pads` ≤ 14 <br> - `strides` ∈ [2, 8] and symmetric (`strides[0]` = `strides[1]`) <br> - `kernel_shape` < 16 <br> - `group` = 1 |
 | Div | Supported as: <br> - Constant scalar division <br> - Input normalization <br> - Part of `Softmax` <br> - Part of `LayerNorm` |
 | Dropout | Removed during inference |
 | Erf | Only supported as part of `GELU` |

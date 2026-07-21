@@ -32,11 +32,11 @@
 DX-Compiler provides scripts for local installation, as well as scripts for building Docker images and running containers.
 
 ### Local Installation
-DX-Compiler supports installation in local environments. You can install DX-Compiler by following the instructions at this [LINK](https://github.com/DEEPX-AI/dx-all-suite/blob/staging/docs/source/installation.md#local-installation).
+DX-Compiler supports installation in local environments. You can install DX-Compiler by following the instructions at this [LINK](https://github.com/DEEPX-AI/dx-all-suite/blob/main/docs/source/installation.md#local-installation).
 
 ### Docker Installation
 DX-Compiler support installation in docker envirionments.
-You can install DX-Compiler by following the instructions at this [LINK](https://github.com/DEEPX-AI/dx-all-suite/blob/staging/docs/source/installation.md#build-the-docker-image)
+You can install DX-Compiler by following the instructions at this [LINK](https://github.com/DEEPX-AI/dx-all-suite/blob/main/docs/source/installation.md#build-the-docker-image)
 
 
 ### Run
