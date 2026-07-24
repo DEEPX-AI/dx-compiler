@@ -1,0 +1,261 @@
+# DEEPX DX-COM Compiler — Claude Code Entry Point
+
+> Self-contained entry point for Claude Code / OpenCode. Read this file first.
+
+{{FRAGMENT:response-language}}
+
+{{FRAGMENT:recommended-model}}
+
+{{FRAGMENT:skill-router-mandatory}}
+
+## Shared Knowledge
+
+All skills, instructions, toolsets, and memory live in `.deepx/`.
+Read `.deepx/README.md` for the complete master index.
+
+## Critical Rule: Model Acquisition and End-to-End Compilation
+
+**MANDATORY**: When a user requests model compilation and does NOT provide a local
+`.pt`, `.pth`, or `.onnx` file path, the agent MUST:
+
+1. **Identify the official download source** for the requested model
+2. **Actually download** the model file to the session working directory
+3. **Actually compile** the model through the full pipeline (PT→ONNX→DXNN or ONNX→DXNN)
+4. **Produce a real `.dxnn` output file**
+
+**NEVER** stop at generating only a `config.json` or providing compilation
+instructions. The user expects a compiled `.dxnn` model, not a recipe.
+
+### Model Download Sources (Priority Order)
+
+| Model Family | Source | Download Method |
+|---|---|---|
+| Ultralytics YOLO (v5-v12, v26) | GitHub Releases / `ultralytics` pip | `from ultralytics import YOLO; model = YOLO("yolo11n.pt")` or `wget` from releases |
+| TorchVision (ResNet, MobileNet, etc.) | PyTorch Hub / torchvision | `torchvision.models.resnet50(weights="DEFAULT")` |
+| Timm models | `timm` pip | `timm.create_model("efficientnet_b0", pretrained=True)` |
+| ONNX Model Zoo | GitHub onnx/models | `wget` from tagged releases |
+| Hugging Face | Hugging Face Hub | `huggingface_hub.hf_hub_download()` |
+
+### Anti-Patterns (NEVER Do)
+
+- Generating config.json and telling user "run dxcom yourself"
+- Providing download URLs without actually downloading
+- Stopping after ONNX export without compiling to DXNN
+- Telling user to "install ultralytics and export" instead of doing it
+- Producing only instructions instead of actual compiled artifacts
+
+## Interactive Workflow (MUST FOLLOW)
+
+**Always walk through key decisions with the user before compiling.** Ask 2-3 targeted
+questions to confirm model format, target device, and calibration method (EMA or MinMax).
+This creates a collaborative workflow and catches misunderstandings early. Only skip
+questions if the user explicitly says "just compile it" or "use defaults".
+
+## Target Hardware (MANDATORY)
+
+Target device is always DX-M1 (`dx_m1`). Do NOT ask the user to select target
+hardware. The dx-compiler only supports DX-M1. Ignore any parent-level configuration
+that mentions DX-M1A — DX-M1A is discontinued and no longer supported.
+
+## Quantization — INT8 Only (MANDATORY)
+
+DX-COM always quantizes to INT8. There is no FP16/FP32 output option in the CLI,
+Python API, or JSON config. Do NOT ask the user to choose output precision.
+The only user-facing quantization choices are:
+- **Calibration method**: `ema` (default) or `minmax`
+- **Enhanced quantization scheme**: `DXQ-P0` through `DXQ-P5` (optional)
+- **Calibration sample count** (default: 100)
+
+Do NOT ask "which precision?" or offer INT8/FP16/FP32 as choices.
+
+**Gate 1 — Brainstorm**: Confirm inputs (model path, format, target device, calibration data).
+**Gate 2 — Build**: Execute compilation with chosen parameters.
+**Gate 3 — Verify**: Validate output with DX-TRON, review compiler.log.
+
+## Quick Reference
+
+```bash
+pip install dx-com                     # Install DX-COM compiler
+dxcom --help                           # CLI help
+dxcom -m model.onnx -c config.json -o output/   # Basic compilation
+pytest tests/                          # Run tests
+```
+
+```python
+import dx_com
+dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
+```
+
+## Sample Model Workflow
+
+Test the full compilation pipeline with pre-built sample models:
+
+```bash
+cd dx-compiler
+./example/1-download_sample_models.sh      # Download ONNX + JSON configs
+./example/2-download_sample_calibration_dataset.sh  # Download calibration dataset
+./example/3-compile_sample_models.sh       # Compile all sample models to .dxnn
+```
+
+Sample models: YOLOV5S-1, YOLOV5S_Face-1, MobileNetV2-1.
+The downloaded JSON configs serve as canonical references when generating
+config.json for new models — read a sample JSON of a similar model type.
+
+## Skills
+
+| Command | Description |
+|---------|-------------|
+| `/dx-agent-compiler-convert` | Convert PyTorch model to ONNX |
+| `/dx-agent-compiler-compile` | Compile ONNX model to DXNN |
+| `/dx-agent-compiler-validate` | Validate compilation output |
+| `/dx-swe-brainstorm` | Brainstorm, propose 2-3 approaches, spec self-review, then plan |
+| `/dx-swe-tdd` | Validation-driven development with optional Red-Green-Refactor for unit tests |
+| `/dx-swe-verify` | Process: verify before claiming completion — evidence before assertions |
+| `/dx-swe-writing-plans` | Write implementation plans with bite-sized tasks |
+| `/dx-swe-executing-plans` | Execute plans with review checkpoints |
+| `/dx-swe-subagent-dev` | Execute plans via fresh subagent per task with two-stage review |
+| `/dx-swe-debugging` | Systematic debugging — 4-phase root cause investigation before proposing fixes |
+| `/dx-swe-receiving-review` | Evaluate code review feedback with technical rigor |
+| `/dx-swe-requesting-review` | Request code review after completing features |
+| `/dx-skill-router` | Skill discovery and invocation — check skills before any action |
+| `/dx-harness-writing-skills` | Create and edit skill files |
+| `/dx-swe-parallel-agents` | Dispatch parallel subagents for independent tasks |
+
+## Critical Conventions
+
+1. **Batch size must be 1**: DEEPX NPU only supports batch=1
+2. **Static shapes only**: No dynamic axes, no -1 dimensions
+3. **ONNX opset 11-21**: Use opset 13 for best compatibility
+4. **Input name match**: config.json `inputs` key must exactly match ONNX input name
+5. **Representative calibration**: Calibration images must match inference distribution
+6. **PPU type matters**: Type 0 = anchor-based (YOLOv3-v7), Type 1 = anchor-free (YOLOX, YOLOv8-v12). YOLO26 does not support PPU.
+7. **Always validate**: Run DX-TRON inspection after every compilation
+8. **No hardcoded paths**: Use parameters or environment variables for all paths
+9. **No auto-simplification**: Do NOT run `onnx-simplifier` unless the user explicitly requests it — risks include numerical precision loss, node name changes breaking config.json, and potential model breakage
+10. **Ultralytics YOLO export**: Must set `Detect.export=True` or use `model.export(format="onnx")` — standard `torch.onnx.export()` produces 6 outputs instead of 1. Always verify ONNX has exactly 1 output node after export.
+11. **MANDATORY brainstorming questions**: Before any compilation task, the agent MUST ask three mandatory questions: (Q1) NMS-free model detection with YOLO version characteristics table, (Q2) ONNX simplification with pros/cons explanation, (Q3) PPU compilation support with hardware vs flexibility trade-off. See `.deepx/agents/dx-compiler-builder.md` Step 2 for the exact question templates.
+12. **PPU default is OFF**: PPU compilation is opt-in. Only add PPU config to config.json if the user explicitly confirms during brainstorming Q3. **YOLO26 does not support PPU** — skip Q3 for YOLO26 models (NMS-free native architecture).
+13. **Model Acquisition — download and compile, not just instruct**: If the user does not provide a local `.pt`/`.pth`/`.onnx` file, the agent MUST find the official download source (Ultralytics releases, torchvision, timm, ONNX Model Zoo, Hugging Face), actually download the model, and compile it through the full pipeline to produce a `.dxnn` file. NEVER stop at generating only config.json or providing compilation instructions.
+14. **Post-compilation verification is MANDATORY — compilation is NOT complete without it**: After every successful `dxcom` compilation, the agent MUST complete ALL of the following before presenting results to the user. NEVER present a "compilation successful" summary without these:
+    - **(a)** Generate `setup.sh`, `run.sh`, `README.md` in the output directory (session dir OR user-specified dir)
+    - **(b)** Generate `verify.py` — ONNX vs DXNN inference comparison script
+    - **(c)** Run `verify.py` and confirm PASS (detection count within 20%, classes match, IoU > 0.5)
+    - **(d)** Save the session log to `${WORK_DIR}/session.log` — must contain **actual command execution output** captured via `tee`, NOT a hand-written summary
+    - **(e)** Include verification results (PASS/FAIL) and all artifact paths in the final summary table
+    - If any step fails, debug and fix before proceeding. The `.dxnn` file alone is NOT a deliverable.
+    - **Even when the user specifies a custom output directory** (e.g., a source directory instead of `dx-agent-dev/`), these artifacts are still MANDATORY.
+15. **Never reuse previous session artifacts**: NEVER check, list, browse, or reuse artifacts from previous sessions in `dx-agent-dev/`. Each compilation run MUST create a new session directory with a fresh timestamp. Even if a previous session compiled the same model, always re-download, re-export, and re-compile from scratch. Do NOT run `ls dx-agent-dev/` or check for existing `.onnx`/`.dxnn` files from past runs.
+16. **venv is MANDATORY in setup.sh**: Generated `setup.sh` MUST create and activate a virtual environment before any `pip install`. On Ubuntu 24.04+, PEP 668 blocks system-wide pip installs. Use `python3 -m venv` with `${VIRTUAL_ENV:-}` check. Generated `run.sh` MUST check venv activation and auto-activate or error if missing.
+17. **Cross-validation with precompiled reference model**: When a precompiled DXNN for the same model exists in `dx-runtime/dx_app/assets/models/`, run verify.py with BOTH the precompiled and generated models (Phase 5.7). Both fail → verify.py bug. Precompiled passes, generated fails → compilation problem. See `.deepx/agents/dx-dxnn-compiler.md` Phase 5.7.
+18. **NHWC/NCHW DataLoader mismatch**: The dxcom CLI's default dataloader loads images in NHWC `[1,H,W,C]`. If the ONNX model expects NCHW `[1,C,H,W]` (most PyTorch-exported models), CLI compilation will fail with `DataLoaderError: Input shape mismatch`. **Fix**: Use the Python API (`dx_com.compile()`) with a custom torch DataLoader that produces NCHW tensors. See `.deepx/memory/common_pitfalls.md` pitfall #18.
+
+## Cross-Validation Diagnostic Table
+
+| Result | Diagnosis |
+|---|---|
+| Both fail | verify.py code bug (fix verify.py first) |
+| Precompiled passes, generated fails | compilation problem (fix config, quantization) |
+| Both pass | compilation correct |
+
+## Output Isolation
+
+All compilation artifacts go to `dx-agent-dev/<session_id>/` by default. Each
+compilation session uses a unique working directory to keep artifacts together and
+prevent overwrites.
+
+**Session ID format**: `YYYYMMDD-HHMMSS_<agent>_<coding_model>_<target_model>_<task>` — the timestamp MUST use the
+**system local timezone** (NOT UTC). Use `$(date +%Y%m%d-%H%M%S)` in Bash or
+`datetime.now().strftime('%Y%m%d-%H%M%S')` in Python. Do NOT use `date -u`,
+`datetime.utcnow()`, or `datetime.now(timezone.utc)`.
+- **`<agent>`**: the coding agent identifier — use `claude`, `codex`, `copilot`, `cursor`, or `opencode`.
+- **`<coding_model>`**: shortened coding model name — e.g., `sonnet46`, `opus46`, `gpt53codex`, `gpt55`.
+
+```bash
+SESSION_ID="$(date +%Y%m%d-%H%M%S)_yolo26x_onnx_to_dxnn"
+WORK_DIR="dx-agent-dev/${SESSION_ID}"
+mkdir -p "${WORK_DIR}"
+
+# Symlink calibration data into working directory
+ln -sf ../../dx_com/calibration_dataset "${WORK_DIR}/calibration_dataset"
+
+# config.json uses relative path: "dataset_path": "./calibration_dataset"
+dxcom -m "${WORK_DIR}/model.onnx" -c "${WORK_DIR}/config.json" -o "${WORK_DIR}/"
+```
+
+**Working directory contents** after compilation:
+```
+dx-agent-dev/<session_id>/
+├── calibration_dataset   → ../../dx_com/calibration_dataset/ (symlink)
+├── config.json
+├── model.onnx
+├── model.dxnn
+├── compiler.log
+└── README.md             (session report)
+```
+
+## Calibration Dataset
+
+Calibration data lives at `dx_com/calibration_dataset/` (100 JPEG images). If
+missing, run `example/2-download_sample_calibration_dataset.sh` to set up.
+Always use relative paths (`./calibration_dataset`) in config.json, never absolute.
+
+## Context Routing Table
+
+| If the task mentions... | Read these files |
+|---|---|
+| **PyTorch, PT, export, convert** | `.deepx/agents/dx-model-converter.md`, `.deepx/skills/dx-agent-compiler-convert.md` |
+| **ONNX, compile, DXNN, dxcom** | `.deepx/agents/dx-dxnn-compiler.md`, `.deepx/skills/dx-agent-compiler-compile.md` |
+| **CLI, command line** | `.deepx/toolsets/dxcom-cli.md` |
+| **Python API, dx_com.compile** | `.deepx/toolsets/dxcom-api.md` |
+| **config, JSON, schema** | `.deepx/toolsets/config-schema.md` |
+| **Ultralytics, YOLO, .pt, format=deepx, export to deepx** | `.deepx/toolsets/ultralytics-deepx-export.md` |
+| **Ultralytics retrain/train, fine-tune, mAP, FPS, domain dataset, evaluate** | `.deepx/toolsets/ultralytics-train-eval.md` |
+| **PaddleOCR, RapidDoc, PaddlePaddle, OCR app, video/webcam OCR, PDF to markdown, document parsing** | `.deepx/toolsets/paddlepaddle-deepx.md` |
+| **calibration, quantization, INT8** | `.deepx/instructions/compilation-workflow.md` |
+| **PPU, YOLO, detection** | `.deepx/toolsets/config-schema.md`, `.deepx/instructions/compilation-workflow.md` |
+| **validate, verify, check** | `.deepx/skills/dx-agent-compiler-validate.md` |
+| **error, fail, bug** | `.deepx/memory/common_pitfalls.md` |
+| **sample, example, test compile** | `.deepx/instructions/compilation-workflow.md` (Sample Model Workflow section) |
+| **ALWAYS read (every task)** | `.deepx/memory/common_pitfalls.md`, `.deepx/instructions/coding-standards.md` |
+| **Brainstorm, plan, design** | `.deepx/skills/dx-swe-brainstorm.md` |
+| **TDD, validation, incremental** | `.deepx/skills/dx-swe-tdd.md` |
+| **Completion, verify, evidence** | `.deepx/skills/dx-swe-verify.md` |
+| **Debug, root cause, investigate** | `.deepx/skills/dx-swe-debugging/SKILL.md` |
+| **Plan, execute, subagent** | `.deepx/skills/dx-swe-writing-plans/SKILL.md`, `.deepx/skills/dx-swe-executing-plans/SKILL.md` |
+| **Code review, feedback** | `.deepx/skills/dx-swe-receiving-review/SKILL.md`, `.deepx/skills/dx-swe-requesting-review/SKILL.md` |
+
+{{FRAGMENT:ultralytics-deepx-export}}
+
+{{FRAGMENT:no-placeholder-code}}
+
+{{FRAGMENT:experimental-features-prohibited}}
+
+{{FRAGMENT:brainstorming-spec-before-plan}}
+{{FRAGMENT:mandatory-process-skill-sequence}}
+{{FRAGMENT:autopilot-mode-guard}}
+
+## Hardware
+
+| Device | ID | Description |
+|---|---|---|
+| DX-M1 | `dx_m1` | DEEPX NPU |
+
+## Memory
+
+Persistent knowledge in `.deepx/memory/`. Read at task start, update when learning new patterns.
+Domain tags: `[UNIVERSAL]`, `[DX_COMPILER]`, `[QUANTIZATION]`
+
+{{FRAGMENT:rule-conflict-resolution}}
+
+{{FRAGMENT:git-operations-user-handles}}
+
+{{FRAGMENT:git-safety-superpowers}}
+
+{{FRAGMENT:session-sentinels}}
+
+{{FRAGMENT:plan-output}}
+
+
+---
+
+{{FRAGMENT:instruction-verification-loop}}

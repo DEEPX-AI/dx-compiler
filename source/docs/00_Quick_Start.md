@@ -54,7 +54,7 @@ dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
 1. **Installation of DX-COM** → [Installation of DX-COM](02_02_Installation_of_DX-COM.md)  
 2. **Execution of DX-COM** → [Execution of DX-COM](02_06_Execution_of_DX-COM.md)  
 3. **JSON File Configuration** → [JSON File Configuration](02_05_JSON_File_Configuration.md)  
-4. **Common Use Cases** → [Common Use Cases](02_07_Common_Use_Cases.md)  
+4. **Common Use Cases** → [Common Use Cases](02_08_Common_Use_Cases.md)  
 
 ---
 

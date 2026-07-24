@@ -93,6 +93,14 @@ fi
 
 # Ensure the determined OUTPUT_DIR exists (main installation target for both modes)
 # For archive_mode, this is DX_AS_PATH/archives; for normal mode, it's COMPILER_PATH/${MODULE_NAME}
+# If OUTPUT_DIR already exists as a file or dangling symlink (left over from a previous failed install),
+# warn the user and remove it so mkdir -p can recreate it cleanly.
+if [ -e "$OUTPUT_DIR" ] || [ -L "$OUTPUT_DIR" ]; then
+    if [ ! -d "$OUTPUT_DIR" ]; then
+        print_colored "WARNING: '$OUTPUT_DIR' already exists (file or symlink). Removing it before reinstall." "WARNING"
+        rm -rf "$OUTPUT_DIR" || { print_colored "ERROR: Failed to remove existing '$OUTPUT_DIR'." "ERROR"; exit 1; }
+    fi
+fi
 mkdir -p "$OUTPUT_DIR" || { print_colored "ERROR: Failed to create output directory '$OUTPUT_DIR'." "ERROR"; exit 1; }
 
 

@@ -1,0 +1,104 @@
+---
+description: DEEPX DX-COM compiler rules — routing, conventions, and compilation workflow for ONNX to DXNN compilation.
+alwaysApply: true
+---
+
+**Response Language**: Match your response language to the user's prompt language — when asking questions or responding, use the same language the user is using.
+
+# DEEPX DX-COM Compiler Rules
+
+## Task Routing
+
+When a compilation task is received, classify and route:
+
+- **PT → ONNX** (signals: `.pt`, `.pth`, "PyTorch", "convert", "export"):
+  Use `torch.onnx.export()` with static shapes, batch=1, opset 13.
+  Follow `.deepx/skills/dx-convert-model.md`.
+
+- **ONNX → DXNN** (signals: `.onnx`, "compile", "DXNN", "quantize"):
+  Use `dxcom` CLI or `dx_com.compile()` API.
+  Follow `.deepx/skills/dx-compile-model.md`.
+
+- **Full Pipeline** (signals: "end-to-end", `.pt` + "DXNN"):
+  Convert PT → ONNX first, then compile ONNX → DXNN.
+
+- **Sample Model Workflow** (signals: "sample", "example", "test compile", "try"):
+  Use `example/` scripts in order:
+  1. `./example/1-download_sample_models.sh` — Download ONNX + JSON configs
+  2. `./example/2-download_sample_calibration_dataset.sh` — Download calibration dataset
+  3. `./example/3-compile_sample_models.sh` — Compile all sample models to .dxnn
+  The downloaded JSON configs are canonical references for config.json generation.
+  Read `.deepx/instructions/compilation-workflow.md` (Sample Model Workflow section).
+
+## Critical Conventions
+
+1. Batch size must always be 1
+2. ONNX opset version must be 11-21 (recommend 13)
+3. No dynamic shapes — all tensor dimensions must be static positive integers
+4. config.json `inputs` key must exactly match ONNX model input node name
+5. Calibration images must be representative of real inference data
+6. PPU type 0 = anchor-based (YOLOv3/v4/v5/v7), type 1 = anchor-free (YOLOX/YOLOv8-v12)
+7. Always use `--gen_log` during development for debugging
+8. Output to `dx-agent-dev/<session_id>/` to isolate compilation artifacts
+9. Use relative paths for calibration: `"dataset_path": "./calibration_dataset"`
+10. Symlink calibration data into working directory before compilation
+11. Do NOT run `onnx-simplifier` unless the user explicitly requests it
+12. Ultralytics YOLO (v8+): set `Detect.export=True` or use `model.export(format="onnx")` — verify single output
+13. MANDATORY brainstorming: Before compilation, always ask (Q1) NMS-free model detection with YOLO version table, (Q2) ONNX simplification with pros/cons, (Q3) PPU compilation support with explanation. See `.deepx/agents/dx-compiler-builder.md` Step 2.
+14. PPU default is OFF — only add PPU config if user explicitly confirms in brainstorming Q3
+
+## Compilation Commands
+
+```bash
+# CLI
+dxcom -m model.onnx -c config.json -o output/ --opt_level 1 --gen_log
+
+# Python
+import dx_com
+dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
+```
+
+## Config Schema Essentials
+
+```json
+{
+  "inputs": {"<onnx_input_name>": [1, C, H, W]},
+  "calibration_method": "ema",
+  "calibration_num": 100,
+  "default_loader": {
+    "dataset_path": "./calibration_dataset",
+    "file_extensions": ["jpeg", "png", "jpg"],
+    "preprocessings": [
+      {"resize": {"width": W, "height": H}},
+      {"normalize": {"mean": [...], "std": [...]}}
+    ]
+  }
+}
+```
+
+## Process Skills (available for all tasks)
+| Skill | When to use | Read |
+|---|---|---|
+| Brainstorm & Plan | Before any compilation task | `.deepx/skills/dx-brainstorm-and-plan.md` |
+| TDD | Validate each step incrementally | `.deepx/skills/dx-tdd.md` |
+| Verify Completion | Before claiming task is done | `.deepx/skills/dx-verify-completion.md` |
+
+## Hardware Targets
+
+- DX-M1 (`dx_m1`): Full-featured DEEPX NPU
+- DX-M1A (`dx_m1a`): Area-optimized variant
+
+## Reference
+
+- `.deepx/README.md` — Master knowledge index
+- `.deepx/memory/common_pitfalls.md` — Known failure modes (read before every task)
+- `.deepx/instructions/coding-standards.md` — Python and config coding standards
+
+## Session Sentinels (MANDATORY for Automated Testing)
+
+When processing a user prompt, output these exact markers:
+- **First line of response**: `[DX-AGENT-DEV: START]`
+- **Last line after ALL work complete**: `[DX-AGENT-DEV: DONE]`
+- Sub-agents invoked via routing do NOT output sentinels
+- Before DONE: verify all mandatory deliverables exist; create any missing ones
+- Before DONE line: output `To save this session as HTML, type: /share html` (Copilot CLI only)

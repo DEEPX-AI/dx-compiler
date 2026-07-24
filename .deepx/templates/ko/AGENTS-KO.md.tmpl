@@ -1,0 +1,236 @@
+# DEEPX DX-COM 컴파일러 — AI 코딩 에이전트 진입점
+
+> AI 코딩 에이전트를 위한 자체 완결형 진입점. 이 파일을 먼저 읽으세요.
+
+{{FRAGMENT:response-language}}
+{{FRAGMENT:recommended-model}}
+
+{{FRAGMENT:skill-router-mandatory}}
+## 공유 지식
+
+모든 스킬, 지시사항, 도구셋, 메모리는 `.deepx/`에 있습니다.
+전체 마스터 인덱스는 `.deepx/README.md`를 읽으세요.
+
+## 타겟 하드웨어 (필수)
+
+타겟 디바이스는 항상 DX-M1 (`dx_m1`)입니다. 사용자에게 타겟 하드웨어 선택을
+요청하지 마세요. dx-compiler는 DX-M1만 지원합니다. DX-M1A를 언급하는 상위 레벨
+설정은 무시하세요 — DX-M1A는 단종되었으며 더 이상 지원되지 않습니다.
+
+## 양자화 — INT8 전용 (필수)
+
+DX-COM은 항상 INT8로 양자화합니다. CLI, Python API, 또는 JSON config에
+FP16/FP32 출력 옵션이 없습니다. 사용자에게 출력 정밀도를 선택하도록 요청하지 마세요.
+사용자가 선택할 수 있는 양자화 옵션은:
+- **교정 방법**: `ema` (기본값) 또는 `minmax`
+- **향상된 양자화 스킴**: `DXQ-P0`부터 `DXQ-P5` (선택사항)
+- **교정 샘플 수** (기본값: 100)
+
+## 핵심 규칙: 모델 획득 및 엔드투엔드 컴파일
+
+**필수**: 사용자가 모델 컴파일을 요청하고 로컬 `.pt`, `.pth`, 또는 `.onnx` 파일
+경로를 제공하지 않는 경우, 에이전트는 반드시:
+
+1. 요청된 모델의 **공식 다운로드 소스를 확인**
+2. 세션 작업 디렉토리에 모델 파일을 **실제로 다운로드**
+3. 전체 파이프라인을 통해 모델을 **실제로 컴파일** (PT→ONNX→DXNN 또는 ONNX→DXNN)
+4. **실제 `.dxnn` 출력 파일을 생성**
+
+`config.json`만 생성하거나 컴파일 지시사항만 제공하고 **절대 멈추지 마세요**.
+사용자는 레시피가 아니라 컴파일된 `.dxnn` 모델을 기대합니다.
+
+### 모델 다운로드 소스 (우선순위 순서)
+
+| 모델 패밀리 | 소스 | 다운로드 방법 |
+|---|---|---|
+| Ultralytics YOLO (v5-v12, v26) | GitHub Releases / `ultralytics` pip | `from ultralytics import YOLO; model = YOLO("yolo11n.pt")` 또는 releases에서 `wget` |
+| TorchVision (ResNet, MobileNet 등) | PyTorch Hub / torchvision | `torchvision.models.resnet50(weights="DEFAULT")` |
+| Timm 모델 | `timm` pip | `timm.create_model("efficientnet_b0", pretrained=True)` |
+| ONNX Model Zoo | GitHub onnx/models | 태그된 릴리스에서 `wget` |
+| Hugging Face | Hugging Face Hub | `huggingface_hub.hf_hub_download()` |
+
+### 안티 패턴 (절대 하지 마세요)
+
+- config.json을 생성하고 사용자에게 "dxcom을 직접 실행하세요"라고 말하기
+- 실제로 다운로드하지 않고 다운로드 URL만 제공하기
+- DXNN으로 컴파일하지 않고 ONNX export 후 멈추기
+- 직접 수행하는 대신 사용자에게 "ultralytics를 설치하고 export하세요"라고 말하기
+- 실제 컴파일된 결과물 대신 지시사항만 제공하기
+
+## 대화형 워크플로우 (반드시 따를 것)
+
+**컴파일 전에 항상 사용자와 주요 결정사항을 확인하세요.** 모델 형식, 타겟 디바이스,
+교정 방법 (EMA 또는 MinMax)을 확인하기 위해 2-3개의 타겟팅된 질문을 하세요.
+이것은 협업 워크플로우를 만들고 초기에 오해를 잡아냅니다. 사용자가
+"그냥 컴파일해" 또는 "기본값 사용"이라고 명시적으로 말한 경우에만 질문을 생략하세요.
+
+**Gate 1 — 브레인스토밍**: 입력 확인 (모델 경로, 형식, 타겟 디바이스, 교정 데이터).
+**Gate 2 — 빌드**: 선택된 파라미터로 컴파일 실행.
+**Gate 3 — 검증**: DX-TRON으로 출력 검증, compiler.log 검토.
+
+## 빠른 참조
+
+```bash
+pip install dx-com                     # DX-COM 컴파일러 설치
+dxcom --help                           # CLI 도움말
+dxcom -m model.onnx -c config.json -o output/   # 기본 컴파일
+pytest tests/                          # 테스트 실행
+```
+
+```python
+import dx_com
+dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
+```
+
+## 스킬
+
+| 명령 | 설명 |
+|---------|-------------|
+| `/dx-agent-compiler-convert` | PyTorch 모델을 ONNX로 변환 |
+| `/dx-agent-compiler-compile` | ONNX 모델을 DXNN으로 컴파일 |
+| `/dx-agent-compiler-validate` | 컴파일 출력 검증 |
+| `/dx-swe-brainstorm` | 브레인스토밍, 2-3가지 접근법 제안, 스펙 자체 검토 후 계획 |
+| `/dx-swe-tdd` | 검증 주도 개발, 선택적 Red-Green-Refactor 단위 테스트 |
+| `/dx-swe-verify` | 완료 선언 전 검증 — 주장 전에 증거 |
+| `/dx-swe-writing-plans` | 세분화된 태스크로 구현 계획 작성 |
+| `/dx-swe-executing-plans` | 리뷰 체크포인트와 함께 계획 실행 |
+| `/dx-swe-subagent-dev` | 태스크별 신규 서브에이전트로 계획 실행, 2단계 리뷰 |
+| `/dx-swe-debugging` | 체계적 디버깅 — 수정 제안 전 4단계 근본 원인 조사 |
+| `/dx-swe-receiving-review` | 코드 리뷰 피드백을 기술적 엄밀성으로 평가 |
+| `/dx-swe-requesting-review` | 기능 완료 후 코드 리뷰 요청 |
+| `/dx-skill-router` | 스킬 탐색 및 호출 — 모든 작업 전 스킬 확인 |
+| `/dx-harness-writing-skills` | 스킬 파일 생성 및 편집 |
+| `/dx-swe-parallel-agents` | 독립 태스크를 위한 병렬 서브에이전트 디스패치 |
+
+## 핵심 규칙
+
+1. **배치 크기는 반드시 1**: DEEPX NPU는 batch=1만 지원
+2. **정적 shape만 사용**: 동적 axes 없음, -1 차원 없음
+3. **ONNX opset 11-21**: 최상의 호환성을 위해 opset 13 사용
+4. **입력 이름 일치**: config.json의 `inputs` 키는 ONNX 입력 이름과 정확히 일치해야 함
+5. **대표적 교정**: 교정 이미지는 추론 분포와 일치해야 함
+6. **PPU 타입 중요**: Type 0 = anchor-based (YOLOv3-v7), Type 1 = anchor-free (YOLOX, YOLOv8-v12). YOLO26은 PPU를 지원하지 않음.
+7. **항상 검증**: 모든 컴파일 후 DX-TRON 검사 실행
+8. **하드코딩된 경로 금지**: 교정 데이터에 상대 경로 사용 (`./calibration_dataset`)
+9. **출력 격리**: 모든 결과물은 `dx-agent-dev/<session_id>/`에 저장.
+   **세션 ID 형식**: `YYYYMMDD-HHMMSS_<agent>_<coding_model>_<target_model>_<task>` — 타임스탬프는 반드시
+   **시스템 로컬 타임존**을 사용해야 합니다 (UTC 아님). Bash에서는 `$(date +%Y%m%d-%H%M%S)`,
+   Python에서는 `datetime.now().strftime('%Y%m%d-%H%M%S')`를 사용하세요.
+사용하지 마세요.
+- **`<agent>`**: 코딩 에이전트 식별자 — `claude`, `codex`, `copilot`, `cursor`, `opencode` 중 하나를 사용하세요.
+- **`<coding_model>`**: 코딩 모델 축약명 — 예: `sonnet46`, `opus46`, `gpt53codex`, `gpt55`.
+10. **교정 심볼릭 링크**: 작업 디렉토리에 `dx_com/calibration_dataset/`를 심볼릭 링크
+11. **자동 simplification 금지**: 사용자가 명시적으로 요청하지 않는 한 `onnx-simplifier`를 실행하지 마세요
+12. **Ultralytics YOLO export**: `Detect.export=True`를 설정하거나 `model.export(format="onnx")`를 사용해야 함 — 표준 `torch.onnx.export()`는 1개가 아닌 6개의 출력을 생성. export 후 항상 단일 출력을 확인.
+13. **필수 브레인스토밍 질문**: 모든 컴파일 작업 전에 에이전트는 반드시 세 가지 필수 질문을 해야 함: (Q1) YOLO 버전 특성과 NMS-free 모델 감지, (Q2) 장단점과 ONNX simplification, (Q3) 설명과 PPU 컴파일 지원. 전체 세부사항은 `.deepx/agents/dx-compiler-builder.md` Step 2 참조.
+14. **PPU 기본값은 OFF**: PPU 컴파일은 opt-in. 브레인스토밍 Q3에서 사용자가 명시적으로 확인한 경우에만 PPU config 추가. **YOLO26은 PPU를 지원하지 않음** — YOLO26의 경우 Q3 생략.
+15. **모델 획득 — 지시가 아닌 다운로드 및 컴파일**: 사용자가 로컬 `.pt`/`.pth`/`.onnx` 파일을 제공하지 않은 경우, 에이전트는 공식 다운로드 소스 (Ultralytics releases, torchvision, timm, ONNX Model Zoo, Hugging Face)를 찾아 실제로 모델을 다운로드하고, 전체 파이프라인을 통해 `.dxnn` 파일을 생성하도록 컴파일해야 합니다. config.json만 생성하거나 컴파일 지시사항을 제공하고 멈추지 절대 마세요.
+16. **컴파일 후 검증은 필수 — 검증 없이는 컴파일이 완료되지 않음**: 모든 성공적인 `dxcom` 컴파일 후, 결과를 제시하기 전에 에이전트는 반드시 다음을 모두 완료해야 합니다. 이것 없이 "컴파일 성공" 요약을 절대 제시하지 마세요:
+    - **(a)** 출력 디렉토리 (세션 디렉토리 또는 사용자 지정 디렉토리)에 `setup.sh`, `run.sh`, `README.md` 생성
+    - **(b)** `verify.py` 생성 — ONNX vs DXNN 추론 비교
+    - **(c)** `verify.py` 실행 및 PASS 확인
+    - **(d)** `${WORK_DIR}/session.log`에 세션 로그 저장 — 손으로 작성한 요약이 아닌 `tee`를 통해 캡처된 **실제 명령 실행 출력**이어야 함
+    - **(e)** 최종 요약에 검증 결과 및 모든 결과물 경로 포함
+    - **사용자가 커스텀 출력 디렉토리를 지정한 경우에도** (예: `dx-agent-dev/` 대신 소스 디렉토리), 이러한 결과물은 여전히 필수입니다. 사용자가 다른 출력 경로를 선택하는 것이 배포 스크립트 생성을 면제하지 않습니다.
+17. **이전 세션 결과물 재사용 금지**: `dx-agent-dev/`의 이전 세션에서 결과물을 확인, 나열, 탐색, 또는 재사용하지 절대 마세요. 각 컴파일 실행은 새로운 타임스탬프로 새 세션 디렉토리를 생성해야 합니다. 이전 세션이 동일한 모델을 컴파일한 경우에도 항상 처음부터 다시 다운로드, 다시 export, 다시 컴파일하세요. `ls dx-agent-dev/`를 실행하거나 이전 실행의 기존 `.onnx`/`.dxnn` 파일을 확인하지 마세요.
+18. **setup.sh에서 venv는 필수**: 생성된 `setup.sh`는 `pip install` 전에 가상 환경을 생성하고 활성화해야 합니다. Ubuntu 24.04+에서는 PEP 668이 시스템 전체 pip 설치를 차단합니다. `${VIRTUAL_ENV:-}` 확인과 함께 `python3 -m venv`를 사용하세요. 생성된 `run.sh`는 venv 활성화를 확인하고 누락 시 자동 활성화하거나 에러를 출력해야 합니다.
+19. **사전 컴파일된 참조 모델과의 교차 검증**: 동일한 모델에 대해 사전 컴파일된 DXNN이 `dx-runtime/dx_app/assets/models/`에 존재하는 경우, 사전 컴파일된 모델과 생성된 모델 모두에 대해 verify.py를 실행하세요 (Phase 5.7). 둘 다 실패 → verify.py 버그. 사전 컴파일된 것은 통과하고 생성된 것은 실패 → 컴파일 문제. `.deepx/agents/dx-dxnn-compiler.md` Phase 5.7 참조.
+20. **NHWC/NCHW DataLoader 불일치**: dxcom CLI의 기본 dataloader는 NHWC `[1,H,W,C]`로 이미지를 로드합니다. ONNX 모델이 NCHW `[1,C,H,W]`를 기대하는 경우 (대부분의 PyTorch export 모델), CLI 컴파일은 `DataLoaderError: Input shape mismatch`로 실패합니다. **수정**: NCHW 텐서를 생성하는 커스텀 torch DataLoader와 함께 Python API (`dx_com.compile()`)를 사용하세요. `.deepx/memory/common_pitfalls.md` pitfall #18 참조.
+
+## 교차 검증 진단 테이블
+
+| 결과 | 진단 |
+|---|---|
+| 둘 다 실패 | verify.py 코드 버그 (먼저 verify.py 수정) |
+| 사전 컴파일된 것은 통과, 생성된 것은 실패 | 컴파일 문제 (config, 양자화 수정) |
+| 둘 다 통과 | 컴파일 정확 |
+
+## 컨텍스트 라우팅 테이블
+
+| 작업에 언급된 내용... | 읽을 파일 |
+|---|---|
+| **PyTorch, PT, export, convert** | `.deepx/agents/dx-model-converter.md`, `.deepx/skills/dx-agent-compiler-convert.md` |
+| **ONNX, compile, DXNN, dxcom** | `.deepx/agents/dx-dxnn-compiler.md`, `.deepx/skills/dx-agent-compiler-compile.md` |
+| **CLI, command line** | `.deepx/toolsets/dxcom-cli.md` |
+| **Python API, dx_com.compile** | `.deepx/toolsets/dxcom-api.md` |
+| **config, JSON, schema** | `.deepx/toolsets/config-schema.md` |
+| **Ultralytics, YOLO, .pt, format=deepx, export to deepx** | `.deepx/toolsets/ultralytics-deepx-export.md` |
+| **Ultralytics retrain/train, fine-tune, mAP, FPS, domain dataset, evaluate** | `.deepx/toolsets/ultralytics-train-eval.md` |
+| **PaddleOCR, RapidDoc, PaddlePaddle, OCR app, video/webcam OCR, PDF to markdown, document parsing** | `.deepx/toolsets/paddlepaddle-deepx.md` |
+| **calibration, quantization, INT8** | `.deepx/instructions/compilation-workflow.md` |
+| **PPU, YOLO, detection** | `.deepx/toolsets/config-schema.md`, `.deepx/instructions/compilation-workflow.md` |
+| **validate, verify, check** | `.deepx/skills/dx-agent-compiler-validate.md` |
+| **error, fail, bug** | `.deepx/memory/common_pitfalls.md` |
+| **sample, example, test compile** | `.deepx/instructions/compilation-workflow.md` (샘플 모델 워크플로우 섹션) |
+| **Brainstorm, plan, design** | `.deepx/skills/dx-swe-brainstorm.md` |
+| **TDD, validation, incremental** | `.deepx/skills/dx-swe-tdd.md` |
+| **Completion, verify, evidence** | `.deepx/skills/dx-swe-verify.md` |
+| **항상 읽기 (모든 작업)** | `.deepx/memory/common_pitfalls.md`, `.deepx/instructions/coding-standards.md` |
+
+## 빠른 시작 — 샘플 모델 워크플로우
+
+```bash
+cd dx-compiler
+./example/1-download_sample_models.sh      # ONNX + JSON config 다운로드
+./example/2-download_sample_calibration_dataset.sh  # 교정 데이터셋 다운로드
+./example/3-compile_sample_models.sh       # 모든 샘플 모델을 .dxnn으로 컴파일
+```
+
+샘플 모델: YOLOV5S-1, YOLOV5S_Face-1, MobileNetV2-1.
+샘플 JSON config는 config.json 생성 시 표준 참조로 사용됩니다.
+
+## 출력 격리
+
+모든 컴파일 결과물은 기본적으로 `dx-agent-dev/<session_id>/`에 저장됩니다. 각
+컴파일 세션은 결과물을 함께 보관하고 덮어쓰기를 방지하기 위해
+고유한 작업 디렉토리를 사용합니다.
+
+**세션 ID 형식**: `YYYYMMDD-HHMMSS_<agent>_<coding_model>_<target_model>_<task>` — 타임스탬프는 반드시
+**시스템 로컬 타임존**을 사용해야 합니다 (UTC 아님). Bash에서는 `$(date +%Y%m%d-%H%M%S)`,
+Python에서는 `datetime.now().strftime('%Y%m%d-%H%M%S')`를 사용하세요.
+`date -u`, `datetime.utcnow()`, 또는 `datetime.now(timezone.utc)`를 사용하지 마세요.
+
+**작업 디렉토리 내용** (컴파일 후):
+```
+dx-agent-dev/<session_id>/
+├── calibration_dataset   → ../../dx_com/calibration_dataset/ (symlink)
+├── config.json
+├── model.onnx
+├── model.dxnn
+├── compiler.log
+└── README.md             (세션 보고서)
+```
+
+## 교정 데이터셋
+
+교정 데이터는 `dx_com/calibration_dataset/` (100개 JPEG 이미지)에 있습니다. 없는 경우,
+`example/2-download_sample_calibration_dataset.sh`를 실행하여 설정하세요.
+config.json에서 항상 상대 경로 (`./calibration_dataset`)를 사용하세요. 절대 경로는 사용하지 마세요.
+
+{{FRAGMENT:ultralytics-deepx-export}}
+
+{{FRAGMENT:no-placeholder-code}}
+{{FRAGMENT:experimental-features-prohibited}}
+{{FRAGMENT:brainstorming-spec-before-plan}}
+{{FRAGMENT:mandatory-process-skill-sequence}}
+{{FRAGMENT:autopilot-mode-guard}}
+## 타겟 하드웨어
+
+| 디바이스 | ID | 설명 |
+|---|---|---|
+| DX-M1 | `dx_m1` | DEEPX NPU |
+
+## 메모리
+
+영구 지식은 `.deepx/memory/`에 있습니다. 작업 시작 시 읽고, 새로운 패턴을 배울 때 업데이트하세요.
+도메인 태그: `[UNIVERSAL]`, `[DX_COMPILER]`, `[QUANTIZATION]`
+
+{{FRAGMENT:rule-conflict-resolution}}
+{{FRAGMENT:git-operations-user-handles}}
+
+{{FRAGMENT:git-safety-superpowers}}
+{{FRAGMENT:session-sentinels}}
+{{FRAGMENT:plan-output}}
+---
+
+{{FRAGMENT:instruction-verification-loop}}

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="460" viewBox="0 0 560 460">
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#555"/>
+    </marker>
+  </defs>
+
+  <!-- Box A -->
+  <rect x="60" y="20" width="440" height="60" rx="6" fill="#dce8fb" stroke="#3b6fe0" stroke-width="1.5"/>
+  <text y="46" font-family="Roboto Mono, Courier New, monospace" font-size="12.5" fill="#12143a" text-anchor="middle">
+    <tspan x="280" font-weight="bold">dxcom</tspan><tspan> -m model.onnx -c config.json -o out</tspan>
+  </text>
+  <text x="280" y="65" font-family="Roboto Mono, Courier New, monospace" font-size="12.5" fill="#12143a" text-anchor="middle">--quant_diagnosis</text>
+
+  <!-- Arrow A -> B with label -->
+  <line x1="280" y1="80" x2="280" y2="128" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="291" y="108" font-family="Arial, sans-serif" font-size="11" fill="#555" font-style="italic">produces</text>
+
+  <!-- Box B: output files (green tint) -->
+  <rect x="60" y="130" width="440" height="55" rx="4" fill="#e6f4ea" stroke="#2d7a2d" stroke-width="1.5"/>
+  <text x="280" y="154" font-family="Roboto Mono, Courier New, monospace" font-size="12" fill="#12143a" text-anchor="middle">out/quant_diagnosis/model.qxnn</text>
+  <text x="280" y="172" font-family="Roboto Mono, Courier New, monospace" font-size="12" fill="#12143a" text-anchor="middle">out/quant_diagnosis/diagnosis_report.html</text>
+
+  <!-- Arrow B -> C -->
+  <line x1="280" y1="185" x2="280" y2="228" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Box C: stadium shape (inspect) -->
+  <rect x="100" y="230" width="360" height="40" rx="20" fill="#fff3cd" stroke="#d4960a" stroke-width="1.5"/>
+  <text x="280" y="255" font-family="Arial, sans-serif" font-size="13" fill="#12143a" text-anchor="middle">Inspect report, pick new settings</text>
+
+  <!-- Arrow C -> D with label -->
+  <line x1="280" y1="270" x2="280" y2="318" stroke="#555" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="291" y="298" font-family="Arial, sans-serif" font-size="11" fill="#555" font-style="italic">repeat cheaply ↺</text>
+
+  <!-- Box D -->
+  <rect x="60" y="320" width="440" height="75" rx="6" fill="#dce8fb" stroke="#3b6fe0" stroke-width="1.5"/>
+  <text y="344" font-family="Roboto Mono, Courier New, monospace" font-size="12.5" fill="#12143a" text-anchor="middle">
+    <tspan x="280" font-weight="bold">dxcom</tspan><tspan> --checkpoint out/.../model.qxnn</tspan>
+  </text>
+  <text x="280" y="363" font-family="Roboto Mono, Courier New, monospace" font-size="12.5" fill="#12143a" text-anchor="middle">-o out2  [--recalibration_method iqr]</text>
+  <text x="280" y="382" font-family="Roboto Mono, Courier New, monospace" font-size="12.5" fill="#12143a" text-anchor="middle">         [--use_q_pro]</text>
+</svg>

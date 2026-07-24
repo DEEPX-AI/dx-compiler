@@ -1,6 +1,61 @@
 
 # RELEASE_NOTES
 
+## DX-Compiler v2.4.0 / 2026-06-16
+
+-   DX-COM: v2.4.0
+-   DX-TRON: v2.0.1 (Deprecated)
+
+----------
+
+> **⚠️ Deprecation Notice — DX-TRON**
+>
+> Starting with DX-Compiler **v2.4.0**, **DX-TRON is deprecated** and will be removed in a future release. No further feature updates or bug fixes are planned for DX-TRON. We recommend migrating to the new **HTML graph viewer** bundled with DX-COM (see *Standalone HTML Graph Viewer* below) for model inspection and visualization.
+
+
+> **⚠️ Deprecation Notice — PPU Type 2**
+>
+> Starting with DX-Compiler **v2.4.0**, the legacy **PPU type 2** post-processing mode (used for YOLOv8-family DFL post-processing) is **deprecated** and will be removed in a future release. Compiling a model that uses PPU type 2 now emits a deprecation warning. Please migrate to the new **`dx_com.pre_optimize()` API** with the built-in YOLO post-processing passes (see *Added* below).
+
+Here are the **DX-Compiler v2.4.0** Release Notes.
+
+### DX-COM (v2.4.0)
+
+### 1. Changed
+
+-   **PPU Type 2 Deprecated**: The legacy PPU type 2 post-processing mode is now deprecated and emits a deprecation warning when used. See the Deprecation Notice above for the migration path.
+-   **Faster, Lighter Compilation**: Reduced memory usage and improved compile time, especially on large models.
+-   **Expanded Python Version Support**: In addition to Python 3.8–3.12, DX-COM now supports **Python 3.13 and 3.14**.
+
+### 2. Fixed
+
+-   Fixed a Python API issue where models expecting integer inputs were sometimes fed float data, causing accuracy degradation.
+-   Fixed several Q-PRO / DXQ quantization crashes and stability issues observed on real models.
+-   Fixed multiple compilation errors and runtime issues caused by tiling, partitioning, and memory allocation in models containing `Split`, `Concat`, `Reshape`, `Bilinear Resize`, `Clip`, or odd spatial dimensions.
+-   Fixed compatibility issues with **NumPy 2.4+** and **onnxruntime ≥ 1.25.0**.
+-   **Reduce ExpandDim Preprocessing In Config For GrayScale**: When converting to GrayScale color, one channel was automatically squeezed, which caused a dimensional difference compared to the RGB image. So additional ExpandDim preprocessing is needed before. Therefore, we resolve this problem and preprocessing config to be identical to that of RGB images.
+
+### 3. Added
+
+-   **Automated Q-PRO Configuration**: Q-PRO quantization (formerly available only by hand-picking DXQ combinations) is now much easier to use. DX-COM can now **automatically generate DXQ combinations** for you and run Q-PRO under the hood, removing the need to manually tune the many DXQ knobs to get higher-accuracy quantization.
+-   **Quantization-Aware Training (QAT)**: Added end-to-end **QAT** support directly through `dx_com.compile()`. When the supplied config JSON includes a `qmaster` block, `dx_com.compile()` automatically switches to QAT mode and runs the training pipeline using the same dataset settings as PTQ calibration. Available from both the `dxcom` CLI and the Python API. A new `fast_run` flag is also available for quick QAT smoke tests.
+-   **QXNN Resume (Re-quantization without Recompile)**: Added a checkpoint-based **QXNN resume** flow available from both the `dxcom` CLI and the Python API. Once a model has been compiled, users can re-run quantization with different settings (e.g., a different calibration method) without repeating the earlier compile phases, dramatically shortening the iteration loop when tuning quantization quality.
+-   **Quantization Diagnosis Report (HTML)**: Added an HTML report that visualizes per-layer quantization quality, highlights problematic layers, and includes ready-to-paste compile snippets to retry compilation with recommended settings. Enabled via the new `quant_diagnosis` option, available from both the `dxcom` CLI and `dx_com.compile()`.
+-   **Interactive HTML Graph Viewer (replaces DX-TRON)**: DX-COM now produces a standalone HTML viewer for inspecting compiled models, including parameter shapes, CPU/NPU partition reasons, and cross-subgraph connections. This replaces the DX-TRON workflow (see Deprecation Notice above).
+-   **`dx_com.pre_optimize()` API**: Added a new top-level `dx_com.pre_optimize()` API for applying ONNX-level pre-processing transforms before compilation, with built-in support for **YOLO post-processing** integration (detection and segmentation modes). See the [Pre-Optimize API](source/docs/02_09_Pre_Optimize_API.md) chapter of the user manual.
+-   **Ubuntu 26.04 Validation**: DX-COM is now validated on **Ubuntu 26.04**, in addition to the previously supported Linux distributions.
+-   **DEEPX Agent-Driven Development (`dx-agent-dev`) — Beta**: Compile models with a natural-language prompt. An AI coding agent drives DX-COM to turn ONNX/`.pt` (including Ultralytics `format=deepx`) into a deployable `.dxnn`, with ONNX-vs-DXNN numerical verification. (Beta — behavior may change.)
+
+### 4. Known Issues
+
+-   Significant FPS degradation has been observed in models using PReLU as an activation function.
+
+### DX-TRON (v2.0.1)
+
+**Deprecated.** DX-TRON is deprecated as of DX-Compiler v2.4.0 and will be removed in a future release. Please migrate to the DX-COM standalone HTML graph viewer for model visualization. No changes in this release.
+
+----------
+
 ## DX-Compiler v2.3.1 / 2026-05-06
 
 -   DX-COM: v2.3.0

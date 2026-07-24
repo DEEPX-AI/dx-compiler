@@ -43,10 +43,15 @@ nav:
       - ONNX File Configuration: docs/02_04_ONNX_File_Configuration.md
       - JSON File Configuration: docs/02_05_JSON_File_Configuration.md
       - Execution of DX-COM: docs/02_06_Execution_of_DX-COM.md
-      - Common Use Cases: docs/02_07_Common_Use_Cases.md
   - Building Models: docs/03_Building_Models.md
+  - Quantization Tuning Workflow: docs/02_07_Quantization_Tuning_Workflow.md
+      - Quantization-Aware Training (QAT): docs/02_08_Quantization_Aware_Training.md
+      - Pre-Optimize API: docs/02_09_Pre_Optimize_API.md
+      - Common Use Cases: docs/02_08_Common_Use_Cases.md
   - Development Tools:
       - Model Viewer_DX-TRON: docs/04_01_Model_Viewer_DX-TRON.md
+      - Compilation Summary Report: docs/04_02_Compilation_Summary_Report.md
+  - Agent-Driven Development Guide: docs/05_DX-COMPILER_Agent_Driven_Development.md
   - Change Log: docs/Appendix_Change_Log.md
 
 plugins:
@@ -55,10 +60,10 @@ plugins:
       author: DEEPX.ai
       copyright: ⓒ Copyright 2026 DEEPX All Rights Reserved.
       cover_title: DXNN Compiler (DX-COM) User Manual
-      cover_subtitle: 2026/03/30 (v2.3.0)
+      cover_subtitle: 2026/06/16 (v2.4.0)
       cover_logo: img/deepx.png
       custom_template_path: docs/stylesheets
-      output_path: ../DEEPX_DX-COM_UM_v2.3.0_MAR_2026.pdf
+      output_path: ../DEEPX_DX-COM_UM_v2.4.0_JUN_2026.pdf
 extra:
   generator: false
   social:

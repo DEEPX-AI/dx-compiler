@@ -91,6 +91,43 @@ Enabling `--aggressive_partitioning` maximizes operations executed on the NPU. T
 
 ---
 
+#### Quantization Quality and Tuning
+
+These options control quantization accuracy enhancement and the diagnose → re-quantize tuning loop. Available in **DX-COM v2.4.0 and later**.
+
+| **Option** | **Value/Default** | **Description** |
+| :--- | :--- | :--- |
+| `--use_q_pro` | Flag | Enable the automatic Q-PRO quantization pipeline (ONNX compile path only). Mutually exclusive with a manual `enhanced_scheme`. |
+| `--quant_diagnosis` | Flag | Produce a per-region quantization diagnosis report (`quant_diagnosis/diagnosis_report.html`) and a reusable resume checkpoint (`quant_diagnosis/{model}.qxnn`). |
+| `--checkpoint` | `<path>.qxnn` | Path to a `.qxnn` resume artifact. Selects **QXNN resume** mode (re-quantize without recompile). Mutually exclusive with `-m/--model_path`. |
+| `--recalibration_method` | `{minmax,ema,iqr}` | **(Resume-only)** Observer override applied during re-calibration. |
+| `--enhanced_scheme` | e.g. `P3:num_samples=2048` | **(Resume-only)** Manual Q-PRO scheme selection. Mutually exclusive with `--use_q_pro`. |
+| `--dataset_path` | Path | **(Resume-only)** Override the calibration dataset path embedded in the checkpoint. |
+
+For automatic Q-PRO details see [Automatic Q-PRO (`use_q_pro`)](#automatic-q-pro-use_q_pro) below. For the full diagnose → resume workflow, see [Quantization Tuning Workflow](02_07_Quantization_Tuning_Workflow.md).
+
+##### Automatic Q-PRO (`use_q_pro`)
+
+When quantization accuracy degrades, Q-PRO enhancement schemes (DXQ-P0 to DXQ-P5) can improve it. The `enhanced_scheme` JSON field exposes these schemes for **manual** selection (see [Enhanced Quantization Scheme (DXQ)](02_05_JSON_File_Configuration.md#optional-parameters-enhanced-quantization-scheme-dxq)). The `--use_q_pro` flag is the **automatic** alternative: DX-COM generates DXQ combinations and selects the optimal enhancement stages based on model structure and compile-time metrics — no manual tuning required.
+
+```bash
+# dxcom CLI
+dxcom -m model.onnx -c config.json -o ./output --use_q_pro
+```
+```python
+# dx_com Python module
+import dx_com
+dx_com.compile(model="model.onnx", output_dir="./output", config="config.json", use_q_pro=True)
+```
+
+- **Mutually exclusive** with a manual `enhanced_scheme` — choose one, not both.
+- Can also be enabled while re-quantizing via [QXNN Resume](02_07_Quantization_Tuning_Workflow.md#qxnn-resume-re-quantization-without-recompile).
+
+!!! tip "Automatic vs Manual"
+    Prefer `--use_q_pro` for the easiest path to higher-accuracy quantization. Drop down to a manual `enhanced_scheme` only when you need to pin a specific DXQ scheme.
+
+---
+
 #### Debugging and Logging
 
 These options are vital for troubleshooting, logging, and targeting specific sections of the model.  
@@ -98,6 +135,7 @@ These options are vital for troubleshooting, logging, and targeting specific sec
 | **Option** | **Shorthand** | **Description** |
 | :--- | :--- | :--- |
 | `--gen_log` | N/A | When enabled, the compiler collects all compilation logs into a `compiler.log` file in the specified output directory. Useful for debugging or analyzing the compilation process |
+| `--export_html` | N/A | Generate a self-contained HTML summary report (`<model_name>_summary.html`) in the output directory after compilation. See [Compilation Summary Report](04_02_Compilation_Summary_Report.md) |
 | `--version` | `-v` | Prints the compiler module version and exits |
 
 **Partial Compilation (`--compile_input_nodes`, `--compile_output_nodes`)**  
@@ -136,11 +174,42 @@ dxcom \
 --gen_log
 ```
 
+**With HTML Summary Report**  
+This command adds the `--export_html` flag to also generate `<model_name>_summary.html` in the output directory.  
+```bash
+dxcom \
+-m sample/MobilenetV1.onnx \
+-c sample/MobilenetV1.json \
+-o output/mobilenetv1 \
+--export_html
+```
+
 **Version Information**  
 This command prints the compiler module version and exits.  
 ```
 dxcom --version
 ```
+
+**With Quantization Diagnosis**  
+This command enables `--quant_diagnosis` to produce a per-region diagnosis report and a `.qxnn` resume checkpoint under `quant_diagnosis/` in the output directory.  
+```
+dxcom \
+-m large_model.onnx \
+-c config.json \
+-o output/large_model \
+--quant_diagnosis
+```
+
+**Re-quantize from a Checkpoint (QXNN Resume)**  
+This command re-runs quantization from a `.qxnn` checkpoint with a different calibration observer, skipping the earlier compile phases. No `-m`/`-c` is required.  
+```
+dxcom \
+--checkpoint output/large_model/quant_diagnosis/large_model.qxnn \
+-o output/large_model_iqr \
+--recalibration_method iqr
+```
+
+See [Quantization Tuning Workflow](02_07_Quantization_Tuning_Workflow.md) for the full diagnose → resume loop.
 
 **Compile Sample Models (Script)**  
 For the end-to-end sample workflow, see [Quick Start Guide](00_Quick_Start.md#compile-sample-models). The `./example/3-compile_sample_models.sh` helper compiles `YOLOV5S-1`, `YOLOV5S_Face-1`, and `MobileNetV2-1` with `dxcom`, using assets prepared under `dx_com/`. If `dxcom` is not available in the current shell, the script first tries to activate the DX-COM virtual environment.  
@@ -155,7 +224,8 @@ The Python wheel package also provides a programmatic interface for model compil
     For practical code examples and step-by-step guides, see:
 
     - [Quick Start Guide](00_Quick_Start.md)
-    - [Common Use Cases](02_07_Common_Use_Cases.md)
+    - [Common Use Cases](02_08_Common_Use_Cases.md)
+    - [Pre-Optimize API](02_09_Pre_Optimize_API.md) for `dx_com.pre_optimize()`, an ONNX-level transform that reduces CPU-side post-processing for YOLO-family models before compilation.
 
 ### Overview
 
@@ -178,11 +248,24 @@ def compile(
     aggressive_partitioning: bool = False,
     input_nodes: Optional[List[str]] = None,
     output_nodes: Optional[List[str]] = None,
+    use_q_pro: bool = False,
     enhanced_scheme: Optional[Dict] = None,
+    ppu_config: Optional[PPUConfig] = None,
     gen_log: bool = False,
     float64_calibration: bool = False,
+    export_html: bool = False,
+    quantization_mode: str = "ptq",
+    qat_config: Optional[Dict] = None,
+    qat_skip_training: bool = False,
+    qat_resume_from_checkpoint: Optional[str] = None,
 ) -> None
 ```
+
+!!! note "Additional Parameters"
+    The signature above lists the most commonly used parameters. `dx_com.compile()`
+    accepts further advanced/diagnostic parameters (e.g. `quant_diagnosis`,
+    `super_debug`, `checkpoint` for QXNN resume). See the function docstring
+    (`help(dx_com.compile)`) for the complete list.
 
 ---
 
@@ -248,12 +331,87 @@ class CustomDataset(Dataset):
         return len(self.data)
     
     def __getitem__(self, idx):
-        # Return single sample or tuple of samples for multi-input models
+        # Single-input: return one tensor.
+        # Multi-input: return a dict keyed by ONNX input node name (recommended).
         return self.data[idx]
 
 dataset = CustomDataset()
 dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
 ```
+
+#### Defining Preprocessing Transforms in the DataLoader
+
+When you compile with a `dataloader`, the JSON `default_loader.preprocessings` block is **not** used. All preprocessing (resize, color conversion, normalization, layout) must be applied **inside the Dataset's `__getitem__`**, so that each tensor the DataLoader yields is already in the exact shape and value range the ONNX model expects.
+
+!!! warning "Calibration must match deployment preprocessing"
+    The transform applied here **must match the preprocessing used at inference time**. A mismatch (e.g. different mean/std, wrong channel order, missing `/255`) degrades calibration quality and post-quantization accuracy.
+
+**Two common ways to define transforms:**
+
+**1. `torchvision.transforms` (PIL-based, recommended for image models):**
+```python
+from torchvision import transforms
+from PIL import Image
+
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),                 # resize
+    transforms.ToTensor(),                         # HWC uint8 -> CHW float in [0,1] (implicit /255)
+    transforms.Normalize(                          # normalize
+        mean=[0.485, 0.456, 0.406],
+        std=[0.229, 0.224, 0.225],
+    ),
+])
+
+def __getitem__(self, idx):
+    image = Image.open(self.image_files[idx]).convert("RGB")  # RGB channel order
+    return transform(image)                                   # shape [3, 224, 224]
+```
+
+**2. OpenCV + manual NumPy/torch (when you need exact control):**
+```python
+import cv2
+import numpy as np
+import torch
+
+def __getitem__(self, idx):
+    img = cv2.imread(self.image_files[idx])            # BGR, HWC
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)         # convertColor BGR2RGB
+    img = cv2.resize(img, (224, 224))                  # resize
+    img = img.astype(np.float32) / 255.0               # div: x=255
+    mean = np.array([0.485, 0.456, 0.406], np.float32)
+    std = np.array([0.229, 0.224, 0.225], np.float32)
+    img = (img - mean) / std                           # normalize
+    img = np.transpose(img, (2, 0, 1))                 # HWC -> CHW (transpose)
+    return torch.from_numpy(img)                       # shape [3, 224, 224]
+```
+
+**Mapping JSON `preprocessings` to DataLoader transforms:**
+
+The `default_loader` reads each image with `cv2.imread` (**BGR**, `HWC`, `uint8`) and applies the operations below in order. When you write a custom `dataloader` you must reproduce the same chain by hand. The table lists every operation in the preprocessing registry and its `key: {args}` form.
+
+| JSON operation | Arguments | DataLoader equivalent |
+|----------------|-----------|-----------------------|
+| `resize` | `width`, `height` (or `size`, `mode`) | `cv2.resize(...)` / `transforms.Resize(...)` |
+| `resize2` / `resize3` / `resize_tv` | resize variants (`mlcommons` / `scale` / `torchvision` mode) | matching resize logic |
+| `centercrop` / `centercrop2` | `width`, `height` | `img[top:top+h, left:left+w]` / `transforms.CenterCrop(...)` |
+| `convertColor` | `form` (e.g. `BGR2RGB`) | `cv2.cvtColor(...)` / `Image.convert("RGB")` |
+| `div` | `x` (scalar or per-channel list) | `img / x` (`div:{x:255}` ≈ `transforms.ToTensor()`) |
+| `mul` | `x` | `img * x` |
+| `subtract` | `x` | `img - x` |
+| `add` | `x` | `img + x` |
+| `normalize` | `mean`, `std` (lists) | `(img - mean) / std` / `transforms.Normalize(...)` |
+| `transpose` | `axis` (e.g. `[2,0,1]`) | `np.transpose(img, axis)` / `tensor.permute(...)` |
+| `expandDim` | `axis` | `np.expand_dims(...)` / `tensor.unsqueeze(axis)` |
+| `squeeze` | `axis` | `np.squeeze(...)` / `tensor.squeeze(axis)` |
+| `slice` | `channel` | `img[..., channel]` |
+| `dtype` | `t` (numpy dtype) | `img.astype(t)` |
+| `pil_2_cv` | — | PIL→numpy BGR conversion |
+
+!!! note "Output shape, dtype, and batch size"
+    The compiler runs the verifier on `next(iter(dataloader))` and requires the **batched** sample shape to match the ONNX input shape **exactly**, including the batch dimension. So each `__getitem__` item must be `model_input_shape` without the leading batch dim (e.g. `[3, 224, 224]` for input `[1, 3, 224, 224]`), and `batch_size` must equal the model's input batch (normally `1`). Tensors should be `float32`.
+
+!!! note "Supported return types"
+    Each `__getitem__` may return: a single `torch.Tensor` (single-input models), a **`dict[str, torch.Tensor]`** keyed by ONNX input node name (**recommended for multi-input** — mapped by name), or a **list/tuple of tensors** (mapped by the model's internal input-node order, which may differ from your return order). All elements must be tensors. See [Use Case 2](02_08_Common_Use_Cases.md#use-case-2-multi-input-models-stereo-vision).
 
 ---
 
@@ -342,6 +500,97 @@ enhanced_scheme={
 }
 ```
 
+**`use_q_pro`**
+
+- **Type**: `bool`
+- **Default**: `False`
+- **Description**: Enable the automatic Q-PRO quantization optimization pipeline. The compiler auto-selects and applies the optimal combination of enhancement stages based on model structure.
+- **Limitation**: Mutually exclusive with `enhanced_scheme` (set only one). ONNX compile path only.
+
+**`ppu_config`**
+
+- **Type**: `Optional[PPUConfig]`
+- **Default**: `None` (PPU disabled)
+- **Description**: PPU (Post-Processing Unit) configuration object that enables hardware-accelerated post-processing for YOLO-family object detection models. It is the Python-module equivalent of the JSON `ppu` section (see [PPU Configuration](02_05_JSON_File_Configuration.md#optional-parameters-ppu-configuration)).
+- **Requirement**: Must be a `PPUConfig` instance. `compile()` calls `ppu_config.validate()` and raises if required fields are missing.
+
+Import `PPUConfig` and `PPUTypes` from the top-level `dx_com` package:
+
+```python
+from dx_com import PPUConfig, PPUTypes
+```
+
+`PPUTypes` maps to the JSON `type` field:
+
+| `PPUTypes` | Value | Architecture | Models |
+|------------|-------|--------------|--------|
+| `PPUTypes.YOLO_BASE` | 0 | Anchor-Based | YOLOv3/v4/v5/v7 |
+| `PPUTypes.YOLO_ANCHORFREE` | 1 | Anchor-Free | YOLOX, YOLOv8–v12 |
+| `PPUTypes.YOLOV8` | 2 | DFL-Based (CPU TopK) | YOLOv8–v12 |
+
+**Construction patterns** — full init or incremental builder (chainable setters):
+
+```python
+# Type 0 (anchor-based) — full init
+cfg = PPUConfig(
+    type=PPUTypes.YOLO_BASE,
+    conf_thres=0.25,
+    activation="Sigmoid",
+    num_classes=80,
+    layer={
+        "Conv_245": {"num_anchors": 3},
+        "Conv_294": {"num_anchors": 3},
+        "Conv_343": {"num_anchors": 3},
+    },
+)
+
+# Type 0 (anchor-based) — incremental builder
+cfg = (
+    PPUConfig()
+    .set_type(PPUTypes.YOLO_BASE)
+    .set_num_classes(80)
+    .set_activation("Sigmoid")
+    .set_conf_thres(0.25)
+)
+cfg.add_layer("Conv_245", num_anchors=3)
+cfg.add_layer("Conv_294", num_anchors=3)
+cfg.add_layer("Conv_343", num_anchors=3)
+
+
+# Type 1 (anchor-free) — incremental builder
+cfg = (
+    PPUConfig()
+    .set_type(PPUTypes.YOLO_ANCHORFREE)
+    .set_num_classes(80)
+    .set_conf_thres(0.25)
+)
+cfg.add_layer(bbox="Mul_441", cls_conf="Sigmoid_442")
+
+# Type 2 (DFL-based, CPU-side TopK)
+cfg = PPUConfig(type=PPUTypes.YOLOV8, num_classes=80, topk=512)
+cfg.add_layer(bbox="bbox_head_p3", cls_conf="cls_head_p3")
+cfg.add_layer(bbox="bbox_head_p4", cls_conf="cls_head_p4")
+cfg.add_layer(bbox="bbox_head_p5", cls_conf="cls_head_p5")
+```
+
+`PPUConfig` builder methods:
+
+| Method | Purpose |
+|--------|---------|
+| `set_type(PPUTypes.*)` | Set PPU type (resets `layer`) |
+| `set_num_classes(int)` | Set number of detection classes |
+| `set_conf_thres(float)` | Set confidence threshold (type 0/1) |
+| `set_activation(str)` | Set activation, e.g. `"Sigmoid"` (type 0) |
+| `set_topk(int)` | Set TopK candidate count (type 2) |
+| `add_layer(...)` | Add a detection head; signature depends on type |
+| `validate()` | Validate required fields (called by `compile()`) |
+
+!!! note "`add_layer` signature by type"
+    - **Type 0**: `add_layer("Conv_245", num_anchors=3)` — `layer` is a dict.
+    - **Type 1 / 2**: `add_layer(bbox="...", cls_conf="...")` (optional `obj_conf=`) — `layer` is a list. Call once per detection scale.
+
+See [Use Case 8: PPU Hardware Acceleration](02_08_Common_Use_Cases.md#use-case-6-ppu-hardware-acceleration-yolo) for a complete script.
+
 **`gen_log`**
 
 - **Type**: `bool`
@@ -353,6 +602,72 @@ enhanced_scheme={
 - **Type**: `bool`
 - **Default**: `False`
 - **Description**: Use float64 precision during calibration and offset calculations for cross-CPU determinism
+
+**`export_html`**
+
+- **Type**: `bool`
+- **Default**: `False`
+- **Description**: Generate a self-contained HTML summary report (`<model_name>_summary.html`) in the output directory after compilation. See [Compilation Summary Report](04_02_Compilation_Summary_Report.md) for details.
+
+**`use_q_pro`**
+
+- **Type**: `bool`
+- **Default**: `False`
+- **Description**: Enable the automatic Q-PRO quantization pipeline. DX-COM automatically selects and applies the optimal DXQ enhancement stages.
+- **Limitation**: Mutually exclusive with `enhanced_scheme`.
+- **See also**: [Automatic Q-PRO (`use_q_pro`)](02_06_Execution_of_DX-COM.md#automatic-q-pro-use_q_pro)
+
+**`quant_diagnosis`**
+
+- **Type**: `bool`
+- **Default**: `False`
+- **Description**: Generate an HTML quantization diagnosis report. Produces `{output_dir}/quant_diagnosis/{model}.qxnn` (resume checkpoint) and `{output_dir}/quant_diagnosis/diagnosis_report.html`.
+- **See also**: [Quantization Tuning Workflow](02_07_Quantization_Tuning_Workflow.md)
+
+**`checkpoint`** *(QXNN Resume)*
+
+- **Type**: `Optional[str]`
+- **Default**: `None`
+- **Description**: Path to a `.qxnn` resume artifact. When provided, selects the **QXNN resume** path, which re-runs quantization without recompiling. The `model`/`config` arguments are not required in this mode.
+- **Related parameters** (resume-only): `recalibration_method` (`"minmax"`/`"ema"`/`"iqr"`), `dataset_path`, and `enhanced_scheme`.
+
+```python
+import dx_com
+
+dx_com.compile(
+    checkpoint="output/large_model/quant_diagnosis/large_model.qxnn",
+    output_dir="output/large_model_iqr",
+    recalibration_method="iqr",   # or: use_q_pro=True
+)
+```
+**`quantization_mode`**
+
+- **Type**: `str`
+- **Default**: `"ptq"`
+- **Description**: Quantization mode. The default `"ptq"` runs Post-Training Quantization. When the config JSON contains a `qmaster` block, QAT is **auto-selected** — you do not need to pass this argument. Set to `"qat"` explicitly only when supplying `qat_config` directly in Python; doing so bypasses `qmaster` auto-detection. When set to `"qat"`, you must provide either `qat_config` (for training) or `qat_skip_training=True` (for compile-only/resume).
+- **Supported Values**: `"ptq"`, `"qat"`
+
+**`qat_config`**
+
+- **Type**: `Optional[Dict]`
+- **Default**: `None`
+- **Description**: QAT training hyperparameters. Usually supplied via the `qmaster` block in the config JSON instead of this argument.
+
+**`qat_skip_training`**
+
+- **Type**: `bool`
+- **Default**: `False`
+- **Description**: Skip the QAT training loop and run compilation only. Use together with `qat_resume_from_checkpoint`.
+
+**`qat_resume_from_checkpoint`**
+
+- **Type**: `Optional[str]`
+- **Default**: `None`
+- **Description**: Path to a saved `qat_checkpoint.qxnn` to load trained weights before compilation.
+
+!!! note "QAT Details"
+    For the full QAT workflow, the `qmaster` block, and all training hyperparameters,
+    see [Quantization-Aware Training (QAT)](02_08_Quantization_Aware_Training.md).
 
 ---
 
@@ -377,7 +692,7 @@ dx_com.compile(
 )
 ```
 
-For more detailed examples — including DataLoader usage, multi-input models, edge device optimization, and advanced quantization — see [Common Use Cases](02_07_Common_Use_Cases.md).
+For more detailed examples — including DataLoader usage, multi-input models, edge device optimization, and advanced quantization — see [Common Use Cases](02_08_Common_Use_Cases.md).
 
 ---
 
@@ -409,6 +724,7 @@ Upon successful compilation, the `output_dir` will contain:
 
 - `[model_name].dxnn`: Compiled model binary for execution on DEEPX NPU hardware
 - `compiler.log` (if `gen_log=True`): Detailed compilation logs
+- `[model_name]_summary.html` (if `--export_html` / `export_html=True`): Self-contained HTML compilation summary report
 
 ---
 

@@ -41,6 +41,32 @@ def colored_print(message, level="INFO"):
     sys.stdout.flush()
     sys.stderr.flush() # Ensure error messages are flushed
 
+
+def resolve_ca_bundle():
+    """Resolve the CA bundle to verify TLS connections against.
+
+    On an intranet behind a TLS-inspecting proxy (e.g. a corporate firewall),
+    the proxy re-signs HTTPS traffic with its own CA. ``requests`` verifies
+    against certifi's bundled CAs and does NOT consult the OS trust store, so
+    such CAs are unknown and downloads fail with CERTIFICATE_VERIFY_FAILED.
+
+    Resolution order:
+      1. REQUESTS_CA_BUNDLE / CURL_CA_BUNDLE env var (explicit override).
+      2. The OS system trust store, which is where an admin-installed
+         intranet CA lives (update-ca-certificates / update-ca-trust).
+      3. None -> requests falls back to certifi's default bundle.
+    """
+    for env_var in ("REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE"):
+        path = os.environ.get(env_var)
+        if path and os.path.exists(path):
+            return path
+    for path in ("/etc/ssl/certs/ca-certificates.crt",      # Debian / Ubuntu
+                 "/etc/pki/tls/certs/ca-bundle.crt"):        # Red Hat family
+        if os.path.exists(path):
+            return path
+    return None
+
+
 def human_readable_size(size_bytes):
     """Converts a size in bytes to a human-readable format (e.g., KB, MB, GB)."""
     if size_bytes == 0:
@@ -87,6 +113,14 @@ def download_file(download_url, save_directory, expected_version=None):
         str or None: The full path to the downloaded file if successful, None otherwise.
     """
     session = requests.Session()
+
+    # Verify TLS against the OS trust store (or an explicit env override) so
+    # downloads work behind an intranet TLS-inspecting proxy whose CA is only
+    # in the system trust store, not in certifi's bundle.
+    ca_bundle = resolve_ca_bundle()
+    if ca_bundle:
+        session.verify = ca_bundle
+        colored_print(f"INFO: Using CA bundle for TLS verification: {ca_bundle}", "INFO")
 
     # Ensure the save directory exists
     try:

@@ -38,10 +38,15 @@ For detailed installation instructions using the automated installation script, 
 
 **Supported Systems**
 
-| **Operating System** | **Versions** | **Architecture** |
-| :--- | :--- | :--- |
-| Ubuntu | 20.04, 22.04, 24.04 | x86_64 (amd64), ARM64 (aarch64) |
-| Debian | 11, 12, 13 | x86_64 (amd64), ARM64 (aarch64) |
+| **Operating System** | **Versions** | **Architecture** | **Supported Mode** |
+| :--- | :--- | :--- | :--- |
+| Ubuntu | 20.04, 22.04, 24.04, 26.04 | x86_64 (amd64), ARM64 (aarch64) | CLI/Desktop + Web |
+| Debian | 11, 12, 13 | x86_64 (amd64), ARM64 (aarch64) | CLI/Desktop + Web |
+| Fedora | 42, 43, 44, 45 | x86_64 (amd64), ARM64 (aarch64) | Web only |
+| RHEL | 9, 10 | x86_64 (amd64), ARM64 (aarch64) | Web only |
+| CentOS | 9, 10 | x86_64 (amd64), ARM64 (aarch64) | Web only |
+
+> **Note:** On the Red Hat family (Fedora / RHEL / CentOS), only the DX-TRON web variant is installed. The `dxtron` CLI/desktop (AppImage) binary is supported on the Debian/Ubuntu family only. Launch the web server with `./run_dxtron_web.sh --port=8080`.
 
 DX-TRON can be installed using one of the following methods:
 

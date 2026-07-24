@@ -36,7 +36,7 @@ The following ONNX operators are supported by the compiler.
 | Constant | Only numeric constants are supported |
 | ConstantOfShape | No restrictions |
 | Conv | **Common constraints:** <br> - `dilations` < 64 <br> - `pads` < 64 <br> - `strides` < 16 <br> **Standard Conv:** <br> - `kernel_shape` < 16 <br> **Depth-wise Conv:** <br> - `kernel_shape` ∈ {[3, 3], [5, 5]} <br> - Only constant weights are supported |
-| ConvTranspose | - `dilations` = [1, 1] <br> - `output_padding` = [0, 0] <br> - `pads` ≤ 14 <br> - `strides` ∈ [2, 8] <br> - `kernel_shape` < 16 <br> - `group` = 1 |
+| ConvTranspose | - `dilations` = [1, 1] <br> - `output_padding` = [0, 0] <br> - `pads` ≤ 14 <br> - `strides` ∈ [2, 8] and symmetric (`strides[0]` = `strides[1]`) <br> - `kernel_shape` < 16 <br> - `group` = 1 |
 | Div | Supported as: <br> - Constant scalar division <br> - Input normalization <br> - Part of `Softmax` <br> - Part of `LayerNorm` |
 | Dropout | Removed during inference |
 | Erf | Only supported as part of `GELU` |
@@ -67,12 +67,15 @@ The following ONNX operators are supported by the compiler.
 
 | **Operator** | **Supported Conditions** |
 | :--- | :--- |
+| Elu | No restrictions |
+| Gelu | No restrictions |
 | HardSwish | No restrictions |
 | HardSigmoid | No restrictions |
 | LeakyRelu | No restrictions |
 | Mish | No restrictions |
-| PRelu | No restrictions |
+| PRelu | No restrictions on functionality. **Known issue (v2.4.0):** models using `PRelu` as an activation function exhibit significant FPS degradation on the NPU runtime. Use `LeakyRelu` or `Relu` where possible until this is resolved in a future release. See [Change Log](Appendix_Change_Log.md#known-issues) for details. |
 | Relu | No restrictions |
+| Selu | No restrictions |
 | Sigmoid | No restrictions |
 | Silu (Swish) | No restrictions |
 | Softplus | No restrictions |

@@ -21,13 +21,14 @@ USE_FORCE=1
 REUSE_VENV=0
 FORCE_REMOVE_VENV=1
 VENV_SYSTEM_SITE_PACKAGES_ARGS=""
+USE_PYPI=1
 
 # Global variables for script configuration
 PYTHON_VERSION=""
 MIN_PY_VERSION="3.8.0"
 # Python version compatibility settings
 # Supported Python versions list (space-separated)
-SUPPORTED_PYTHON_VERSIONS="3.8 3.9 3.10 3.11 3.12"
+SUPPORTED_PYTHON_VERSIONS="3.8 3.9 3.10 3.11 3.12 3.13 3.14"
 # VENV_PATH and VENV_SYMLINK_TARGET_PATH will be set dynamically in install_python_and_venv()
 VENV_PATH=""
 VENV_SYMLINK_TARGET_PATH=""
@@ -39,13 +40,14 @@ TARGET_PKG="all"
 # Installation status flags
 DX_COM_INSTALLED=0
 DX_TRON_INSTALLED=0
+DX_TRON_WEB_ONLY=0
 
 # Properties file path
 VERSION_FILE="$PROJECT_ROOT/compiler.properties"
 
-# Read 'COM_VERSION', 'COM_DOWNLOAD_URL' from properties file
+# Read version properties from file
 if [[ -f "$VERSION_FILE" ]]; then
-    print_colored "Loading versions and download URLs from '$VERSION_FILE'..." "INFO"
+    print_colored "Loading version properties from '$VERSION_FILE'..." "INFO"
     source "$VERSION_FILE"
 else
     print_colored "Version file '$VERSION_FILE' not found." "ERROR"
@@ -121,20 +123,6 @@ validate_environment() {
     # Check COM_VERSION
     if [ -z "$COM_VERSION" ]; then
         print_colored "COM_VERSION not defined in '$VERSION_FILE'." "ERROR"
-        popd >&2
-        exit 1
-    fi
-
-    # Check that all COM_CPXX_DOWNLOAD_URLs are defined
-    local MISSING_URLS=""
-    for py_ver in 38 39 310 311 312; do
-        local url_var="COM_CP${py_ver}_DOWNLOAD_URL"
-        if [ -z "${!url_var}" ]; then
-            MISSING_URLS+=" COM_CP${py_ver}_DOWNLOAD_URL"
-        fi
-    done
-    if [ -n "$MISSING_URLS" ]; then
-        print_colored "Missing COM_CPXX_DOWNLOAD_URL(s) in '$VERSION_FILE':${MISSING_URLS}" "ERROR"
         popd >&2
         exit 1
     fi
@@ -243,16 +231,193 @@ install_python_and_venv() {
     print_colored "[OK] Completed to Install Python and Create Virtual environment." "INFO"
 }
 
+# Installs the OS default Python 3 using the system package manager
+# (apt for Debian/Ubuntu, dnf for the Red Hat family). No specific version is
+# requested, so whatever python3 the OS ships with is installed.
+install_os_default_python3() {
+    local OS_ID=""
+    local OS_VERSION_ID=""
+    if [ -f /etc/os-release ]; then
+        OS_ID=$(grep "^ID=" /etc/os-release | sed 's/^ID=//' | tr -d '"')
+        OS_VERSION_ID=$(grep "^VERSION_ID=" /etc/os-release | sed 's/^VERSION_ID=//' | tr -d '"')
+    fi
+
+    print_colored "Installing the OS default Python 3..." "INFO"
+
+    # Normalize ID_LIKE derivatives (e.g. Oracle Linux ID=ol, ID_LIKE="rhel
+    # fedora") to a supported family, matching os_check()/install_prerequisites.sh;
+    # otherwise they pass os_arch_check but fall through to the unsupported '*)'
+    # branch here.
+    case "$OS_ID" in
+        ubuntu|debian|fedora|rhel|centos)
+            ;;
+        *)
+            if grep -qE 'ID_LIKE=.*(rhel|fedora|centos)' /etc/os-release 2>/dev/null; then
+                OS_ID="rhel"
+            elif grep -qE 'ID_LIKE=.*(debian|ubuntu)' /etc/os-release 2>/dev/null; then
+                OS_ID="debian"
+            fi
+            ;;
+    esac
+
+    case "$OS_ID" in
+        ubuntu|debian)
+            sudo apt-get update
+            sudo env DEBIAN_FRONTEND=noninteractive apt-get install -y tzdata
+            sudo apt-get install -y python3 python3-venv python3-dev
+            ;;
+        fedora|rhel|centos)
+            # On Fedora, check whether the default python3 package maps to an
+            # unsupported version before installing it.  Fedora 45 ships
+            # python3.15 as its default, which is not yet in SUPPORTED_PYTHON_VERSIONS.
+            # In that case, emit an INFO notice and install the latest supported
+            # Python version instead so the rest of the install can proceed.
+            local DEFAULT_FEDORA_PY_VER=""
+            if [ "$OS_ID" = "fedora" ]; then
+                # Resolve the version that 'python3' would pull in without installing.
+                DEFAULT_FEDORA_PY_VER=$(dnf repoquery --quiet --qf '%{version}' python3 2>/dev/null \
+                    | grep -E '^[0-9]+\.[0-9]+' | sort -V | tail -1)
+                # Strip patch component if present (e.g. "3.15.0" -> "3.15").
+                DEFAULT_FEDORA_PY_VER="${DEFAULT_FEDORA_PY_VER%.*}"
+            fi
+
+            local IS_DEFAULT_SUPPORTED=false
+            if [ -n "$DEFAULT_FEDORA_PY_VER" ]; then
+                for _sv in $SUPPORTED_PYTHON_VERSIONS; do
+                    if [ "$DEFAULT_FEDORA_PY_VER" = "$_sv" ]; then
+                        IS_DEFAULT_SUPPORTED=true
+                        break
+                    fi
+                done
+            else
+                # Could not probe: assume it's fine and let the post-install
+                # version check below catch any mismatch.
+                IS_DEFAULT_SUPPORTED=true
+            fi
+
+            if [ "$IS_DEFAULT_SUPPORTED" = false ]; then
+                # Determine the latest entry in SUPPORTED_PYTHON_VERSIONS.
+                local LATEST_SUPPORTED_PY=""
+                for _sv in $SUPPORTED_PYTHON_VERSIONS; do
+                    LATEST_SUPPORTED_PY="$_sv"
+                done
+                print_colored "Fedora ${OS_VERSION_ID:-} OS Default python3 version is ${DEFAULT_FEDORA_PY_VER} which is not supported. Installing python${LATEST_SUPPORTED_PY}." "INFO"
+                PYTHON_VERSION="$LATEST_SUPPORTED_PY"
+                # Return early: install_python_and_venv() will handle the
+                # actual installation of the chosen version via its normal path.
+                echo -e "=== install_os_default_python3() redirected to python${LATEST_SUPPORTED_PY} ==="
+                return 0
+            fi
+
+            sudo dnf install -y python3 python3-devel
+            ;;
+        *)
+            print_colored "Unsupported OS '${OS_ID}' for automatic Python installation. Please install Python 3 manually." "ERROR"
+            popd >&2
+            exit 1
+            ;;
+    esac
+
+    if ! command -v python3 >/dev/null 2>&1; then
+        print_colored "Failed to install the OS default Python 3. Exiting." "ERROR"
+        popd >&2
+        exit 1
+    fi
+
+    local INSTALLED_PY_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null)
+    print_colored "[OK] Installed OS default Python ${INSTALLED_PY_VERSION}." "INFO"
+}
+
 check_python_version_compatibility() {
     echo -e "=== check_python_version_compatibility() ${TAG_START} ==="
+
+    # In container mode --docker_volume_path is required. Validate up front so we
+    # fail fast before the Python install prompt below. install_python_and_venv()
+    # re-validates for the dx_tron path which skips this function.
+    if check_container_mode && [ -z "$DOCKER_VOLUME_PATH" ]; then
+        show_help "error" "--docker_volume_path must be provided in container mode."
+        exit 1
+    fi
 
     # Get current Python version
     local CURRENT_PY_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>/dev/null)
 
     if [ -z "$CURRENT_PY_VERSION" ]; then
-        print_colored "ERROR: Failed to detect Python version." "ERROR"
-        popd >&2
-        exit 1
+        local SUPPORTED_VERSIONS=$(echo "$SUPPORTED_PYTHON_VERSIONS" | sed 's/ /, /g')
+        echo ""
+        print_colored_v2 "WARNING" "===================================================================="
+        print_colored_v2 "WARNING" "  Python 3 is not installed or could not be detected."
+        print_colored_v2 "WARNING" "  Supported Python versions: ${SUPPORTED_VERSIONS}"
+        print_colored_v2 "WARNING" "===================================================================="
+        echo ""
+
+        # If a Python version was explicitly requested via --python_version, skip
+        # the interactive prompts entirely and let install_python_and_venv.sh
+        # install the requested version.
+        if [ -n "$PYTHON_VERSION" ]; then
+            print_colored "Installing user-specified Python ${PYTHON_VERSION} (interactive prompts skipped)." "INFO"
+            echo -e "=== check_python_version_compatibility() ${TAG_DONE} ==="
+            return 0
+        fi
+
+        # Prompt 1: whether to install Python 3 at all.
+        print_colored "Do you want to install Python 3? (y/n)" "WARNING"
+        print_colored "(Will proceed with installation on the OS default Python 3 in 10 seconds if no response)" "WARNING"
+
+        local USER_RESPONSE=""
+        if read -t 10 -r USER_RESPONSE; then
+            # An empty response (bare Enter) means "use the default", matching the
+            # prompt's promise to proceed on the OS default Python 3. Only an
+            # explicit non-yes answer (e.g. n) aborts.
+            if [ -n "$USER_RESPONSE" ] && [[ ! "$USER_RESPONSE" =~ ^[Yy]$ ]]; then
+                print_colored "Installation aborted by user." "ERROR"
+                popd >&2
+                exit 1
+            fi
+
+            # Prompt 2: which Python version to install.
+            echo ""
+            print_colored "Please enter the Python version you want to install (e.g., 3.11, 3.12):" "INFO"
+            print_colored "Supported versions: ${SUPPORTED_VERSIONS}" "INFO"
+            print_colored "(Will proceed with installation on the OS default Python 3 in 10 seconds if no response)" "WARNING"
+
+            local CHOSEN_PY_VERSION=""
+            if read -t 10 -r CHOSEN_PY_VERSION && [ -n "$CHOSEN_PY_VERSION" ]; then
+                # Reject versions that are not in the supported list.
+                local CHOSEN_IS_SUPPORTED=false
+                for supported_ver in $SUPPORTED_PYTHON_VERSIONS; do
+                    if [ "$CHOSEN_PY_VERSION" = "$supported_ver" ]; then
+                        CHOSEN_IS_SUPPORTED=true
+                        break
+                    fi
+                done
+                if [ "$CHOSEN_IS_SUPPORTED" = false ]; then
+                    echo ""
+                    print_colored_v2 "ERROR" "===================================================================="
+                    print_colored_v2 "ERROR" "  Unsupported Python version entered: ${CHOSEN_PY_VERSION}"
+                    print_colored_v2 "ERROR" "  Supported Python versions: ${SUPPORTED_VERSIONS}"
+                    print_colored_v2 "ERROR" "  Aborting installation."
+                    print_colored_v2 "ERROR" "===================================================================="
+                    echo ""
+                    popd >&2
+                    exit 1
+                fi
+                PYTHON_VERSION="$CHOSEN_PY_VERSION"
+                print_colored "Will install user-selected Python ${PYTHON_VERSION}." "INFO"
+                echo -e "=== check_python_version_compatibility() ${TAG_DONE} ==="
+                return 0
+            fi
+
+            echo ""
+            print_colored "No version entered. Proceeding with the OS default Python 3." "INFO"
+        else
+            echo ""
+            print_colored "No response received within 10 seconds. Proceeding with the OS default Python 3." "INFO"
+        fi
+
+        install_os_default_python3
+        echo -e "=== check_python_version_compatibility() ${TAG_DONE} ==="
+        return 0
     fi
 
     print_colored "Detected Python version: ${CURRENT_PY_VERSION}" "INFO"
@@ -272,62 +437,63 @@ check_python_version_compatibility() {
         return 0
     fi
 
-    # Version is not compatible
-    # Format supported versions list for display
+    # Detected version is not in the supported list.
     local SUPPORTED_VERSIONS=$(echo "$SUPPORTED_PYTHON_VERSIONS" | sed 's/ /, /g')
 
-    echo ""
-    print_colored_v2 "WARNING" "===================================================================="
-    print_colored_v2 "WARNING" "  Python version compatibility check failed!"
-    print_colored_v2 "WARNING" "  Detected Python version: ${CURRENT_PY_VERSION}"
-    print_colored_v2 "WARNING" "  Supported Python versions: ${SUPPORTED_VERSIONS}"
-    print_colored_v2 "WARNING" "===================================================================="
-    echo ""
+    # Enforce the lower bound (MIN_PY_VERSION). The upper bound of the supported
+    # list is relaxed (newer-than-supported versions only warn and continue), but
+    # versions older than MIN_PY_VERSION are not usable and must abort here to
+    # avoid opaque failures in later dx-com install/runtime steps.
+    local MIN_PY_MAJOR="${MIN_PY_VERSION%%.*}"
+    local MIN_PY_MINOR=$(echo "$MIN_PY_VERSION" | cut -d. -f2)
+    local CUR_PY_MAJOR="${CURRENT_PY_VERSION%%.*}"
+    local CUR_PY_MINOR=$(echo "$CURRENT_PY_VERSION" | cut -d. -f2)
 
-    # Prompt with timeout
-    print_colored "Do you want to continue and install a compatible Python version? (y/n)" "WARNING"
-    print_colored "(Will abort in 10 seconds if no response)" "WARNING"
-
-    local USER_RESPONSE=""
-    if read -t 10 -r USER_RESPONSE; then
-        if [[ ! "$USER_RESPONSE" =~ ^[Yy]$ ]]; then
-            print_colored "Installation aborted by user." "ERROR"
-            popd >&2
-            exit 1
-        fi
-    else
+    if [ "$CUR_PY_MAJOR" -lt "$MIN_PY_MAJOR" ] || { [ "$CUR_PY_MAJOR" -eq "$MIN_PY_MAJOR" ] && [ "$CUR_PY_MINOR" -lt "$MIN_PY_MINOR" ]; }; then
         echo ""
-        print_colored "No response received within 10 seconds. Aborting installation." "ERROR"
+        print_colored_v2 "ERROR" "===================================================================="
+        print_colored_v2 "ERROR" "  Python version compatibility check failed!"
+        print_colored_v2 "ERROR" "  Detected Python version: ${CURRENT_PY_VERSION}"
+        print_colored_v2 "ERROR" "  Minimum required Python version: ${MIN_PY_VERSION}"
+        print_colored_v2 "ERROR" "  Supported Python versions: ${SUPPORTED_VERSIONS}"
+        print_colored_v2 "ERROR" "  Aborting: the detected Python version is too old to continue."
+        print_colored_v2 "ERROR" "===================================================================="
+        echo ""
         popd >&2
         exit 1
     fi
 
-    # Ask for Python version to install
-    echo ""
-    print_colored "Please enter the Python version you want to install (e.g., 3.11, 3.12):" "INFO"
-    print_colored "Supported versions: ${SUPPORTED_VERSIONS}" "INFO"
-
-    local NEW_PY_VERSION=""
-    read -r -p "Python version: " NEW_PY_VERSION
-
-    # Validate input - check if version is in supported list
-    local VERSION_FOUND=0
-    for supported_ver in $SUPPORTED_PYTHON_VERSIONS; do
-        if [ "$NEW_PY_VERSION" = "$supported_ver" ]; then
-            VERSION_FOUND=1
-            break
-        fi
-    done
-
-    if [ $VERSION_FOUND -eq 0 ]; then
-        print_colored "ERROR: Invalid Python version '${NEW_PY_VERSION}'. Supported versions: ${SUPPORTED_VERSIONS}" "ERROR"
-        popd >&2
-        exit 1
+    # Version is at or above the minimum but not in the supported list (e.g.
+    # python3.15 on Fedora 45). If no explicit --python_version was given, redirect
+    # to the latest supported version so the installer does not silently use an
+    # untested interpreter.  When the user has explicitly pinned a version via
+    # --python_version we honour that choice and only warn.
+    if [ -n "$PYTHON_VERSION" ]; then
+        # Explicit user request: warn but respect it.
+        echo ""
+        print_colored_v2 "WARNING" "===================================================================="
+        print_colored_v2 "WARNING" "  Detected Python version is newer than the supported list."
+        print_colored_v2 "WARNING" "  Detected Python version: ${CURRENT_PY_VERSION}"
+        print_colored_v2 "WARNING" "  Supported Python versions: ${SUPPORTED_VERSIONS}"
+        print_colored_v2 "WARNING" "  Proceeding with user-specified Python ${PYTHON_VERSION}."
+        print_colored_v2 "WARNING" "===================================================================="
+        echo ""
+    else
+        # No explicit request: redirect to the latest supported version.
+        local LATEST_SUPPORTED_PY=""
+        for _sv in $SUPPORTED_PYTHON_VERSIONS; do
+            LATEST_SUPPORTED_PY="$_sv"
+        done
+        echo ""
+        print_colored_v2 "WARNING" "===================================================================="
+        print_colored_v2 "WARNING" "  Detected Python version is newer than the supported list."
+        print_colored_v2 "WARNING" "  Detected Python version: ${CURRENT_PY_VERSION}"
+        print_colored_v2 "WARNING" "  Supported Python versions: ${SUPPORTED_VERSIONS}"
+        print_colored_v2 "WARNING" "  Redirecting to Python ${LATEST_SUPPORTED_PY} (latest supported)."
+        print_colored_v2 "WARNING" "===================================================================="
+        echo ""
+        PYTHON_VERSION="$LATEST_SUPPORTED_PY"
     fi
-
-    # Update PYTHON_VERSION and reinstall Python environment
-    PYTHON_VERSION="$NEW_PY_VERSION"
-    print_colored "Will install Python ${PYTHON_VERSION}..." "INFO"
 
     echo -e "=== check_python_version_compatibility() ${TAG_DONE} ==="
 }
@@ -449,12 +615,23 @@ show_installation_complete_message() {
         fi
 
         if [ $DX_TRON_INSTALLED -eq 1 ]; then
-            print_colored_v2 "HINT" "  To run dxtron (no virtual environment required):"
-            print_colored_v2 "HINT" "    $ dxtron"
-            print_colored_v2 "HINT" ""
-            print_colored_v2 "HINT" "  Or use the convenience script to start the web server:"
-            print_colored_v2 "HINT" "    $ ./run_dxtron_web.sh --port=8080"
-            print_colored_v2 "HINT" ""
+            if [ $DX_TRON_WEB_ONLY -eq 1 ]; then
+                print_colored_v2 "HINT" "  dxtron (CLI/desktop) is supported only on Debian/Ubuntu family."
+                print_colored_v2 "HINT" "  On Red Hat family (Fedora/RHEL/CentOS), only the web variant is installed."
+                print_colored_v2 "HINT" ""
+                print_colored_v2 "HINT" "  To start the dxtron web server:"
+                print_colored_v2 "HINT" "    $ ./run_dxtron_web.sh --port=8080"
+                print_colored_v2 "HINT" ""
+            else
+                print_colored_v2 "HINT" "  To run dxtron (no virtual environment required):"
+                print_colored_v2 "HINT" "    $ dxtron"
+                print_colored_v2 "HINT" ""
+                print_colored_v2 "HINT" "  Or use the convenience script to start the web server:"
+                print_colored_v2 "HINT" "    $ ./run_dxtron_web.sh --port=8080"
+                print_colored_v2 "HINT" ""
+                print_colored_v2 "HINT" "  Note: the 'dxtron' CLI/desktop binary is supported only on Debian/Ubuntu family."
+                print_colored_v2 "HINT" ""
+            fi
         fi
 
         print_colored_v2 "HINT" "===================================================================="
@@ -465,142 +642,116 @@ show_installation_complete_message() {
 install_dx_com() {
     echo -e "=== install_dx_com() ${TAG_START} ==="
 
-    # Check if archive mode is enabled
-    if [ "$ARCHIVE_MODE" = "y" ]; then
-        print_colored "ARCHIVE_MODE is ON." "INFO"
-        ARCHIVE_MODE_ARGS="--archive_mode=y" # Pass this to install_module.sh
-    fi
+    local DX_AS_PATH
+    DX_AS_PATH=$(realpath -s "${PROJECT_ROOT}/..")
 
-    # Select download URL based on Python version
-    local SELECTED_COM_URL=""
+    # Detect Python version tag for onnxruntime workaround
     local PYTHON_VERSION_TAG=""
     if [ -n "$PYTHON_VERSION" ]; then
-        # Use user-specified Python version
         PYTHON_VERSION_TAG="cp${PYTHON_VERSION//./}"
-        print_colored "Using user-specified Python version: ${PYTHON_VERSION} (${PYTHON_VERSION_TAG})" "INFO"
     else
-        # Detect current Python version
         PYTHON_VERSION_TAG=$(python3 -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')" 2>/dev/null)
         if [ -z "$PYTHON_VERSION_TAG" ]; then
-            print_colored "ERROR: Failed to detect Python version." "ERROR"
+            print_colored "Failed to detect Python version." "ERROR"
             popd >&2
             exit 1
         fi
+    fi
+    if [ -n "$PYTHON_VERSION" ]; then
+        print_colored "Using user-specified Python version tag: ${PYTHON_VERSION_TAG}" "INFO"
+    else
         print_colored "Detected Python version tag: ${PYTHON_VERSION_TAG}" "INFO"
     fi
 
-    # Select URL based on Python version
-    local VERSION_URL_VAR="COM_${PYTHON_VERSION_TAG^^}_DOWNLOAD_URL"
-    local VERSION_SPECIFIC_URL="${!VERSION_URL_VAR}"
-
-    if [ -n "$VERSION_SPECIFIC_URL" ]; then
-        SELECTED_COM_URL="$VERSION_SPECIFIC_URL"
-        print_colored "Using Python ${PYTHON_VERSION_TAG} specific wheel download URL: $SELECTED_COM_URL" "INFO"
-    else
-        print_colored "ERROR: No download URL found for Python ${PYTHON_VERSION_TAG}." "ERROR"
-        print_colored "Please ensure ${VERSION_URL_VAR} is defined in compiler.properties." "ERROR"
-        popd >&2
-        exit 1
-    fi
-
-    # Install dx-com
-    print_colored "Installing dx-com (Version: $COM_VERSION)..." "INFO"
-    # Pass all relevant args to install_module.sh
-    INSTALL_COM_CMD="$PROJECT_ROOT/scripts/install_module.sh --module_name=dx_com --version=$COM_VERSION --download_url=$SELECTED_COM_URL $ARCHIVE_MODE_ARGS $FORCE_ARGS $VERBOSE_ARGS"
-    print_colored "Executing: $INSTALL_COM_CMD" "DEBUG" # Debug line
-    # Use direct execution to properly pass environment variables with real-time output
-    COM_OUTPUT_FILE=$(mktemp)
-    eval "$INSTALL_COM_CMD" 2>&1 | tee "$COM_OUTPUT_FILE"
-    COM_INSTALL_EXIT_CODE=${PIPESTATUS[0]}
-    COM_OUTPUT=$(cat "$COM_OUTPUT_FILE")
-    rm -f "$COM_OUTPUT_FILE"
-    if [ $COM_INSTALL_EXIT_CODE -ne 0 ]; then
-        print_colored "Installing dx-com failed!" "ERROR"
-        popd >&2
-        exit 1
-    fi
-
-    # Extract archived file path from output if in archive mode
+    # Archive mode: download wheel to DX_AS_PATH/archives without installing
     if [ "$ARCHIVE_MODE" = "y" ]; then
-        ARCHIVED_COM_FILE=$(echo "$COM_OUTPUT" | grep "^ARCHIVED_FILE_PATH=" | tail -1 | cut -d'=' -f2)
+        local ARCHIVE_DIR="${DX_AS_PATH}/archives"
+        mkdir -p "$ARCHIVE_DIR"
+        print_colored "ARCHIVE_MODE is ON. Downloading dx-com to ${ARCHIVE_DIR}..." "INFO"
+
+        local PIP_DOWNLOAD_ARGS=(
+            "--dest" "$ARCHIVE_DIR"
+            "--no-deps"
+            "--only-binary=:all:"
+            "--python-version" "${PYTHON_VERSION_TAG#cp}"
+        )
+
+        local ARCHIVED_COM_FILE
+        if [ "$USE_PYPI" -eq 1 ]; then
+            # PyPI: download the latest dx-com (no version pin).
+            pip download "${PIP_DOWNLOAD_ARGS[@]}" "dx-com" || { print_colored "Failed to download dx-com for archiving." "ERROR"; popd >&2; exit 1; }
+            # Match the Python tag: archives/ may hold stale wheels for other
+            # Python versions from prior runs, and picking the wrong tag bakes a
+            # mismatched wheel into the image (forcing an in-container Python rebuild).
+            ARCHIVED_COM_FILE=$(find "$ARCHIVE_DIR" -name "dx_com-*-${PYTHON_VERSION_TAG}-*.whl" -type f | head -1)
+        else
+            local COM_FIND_LINKS="https://sdk.deepx.ai/release/dxcom/v${COM_VERSION}/index.html"
+            # DEEPX release index: pin the exact version from compiler.properties.
+            # --no-index disables PyPI so that only the DEEPX find-links source is used.
+            # Safe here because PIP_DOWNLOAD_ARGS includes --no-deps (no transitive deps to resolve).
+            pip download "${PIP_DOWNLOAD_ARGS[@]}" "dx-com==${COM_VERSION}" --no-index -f "$COM_FIND_LINKS" || { print_colored "Failed to download dx-com for archiving." "ERROR"; popd >&2; exit 1; }
+            # Pin both version and Python tag: archives/ may hold stale wheels for
+            # other Python versions from prior runs, and picking the wrong tag bakes
+            # a mismatched wheel into the image (forcing an in-container Python rebuild).
+            ARCHIVED_COM_FILE=$(find "$ARCHIVE_DIR" -name "dx_com-${COM_VERSION}-${PYTHON_VERSION_TAG}-*.whl" -type f | head -1)
+        fi
         if [ -n "$ARCHIVED_COM_FILE" ] && [ -n "$ARCHIVE_OUTPUT_FILE" ]; then
             echo "ARCHIVED_COM_FILE=${ARCHIVED_COM_FILE}" >> "$ARCHIVE_OUTPUT_FILE"
         fi
+        print_colored "dx-com archived: ${ARCHIVED_COM_FILE}" "INFO"
+        if [ -z "$ARCHIVED_COM_FILE" ]; then
+            print_colored "Warning: Downloaded wheel not found in ${ARCHIVE_DIR}. Archive registration skipped." "WARNING"
+        fi
+
+        echo -e "=== install_dx_com() ${TAG_DONE} ==="
+        DX_COM_INSTALLED=1
+        return
     fi
 
-    # --- Wheel Installation (dx_com only) ---
-    if [ "$ARCHIVE_MODE" != "y" ]; then
-        print_colored "INFO: Checking for wheel package installation..." "INFO"
-
-        # Determine the dx_com directory (OUTPUT_DIR equivalent)
-        local DX_COM_DIR="${PROJECT_ROOT}/dx_com"
-
-        # Get current Python version tag (e.g., cp312, cp311)
-        local PYTHON_VERSION_TAG=$(python3 -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')" 2>/dev/null)
-        if [ -z "$PYTHON_VERSION_TAG" ]; then
-            print_colored "ERROR: Failed to detect Python version." "ERROR"
-            popd >&2
-            exit 1
-        fi
-        print_colored "INFO: Detected Python version tag: ${PYTHON_VERSION_TAG}" "INFO"
-
-        # Scan for .whl files matching the current Python version
-        local MATCHING_WHEEL=""
-        local ALL_WHEEL_FILES=()
-
-        # Collect all wheel files
-        for whl_file in "${DX_COM_DIR}"/*.whl; do
-            if [ -e "$whl_file" ]; then
-                ALL_WHEEL_FILES+=("$whl_file")
-                # Check if this wheel matches the current Python version
-                if [[ "$(basename "$whl_file")" == *"-${PYTHON_VERSION_TAG}-"* ]]; then
-                    MATCHING_WHEEL="$whl_file"
-                fi
-            fi
-        done
-
-        # Check if any wheel files exist
-        if [ ${#ALL_WHEEL_FILES[@]} -eq 0 ]; then
-            print_colored "ERROR: No wheel file found in '${DX_COM_DIR}'." "ERROR"
-            popd >&2
-            exit 1
-        fi
-
-        # Check if a matching wheel was found
-        if [ -z "$MATCHING_WHEEL" ]; then
-            print_colored "ERROR: No wheel file compatible with Python ${PYTHON_VERSION_TAG} found in '${DX_COM_DIR}'." "ERROR"
-            print_colored "Available wheel files:" "ERROR"
-            for whl in "${ALL_WHEEL_FILES[@]}"; do
-                print_colored "  - $(basename "$whl")" "ERROR"
-            done
-            print_colored "Please ensure a wheel file for ${PYTHON_VERSION_TAG} is available." "ERROR"
-            popd >&2
-            exit 1
-        fi
-
-        # Install the matching wheel
-        print_colored "INFO: Found compatible wheel file: $(basename "$MATCHING_WHEEL")" "INFO"
-
-        # For Python 3.8, manually install onnxruntime 1.18.0 from direct URL (PyPI doesn't support it)
-        # Note: pip upgrade is required to recognize manylinux_2_27/manylinux_2_28 platform tags
-        if [ "${PYTHON_VERSION_TAG}" = "cp38" ]; then
-            print_colored "INFO: Python 3.8 detected: Upgrading pip and installing onnxruntime 1.18.0 from direct URL..." "INFO"
-            pip3 install --upgrade pip
-            if pip3 install https://files.pythonhosted.org/packages/1b/74/02cb1f6fcbadc094c98c49aff8571e7c576bdb4015c01507c385285b5bed/onnxruntime-1.18.0-cp38-cp38-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl; then
-                print_colored "INFO: onnxruntime 1.18.0 installed successfully for Python 3.8!" "INFO"
-            else
-                print_colored "ERROR: Failed to install onnxruntime 1.18.0 for Python 3.8." "ERROR"
-                popd >&2
-                exit 1
-            fi
-        fi
-
-        print_colored "INFO: Installing wheel package with pip..." "INFO"
-
-        if pip3 install "$MATCHING_WHEEL"; then
-            print_colored "INFO: Wheel package installed successfully!" "INFO"
+    # For Python 3.8, manually install onnxruntime 1.18.0 from direct URL (PyPI doesn't support it)
+    if [ "${PYTHON_VERSION_TAG}" = "cp38" ]; then
+        print_colored "Python 3.8 detected: Upgrading pip and installing onnxruntime 1.18.0 from direct URL..." "INFO"
+        pip install --upgrade pip || print_colored "Warning: Failed to upgrade pip. Continuing..." "WARNING"
+        if pip install https://files.pythonhosted.org/packages/1b/74/02cb1f6fcbadc094c98c49aff8571e7c576bdb4015c01507c385285b5bed/onnxruntime-1.18.0-cp38-cp38-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl; then
+            print_colored "onnxruntime 1.18.0 installed successfully for Python 3.8!" "INFO"
         else
-            print_colored "ERROR: Failed to install wheel package '$(basename "$MATCHING_WHEEL")'." "ERROR"
+            print_colored "Failed to install onnxruntime 1.18.0 for Python 3.8." "ERROR"
+            popd >&2
+            exit 1
+        fi
+    fi
+
+    # Install dx-com via pip
+    if [ "$USE_PYPI" -eq 1 ]; then
+        # PyPI path installs the latest published dx-com (no version pin), so
+        # COM_VERSION from compiler.properties does not apply here.
+        print_colored "Installing dx-com (latest from PyPI)..." "INFO"
+    else
+        print_colored "Installing dx-com (Version: $COM_VERSION)..." "INFO"
+    fi
+
+    # If force mode is enabled, uninstall existing dx-com first
+    if [ -n "$FORCE_ARGS" ]; then
+        print_colored "Force mode: uninstalling existing dx-com before reinstall..." "INFO"
+        pip uninstall -y dx-com 2>/dev/null || true
+    fi
+
+    if [ "$USE_PYPI" -eq 1 ]; then
+        print_colored "Installing dx-com from PyPI..." "INFO"
+        if pip install "dx-com"; then
+            print_colored "dx-com installed successfully from PyPI!" "INFO"
+        else
+            print_colored "Failed to install dx-com from PyPI." "ERROR"
+            popd >&2
+            exit 1
+        fi
+    else
+        local COM_FIND_LINKS="https://sdk.deepx.ai/release/dxcom/v${COM_VERSION}/index.html"
+        print_colored "Installing dx-com from ${COM_FIND_LINKS}..." "INFO"
+        if pip install "dx-com==${COM_VERSION}" -f "$COM_FIND_LINKS"; then
+            print_colored "dx-com installed successfully!" "INFO"
+        else
+            print_colored "Failed to install dx-com." "ERROR"
             popd >&2
             exit 1
         fi
@@ -646,42 +797,93 @@ install_dx_tron() {
         fi
     fi
 
-    # --- DEB Package Installation (Non-archive mode only) ---
+    # --- Package Installation (Non-archive mode only) ---
     if [ "$ARCHIVE_MODE" != "y" ]; then
         local DX_TRON_DIR="${PROJECT_ROOT}/dx_tron"
         
-        # Detect architecture and select appropriate deb file
-        local ARCH=$(dpkg --print-architecture 2>/dev/null || uname -m)
-        case "$ARCH" in
-            amd64|x86_64) ARCH="amd64" ;;
-            arm64|aarch64) ARCH="arm64" ;;
+        # Detect OS family to determine package format
+        local INSTALL_OS_ID=""
+        local INSTALL_OS_FAMILY="debian"  # default: Debian/Ubuntu DEB path
+        if [ -f /etc/os-release ]; then
+            INSTALL_OS_ID=$(grep "^ID=" /etc/os-release | sed 's/^ID=//' | tr -d '"')
+        fi
+        # Resolve OS family: prefer exact ID match, then fall back to ID_LIKE so
+        # that RHEL-family derivatives detected via os_check Pass 2 (e.g. Oracle
+        # Linux ID=ol, ID_LIKE=fedora) land in the redhat branch instead of the
+        # default DEB path.
+        case "$INSTALL_OS_ID" in
+            fedora|rhel|centos)
+                INSTALL_OS_FAMILY="redhat"
+                ;;
+            *)
+                if grep -qE 'ID_LIKE=.*(fedora|rhel|centos)' /etc/os-release 2>/dev/null; then
+                    INSTALL_OS_FAMILY="redhat"
+                fi
+                ;;
         esac
-        
-        # Use -L to follow symlinks when searching
-        local DEB_FILE=$(find -L "${DX_TRON_DIR}" -name "*_${ARCH}.deb" -print -quit 2>/dev/null)
-        
-        # Fallback to any .deb if architecture-specific not found
-        if [ -z "$DEB_FILE" ]; then
-            DEB_FILE=$(find -L "${DX_TRON_DIR}" -name "*.deb" -print -quit 2>/dev/null)
-        fi
 
-        if [ -n "$DEB_FILE" ] && [ -f "$DEB_FILE" ]; then
-            print_colored "INFO: Found DEB package: $(basename "$DEB_FILE")" "INFO"
-            print_colored "INFO: Installing DX-Tron DEB package..." "INFO"
+        case "$INSTALL_OS_FAMILY" in
+            redhat)
+                # Red Hat family - install web variant only.
+                # The 'dxtron' CLI/desktop binary (AppImage) is intentionally NOT
+                # installed here: AppImage requires FUSE and is not officially
+                # supported on Red Hat family by this installer. The web variant
+                # (dxtron_*_web) shipped in the dx_tron tarball is sufficient and
+                # can be launched via run_dxtron_web.sh.
+                print_colored "INFO: Red Hat family detected - installing dx_tron web variant only." "INFO"
+                print_colored "INFO: (dxtron CLI/desktop AppImage is supported only on Debian/Ubuntu family.)" "INFO"
 
-            # Update apt and install dependencies, then install deb package
-            if sudo apt-get update && sudo apt-get install -y "$DEB_FILE"; then
-                print_colored "INFO: DX-Tron DEB package installed successfully!" "INFO"
-            else
-                print_colored "ERROR: Failed to install DX-Tron DEB package '$(basename "$DEB_FILE")'." "ERROR"
-                popd >&2
-                exit 1
-            fi
-        else
-            print_colored "ERROR: No DEB package found in '${DX_TRON_DIR}'." "ERROR"
-            popd >&2
-            exit 1
-        fi
+                # Verify the web variant exists in the extracted tarball.
+                local WEB_DIR=$(find -L "${DX_TRON_DIR}" -name "*_web" -print -quit 2>/dev/null)
+                if [ -z "$WEB_DIR" ]; then
+                    # Also accept a file named *_web (in case packaging changes)
+                    WEB_DIR=$(find -L "${DX_TRON_DIR}" -name "*_web*" -print -quit 2>/dev/null)
+                fi
+                if [ -z "$WEB_DIR" ]; then
+                    print_colored "ERROR: dx_tron web variant not found under '${DX_TRON_DIR}'." "ERROR"
+                    popd >&2
+                    exit 1
+                fi
+                print_colored "INFO: Found dx_tron web variant: $(basename "$WEB_DIR")" "INFO"
+
+                DX_TRON_WEB_ONLY=1
+                ;;
+            debian)
+                # Debian/Ubuntu family - use DEB packages
+                local ARCH=$(uname -m)
+                case "$ARCH" in
+                    x86_64) ARCH="amd64" ;;
+                    aarch64) ARCH="arm64" ;;
+                    armv7l) ARCH="armhf" ;;
+                esac
+
+                # Use -L to follow symlinks when searching
+                local DEB_FILE=$(find -L "${DX_TRON_DIR}" -name "*_${ARCH}.deb" -print -quit 2>/dev/null)
+
+                # Fallback to any .deb if architecture-specific not found
+                if [ -z "$DEB_FILE" ]; then
+                    DEB_FILE=$(find -L "${DX_TRON_DIR}" -name "*.deb" -print -quit 2>/dev/null)
+                fi
+
+                if [ -n "$DEB_FILE" ] && [ -f "$DEB_FILE" ]; then
+                    print_colored "INFO: Found DEB package: $(basename "$DEB_FILE")" "INFO"
+                    print_colored "INFO: Installing DX-Tron DEB package..." "INFO"
+
+                    # Update apt and install dependencies, then install deb package
+                    if sudo apt-get update && sudo apt-get install -y "$DEB_FILE"; then
+                        print_colored "INFO: DX-Tron DEB package installed successfully!" "INFO"
+                    else
+                        print_colored "ERROR: Failed to install DX-Tron DEB package '$(basename "$DEB_FILE")'." "ERROR"
+                        popd >&2
+                        exit 1
+                    fi
+                else
+                    print_colored "ERROR: No DEB package found in '${DX_TRON_DIR}'." "ERROR"
+                    popd >&2
+                    exit 1
+                fi
+                ;;
+        esac
     fi
 
     echo -e "=== install_dx_tron() ${TAG_DONE} ==="
@@ -697,6 +899,9 @@ os_arch_check() {
     local os_names=""
     local ubuntu_versions=""
     local debian_versions=""
+    local fedora_versions=""
+    local rhel_versions=""
+    local centos_versions=""
     local supported_arch_names=""
     local os_check_error_message=""
     local arch_check_error_message=""
@@ -705,20 +910,26 @@ os_arch_check() {
     local arch_check_hint_message="For other architectures, please refer to the manual installation guide at https://github.com/DEEPX-AI/dx-compiler/blob/main/source/docs/02_01_System_Requirements_of_DX-COM.md"
 
     if [ "$target" == "dx_com" ]; then
-        os_names="ubuntu"
-        ubuntu_versions="20.04 22.04 24.04"
+        os_names="ubuntu fedora rhel centos"
+        ubuntu_versions="20.04 22.04 24.04 26.04"
         debian_versions=""
+        fedora_versions="42 43 44 45"
+        rhel_versions="9 10"
+        centos_versions="9 10"
         supported_arch_names="amd64 x86_64"
 
-        os_check_error_message="This installer supports only Ubuntu 20.04, 22.04, and 24.04."
+        os_check_error_message="This installer supports only Ubuntu 20.04, 22.04, 24.04, 26.04 / Fedora 42-45 / RHEL 9-10 / CentOS 9-10."
         arch_check_error_message="This installer supports only x86_64/amd64 architecture."
     elif [ "$target" == "dx_tron" ]; then
-        os_names="ubuntu debian"
-        ubuntu_versions="20.04 22.04 24.04"
+        os_names="ubuntu debian fedora rhel centos"
+        ubuntu_versions="20.04 22.04 24.04 26.04"
         debian_versions="11 12 13"
+        fedora_versions="42 43 44 45"
+        rhel_versions="9 10"
+        centos_versions="9 10"
         supported_arch_names="amd64 x86_64 arm64 aarch64 armv7l"
 
-        os_check_error_message="This installer supports only Ubuntu 20.04, 22.04, and 24.04 / Debian 11 12 and 13."
+        os_check_error_message="This installer supports only Ubuntu 20.04, 22.04, 24.04, 26.04 / Debian 11-13 / Fedora 42-45 / RHEL 9-10 / CentOS 9-10."
         arch_check_error_message="This installer supports only x86_64/amd64 and arm64/aarch64/armv7l architecture."
     else
         print_colored_v2 "ERROR" "$1 is not supported target."
@@ -727,8 +938,8 @@ os_arch_check() {
     fi
     
     # this function is defined in scripts/common_util.sh
-    # Usage: os_check "supported_os_names" "ubuntu_versions" "debian_versions"
-    os_check "$os_names" "$ubuntu_versions" "$debian_versions" || {
+    # Usage: os_check "supported_os_names" "ubuntu_versions" "debian_versions" "fedora_versions" "rhel_versions" "centos_versions"
+    os_check "$os_names" "$ubuntu_versions" "$debian_versions" "$fedora_versions" "$rhel_versions" "$centos_versions" || {
         if [ "$print_message_mode" == "silent" ] ; then
             return 1
         else
@@ -791,9 +1002,25 @@ main() {
             print_colored "Installing all compiler modules..." "INFO"
             validate_environment
 
-            # Check if dx_com will be installed (has stricter Python version requirements)
+            # In archive mode, skip OS checks - just download all modules
+            # (the target Docker image OS differs from the host OS)
             local WILL_INSTALL_DX_COM=0
-            os_arch_check "dx_com" "silent" && WILL_INSTALL_DX_COM=1
+            local WILL_INSTALL_DX_TRON=0
+            if [ "$ARCHIVE_MODE" = "y" ]; then
+                WILL_INSTALL_DX_COM=1
+                WILL_INSTALL_DX_TRON=1
+            else
+                os_arch_check "dx_com" "silent" && WILL_INSTALL_DX_COM=1
+                os_arch_check "dx_tron" "silent" && WILL_INSTALL_DX_TRON=1
+            fi
+
+            # If neither module is supported, abort before installing Python/venv
+            # so we don't leave that as a side effect and falsely report success.
+            if [ $WILL_INSTALL_DX_COM -eq 0 ] && [ $WILL_INSTALL_DX_TRON -eq 0 ]; then
+                print_colored_v2 "ERROR" "Neither dx-com nor dx-tron is supported on this OS/Architecture. Nothing to install."
+                popd >&2
+                exit 1
+            fi
 
             # If dx_com will be installed, check Python version compatibility first
             # This ensures venv is created with a compatible Python version for both modules
@@ -804,11 +1031,11 @@ main() {
             install_python_and_venv
             setup_project
 
-            os_arch_check "dx_tron" "silent" && {
+            if [ $WILL_INSTALL_DX_TRON -eq 1 ]; then
                 install_dx_tron
-            } || {
+            else
                 print_colored_v2 "SKIP" "dx-tron is not supported on this OS/Architecture. Skipping dx-tron installation."
-            }
+            fi
 
             if [ $WILL_INSTALL_DX_COM -eq 1 ]; then
                 install_prerequisites
@@ -871,6 +1098,16 @@ while [[ $# -gt 0 ]]; do
                 FORCE_ARGS=""
             else
                 FORCE_ARGS="--force"
+            fi
+            ;;
+        --pypi=*)
+            PYPI_VALUE="${1#*=}"
+            if [ "$PYPI_VALUE" = "true" ]; then
+                USE_PYPI=1
+            elif [ "$PYPI_VALUE" = "false" ]; then
+                USE_PYPI=0
+            else
+                show_help "error" "Invalid value for --pypi: '$PYPI_VALUE'. Use 'true' or 'false'."
             fi
             ;;
         --help)

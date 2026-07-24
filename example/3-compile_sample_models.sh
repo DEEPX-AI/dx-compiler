@@ -145,9 +145,13 @@ fi
 echo ""
 
 # -----------------------------------------------------------------------------
-# [Step 2] Activate the dxcom virtual environment
+# [Step 2] Ensure the dxcom virtual environment is active
+#
+#   If a venv is already active (e.g., Step 1 activated it, or the user pre-
+#   activated one) and dxcom works inside it, reuse it without re-sourcing.
+#   Otherwise, activate the project's venv at the expected path.
 # -----------------------------------------------------------------------------
-echo "[Step 2] Activating dxcom virtual environment..."
+echo "[Step 2] Ensuring dxcom virtual environment is active..."
 
 if check_container_mode; then
     VENV_PATH="${COMPILER_DIR}/venv-${PROJECT_NAME}"
@@ -155,14 +159,18 @@ else
     VENV_PATH="${COMPILER_DIR}/venv-${PROJECT_NAME}-local"
 fi
 
-if [ ! -f "${VENV_PATH}/bin/activate" ]; then
-    echo -e "${TAG_ERROR} Virtual environment not found: ${VENV_PATH}"
-    echo "        Please verify that ${COMPILER_DIR}/install.sh ran successfully."
-    exit 1
+if [ -n "${VIRTUAL_ENV}" ] && command -v dxcom &>/dev/null; then
+    echo "  ✅ Reusing already-active virtual environment: ${VIRTUAL_ENV}"
+else
+    if [ ! -f "${VENV_PATH}/bin/activate" ]; then
+        echo -e "${TAG_ERROR} Virtual environment not found: ${VENV_PATH}"
+        echo "        Please verify that ${COMPILER_DIR}/install.sh ran successfully."
+        exit 1
+    fi
+    source "${VENV_PATH}/bin/activate"
+    echo "  ✅ Virtual environment activated: ${VENV_PATH}"
 fi
 
-source "${VENV_PATH}/bin/activate"
-echo "  ✅ Virtual environment activated: ${VENV_PATH}"
 echo "  dxcom version:"
 dxcom -v 2>&1 | sed 's/^/    /'
 echo ""
