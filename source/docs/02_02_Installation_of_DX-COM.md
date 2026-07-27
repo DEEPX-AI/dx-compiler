@@ -52,6 +52,16 @@ sudo dnf install -y mesa-libGL glib2 make
 
 DX-COM wheels are built with `auditwheel` and tagged with the `manylinux_2_31_x86_64` platform tag, which means they require **glibc ≥ 2.31** on the host (Ubuntu 20.04+, Debian 11+, RHEL/CentOS 9+, Fedora 42+).
 
+**Option 1: Install from PyPI (Recommended)**
+
+Install the latest version directly from PyPI:
+
+```bash
+pip install dx-com
+```
+
+**Option 2: Install from Downloaded Wheel**
+
 Download the wheel file matching your Python version and install it using pip:  
 
 ```bash
@@ -74,6 +84,6 @@ dxcom --version
 python3 -c "import dx_com; print(dx_com.__version__)"
 ```
 
-For detailed information on command-line usage, refer to the [CLI Execution](02_06_Execution_of_DX-COM.md#cli-execution-command-line-interface) guide. For the `dx_com` Python module, including the `compile()` function signature, parameters, and examples, refer to the [Python Wheel Package Usage](02_06_Execution_of_DX-COM.md#python-wheel-package-usage) section in the Execution guide.
+For detailed information on command-line usage, refer to the **CLI Execution** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md). For the `dx_com` Python module, including the `compile()` function signature, parameters, and examples, refer to the **Python Wheel Package Usage** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md).
 
 ---

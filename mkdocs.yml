@@ -47,7 +47,7 @@ nav:
   - Quantization Tuning Workflow: docs/02_07_Quantization_Tuning_Workflow.md
       - Quantization-Aware Training (QAT): docs/02_08_Quantization_Aware_Training.md
       - Pre-Optimize API: docs/02_09_Pre_Optimize_API.md
-      - Common Use Cases: docs/02_08_Common_Use_Cases.md
+      - Common Use Cases: docs/02_10_Common_Use_Cases.md
   - Development Tools:
       - Model Viewer_DX-TRON: docs/04_01_Model_Viewer_DX-TRON.md
       - Compilation Summary Report: docs/04_02_Compilation_Summary_Report.md

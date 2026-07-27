@@ -33,7 +33,7 @@ Then run all sample compilations at once:
 
 ### With the `dxcom` Command
 
-For complete examples and options, see [CLI Execution](02_06_Execution_of_DX-COM.md#cli-execution-command-line-interface).
+For complete examples and options, see the **CLI Execution** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md).
 
 ```bash
 dxcom -m model.onnx -c config.json -o output/
@@ -41,7 +41,7 @@ dxcom -m model.onnx -c config.json -o output/
 
 ### With the `dx_com` Python Module
 
-For complete examples and options, see [dx_com Python Module Usage](02_06_Execution_of_DX-COM.md#python-wheel-package-usage).
+For complete examples and options, see the **Python Wheel Package Usage** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md).
 
 **Using `dx_com.compile()`:**
 ```python
@@ -49,13 +49,4 @@ import dx_com
 dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
 ```
 
-## Next Steps
-
-1. **Installation of DX-COM** → [Installation of DX-COM](02_02_Installation_of_DX-COM.md)  
-2. **Execution of DX-COM** → [Execution of DX-COM](02_06_Execution_of_DX-COM.md)  
-3. **JSON File Configuration** → [JSON File Configuration](02_05_JSON_File_Configuration.md)  
-4. **Common Use Cases** → [Common Use Cases](02_08_Common_Use_Cases.md)  
-
 ---
-
-Happy compiling!

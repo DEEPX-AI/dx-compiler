@@ -17,7 +17,7 @@ These parameters are defined in a JSON file, which serves as a blueprint for how
 | `qmaster` | No | Quantization-Aware Training (QAT) hyperparameters. Presence of this block enables QAT (DX-COM v2.4.0+). See [Quantization-Aware Training (QAT)](02_08_Quantization_Aware_Training.md) |
 | `ppu` | No | Object detection post-processing (YOLO models) |
 
-For complete examples, see [Common Use Cases](02_08_Common_Use_Cases.md).  
+For complete examples, see [Common Use Cases](02_10_Common_Use_Cases.md).  
 
 ---
 
@@ -29,7 +29,7 @@ Defines the input name and shape of the ONNX model.
 
 !!! warning "Model Input Restrictions"
     - The batch size **must** be fixed to 1.  
-    - **Only** a single input is supported when compiling from a JSON configuration with the `dxcom` command. For multi-input models, use the `dx_com` Python module with DataLoader (see [Python Wheel Package Usage](02_06_Execution_of_DX-COM.md#python-wheel-package-usage)).  
+    - **Only** a single input is supported when compiling from a JSON configuration with the `dxcom` command. For multi-input models, use the `dx_com` Python module with DataLoader (see the **Python Wheel Package Usage** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md)).  
     - Input name **must** exactly match ONNX model definition.
 
 Example  
@@ -107,7 +107,7 @@ For all available preprocessing operations, see [Appendix: Preprocessing Operati
 
 **For Multi-Input Models or Non-Image Data**  
 
-If you need to compile multi-input models or provide non-image data, use the `dx_com` Python module with torch DataLoader instead of JSON configuration. See [Python Wheel Package Usage](02_06_Execution_of_DX-COM.md#python-wheel-package-usage).  
+If you need to compile multi-input models or provide non-image data, use the `dx_com` Python module with torch DataLoader instead of JSON configuration. See the **Python Wheel Package Usage** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md).  
 
 ---
 
@@ -133,7 +133,7 @@ Example
     - **GPU**: NVIDIA GPU with CUDA support.
     - **Framework**: PyTorch built with CUDA support (`torch.cuda.is_available()` must return `True`).
 
-For practical examples, see [Use Case 5: Enhanced Quantization (DXQ)](02_08_Common_Use_Cases.md#use-case-5-enhanced-quantization-dxq).
+For practical examples, see the **Use Case 5: Enhanced Quantization (DXQ)** section in [Common Use Cases](02_10_Common_Use_Cases.md).
 
 ---
 
@@ -145,7 +145,7 @@ For practical examples, see [Use Case 5: Enhanced Quantization (DXQ)](02_08_Comm
 When quantizing a model, accuracy degradation may occur compared to the original model. To mitigate this, **Q-PRO options** (DXQ-P0 to DXQ-P5) can be used to enhance quantization performance.  
 
 !!! tip "Prefer automatic selection?"
-    The DXQ schemes below are the **manual** Q-PRO interface. To let DX-COM pick the DXQ combination for you, use the compile-time `--use_q_pro` flag instead — see [Automatic Q-PRO (`use_q_pro`)](02_06_Execution_of_DX-COM.md#automatic-q-pro-use_q_pro). Automatic Q-PRO and a manual `enhanced_scheme` are mutually exclusive.
+    The DXQ schemes below are the **manual** Q-PRO interface. To let DX-COM pick the DXQ combination for you, use the compile-time `--use_q_pro` flag instead — see the **Automatic Q-PRO (`use_q_pro`)** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md). Automatic Q-PRO and a manual `enhanced_scheme` are mutually exclusive.
 
 | Name | Compilation Speed | Accuracy Improvement |
 |------|------------------|----------------------|
@@ -160,7 +160,7 @@ When quantizing a model, accuracy degradation may occur compared to the original
     **Best Accuracy**: DXQ-P3 and DXQ-P4 generally offer better accuracy, so try them first.  
     
     **GPU Acceleration**: DXQ schemes (especially P1~P5) are computationally intensive. Using `quantization_device="cuda"` can reduce compilation time by **2-5x** compared to CPU. 
-    See [Use Case 5: Enhanced Quantization (DXQ)](02_08_Common_Use_Cases.md#use-case-5-enhanced-quantization-dxq) for examples.  
+    See the **Use Case 5: Enhanced Quantization (DXQ)** section in [Common Use Cases](02_10_Common_Use_Cases.md) for examples.  
 
 !!! warning "Limitations"
     Results are **not guaranteed** to improve accuracy. Results may vary depending on the model and dataset.
@@ -353,7 +353,7 @@ Parameters:
 
 !!! warning "Deprecated in v2.4.0"
 
-    `ppu.type = 2` is **deprecated** as of DX-Compiler v2.4.0 and will be removed in a future release. New projects should use the [`dx_com.pre_optimize()` API](02_09_Pre_Optimize_API.md), which provides the same TopK-first optimization (and adds support for instance segmentation and YOLO26). Compiling a model with PPU type 2 still works in v2.4.0 but emits a deprecation warning. See [Migration from PPU Type 2](02_09_Pre_Optimize_API.md#migration-from-ppu-type-2) for the replacement recipe.
+    `ppu.type = 2` is **deprecated** as of DX-Compiler v2.4.0 and will be removed in a future release. New projects should use the [`dx_com.pre_optimize()` API](02_09_Pre_Optimize_API.md), which provides the same TopK-first optimization (and adds support for instance segmentation and YOLO26). Compiling a model with PPU type 2 still works in v2.4.0 but emits a deprecation warning. See the **Migration from PPU Type 2** section in [Pre-Optimize API](02_09_Pre_Optimize_API.md) for the replacement recipe.
 
 `ppu.type = 2` is an optional CPU-side TopK optimization path for compatible DFL-based anchor-free YOLO models. It does **not** use the PPU hardware. Post-processing still runs on the CPU, and TopK is also performed on the CPU. By reducing the number of candidate boxes that continue into later CPU-side DFL-based decoding and filtering stages, this option reduces post-processing complexity and improves runtime efficiency.
 
@@ -540,7 +540,7 @@ Arithmetic operations on input data. The `subtract` and `div` operations may be 
 ## Appendix: Custom Loader (Legacy)
 
 !!! warning "Deprecation Notice"
-    The Custom Loader approach is **deprecated**. For new projects, use the [Python wheel package with torch DataLoader](02_06_Execution_of_DX-COM.md#python-wheel-package-usage) instead, which provides more flexibility and better integration with Python workflows.
+    The Custom Loader approach is **deprecated**. For new projects, use the **Python Wheel Package with torch DataLoader** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md) instead, which provides more flexibility and better integration with Python workflows.
 
 For legacy projects that still require Custom Loader, download the [Custom Dataloader Guide](http://cs.deepx.ai/_deepx_fae_archive/docs/Custom_Dataloader_Guide_241204.zip) for detailed instructions.  
 

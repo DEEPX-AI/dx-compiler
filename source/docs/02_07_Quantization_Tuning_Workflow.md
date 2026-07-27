@@ -157,6 +157,6 @@ QXNN Resume writes the re-quantized model binary to `output_dir`:
 
 ## End-to-End Example
 
-For a complete, step-by-step walkthrough of diagnosing a model and iterating on quantization settings, see [Use Case 6: Diagnose and Re-quantize Without Recompile](02_08_Common_Use_Cases.md#use-case-6-diagnose-and-re-quantize-without-recompile).
+For a complete, step-by-step walkthrough of diagnosing a model and iterating on quantization settings, see the **Use Case 6: Diagnose and Re-quantize Without Recompile** section in [Common Use Cases](02_10_Common_Use_Cases.md).
 
-For the automatic Q-PRO quantization pipeline used during resume, see [Automatic Q-PRO (`use_q_pro`)](02_06_Execution_of_DX-COM.md#automatic-q-pro-use_q_pro).
+For the automatic Q-PRO quantization pipeline used during resume, see the **Automatic Q-PRO (`use_q_pro`)** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md).
