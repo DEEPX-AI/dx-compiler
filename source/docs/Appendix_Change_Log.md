@@ -210,7 +210,7 @@ DX-Compiler Version
 - Added support for:
     - `-v` option: Displays **DX-COM module version**  
     - `-i` option: Displays **internal module information**  
-    → For usage, see: [CLI Execution](02_06_Execution_of_DX-COM.md#cli-execution-command-line-interface)  
+    → For usage, see: the **CLI Execution** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md)  
 
 **ONNX Support**
 

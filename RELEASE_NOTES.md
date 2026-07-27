@@ -1,6 +1,23 @@
 
 # RELEASE_NOTES
 
+## DX-Compiler v2.4.1 / 2026-07-27
+
+-   DX-COM: v2.4.0
+-   DX-TRON: v2.0.1 (Deprecated)
+
+----------
+
+Here are the **DX-Compiler v2.4.1** Release Notes. This is a documentation-only hotfix; no changes to DX-COM or DX-TRON binaries.
+
+### Documentation
+
+### 1. Fixed
+
+-   Fixed broken internal links and reorganized several pages in the user manual for improved navigation.
+
+----------
+
 ## DX-Compiler v2.4.0 / 2026-06-16
 
 -   DX-COM: v2.4.0
