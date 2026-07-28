@@ -108,7 +108,7 @@ For automatic Q-PRO details see [Automatic Q-PRO (`use_q_pro`)](#automatic-q-pro
 
 ##### Automatic Q-PRO (`use_q_pro`)
 
-When quantization accuracy degrades, Q-PRO enhancement schemes (DXQ-P0 to DXQ-P5) can improve it. The `enhanced_scheme` JSON field exposes these schemes for **manual** selection (see [Enhanced Quantization Scheme (DXQ)](02_05_JSON_File_Configuration.md#optional-parameters-enhanced-quantization-scheme-dxq)). The `--use_q_pro` flag is the **automatic** alternative: DX-COM generates DXQ combinations and selects the optimal enhancement stages based on model structure and compile-time metrics — no manual tuning required.
+When quantization accuracy degrades, Q-PRO enhancement schemes (DXQ-P0 to DXQ-P5) can improve it. The `enhanced_scheme` JSON field exposes these schemes for **manual** selection (see the **Enhanced Quantization Scheme (DXQ)** section in [JSON File Configuration](02_05_JSON_File_Configuration.md)). The `--use_q_pro` flag is the **automatic** alternative: DX-COM generates DXQ combinations and selects the optimal enhancement stages based on model structure and compile-time metrics — no manual tuning required.
 
 ```bash
 # dxcom CLI
@@ -121,7 +121,7 @@ dx_com.compile(model="model.onnx", output_dir="./output", config="config.json", 
 ```
 
 - **Mutually exclusive** with a manual `enhanced_scheme` — choose one, not both.
-- Can also be enabled while re-quantizing via [QXNN Resume](02_07_Quantization_Tuning_Workflow.md#qxnn-resume-re-quantization-without-recompile).
+- Can also be enabled while re-quantizing via the **QXNN Resume** section in [Quantization Tuning Workflow](02_07_Quantization_Tuning_Workflow.md).
 
 !!! tip "Automatic vs Manual"
     Prefer `--use_q_pro` for the easiest path to higher-accuracy quantization. Drop down to a manual `enhanced_scheme` only when you need to pin a specific DXQ scheme.
@@ -212,7 +212,7 @@ dxcom \
 See [Quantization Tuning Workflow](02_07_Quantization_Tuning_Workflow.md) for the full diagnose → resume loop.
 
 **Compile Sample Models (Script)**  
-For the end-to-end sample workflow, see [Quick Start Guide](00_Quick_Start.md#compile-sample-models). The `./example/3-compile_sample_models.sh` helper compiles `YOLOV5S-1`, `YOLOV5S_Face-1`, and `MobileNetV2-1` with `dxcom`, using assets prepared under `dx_com/`. If `dxcom` is not available in the current shell, the script first tries to activate the DX-COM virtual environment.  
+For the end-to-end sample workflow, see the **Compile Sample Models** section in [Quick Start Guide](00_Quick_Start.md). The `./example/3-compile_sample_models.sh` helper compiles `YOLOV5S-1`, `YOLOV5S_Face-1`, and `MobileNetV2-1` with `dxcom`, using assets prepared under `dx_com/`. If `dxcom` is not available in the current shell, the script first tries to activate the DX-COM virtual environment.  
 
 ---
 
@@ -224,7 +224,7 @@ The Python wheel package also provides a programmatic interface for model compil
     For practical code examples and step-by-step guides, see:
 
     - [Quick Start Guide](00_Quick_Start.md)
-    - [Common Use Cases](02_08_Common_Use_Cases.md)
+    - [Common Use Cases](02_10_Common_Use_Cases.md)
     - [Pre-Optimize API](02_09_Pre_Optimize_API.md) for `dx_com.pre_optimize()`, an ONNX-level transform that reduces CPU-side post-processing for YOLO-family models before compilation.
 
 ### Overview
@@ -411,7 +411,7 @@ The `default_loader` reads each image with `cv2.imread` (**BGR**, `HWC`, `uint8`
     The compiler runs the verifier on `next(iter(dataloader))` and requires the **batched** sample shape to match the ONNX input shape **exactly**, including the batch dimension. So each `__getitem__` item must be `model_input_shape` without the leading batch dim (e.g. `[3, 224, 224]` for input `[1, 3, 224, 224]`), and `batch_size` must equal the model's input batch (normally `1`). Tensors should be `float32`.
 
 !!! note "Supported return types"
-    Each `__getitem__` may return: a single `torch.Tensor` (single-input models), a **`dict[str, torch.Tensor]`** keyed by ONNX input node name (**recommended for multi-input** — mapped by name), or a **list/tuple of tensors** (mapped by the model's internal input-node order, which may differ from your return order). All elements must be tensors. See [Use Case 2](02_08_Common_Use_Cases.md#use-case-2-multi-input-models-stereo-vision).
+    Each `__getitem__` may return: a single `torch.Tensor` (single-input models), a **`dict[str, torch.Tensor]`** keyed by ONNX input node name (**recommended for multi-input** — mapped by name), or a **list/tuple of tensors** (mapped by the model's internal input-node order, which may differ from your return order). All elements must be tensors. See the **Use Case 2: Multi-Input Models** section in [Common Use Cases](02_10_Common_Use_Cases.md).
 
 ---
 
@@ -511,7 +511,7 @@ enhanced_scheme={
 
 - **Type**: `Optional[PPUConfig]`
 - **Default**: `None` (PPU disabled)
-- **Description**: PPU (Post-Processing Unit) configuration object that enables hardware-accelerated post-processing for YOLO-family object detection models. It is the Python-module equivalent of the JSON `ppu` section (see [PPU Configuration](02_05_JSON_File_Configuration.md#optional-parameters-ppu-configuration)).
+- **Description**: PPU (Post-Processing Unit) configuration object that enables hardware-accelerated post-processing for YOLO-family object detection models. It is the Python-module equivalent of the JSON `ppu` section (see the **PPU Configuration** section in [JSON File Configuration](02_05_JSON_File_Configuration.md)).
 - **Requirement**: Must be a `PPUConfig` instance. `compile()` calls `ppu_config.validate()` and raises if required fields are missing.
 
 Import `PPUConfig` and `PPUTypes` from the top-level `dx_com` package:
@@ -589,7 +589,7 @@ cfg.add_layer(bbox="bbox_head_p5", cls_conf="cls_head_p5")
     - **Type 0**: `add_layer("Conv_245", num_anchors=3)` — `layer` is a dict.
     - **Type 1 / 2**: `add_layer(bbox="...", cls_conf="...")` (optional `obj_conf=`) — `layer` is a list. Call once per detection scale.
 
-See [Use Case 8: PPU Hardware Acceleration](02_08_Common_Use_Cases.md#use-case-6-ppu-hardware-acceleration-yolo) for a complete script.
+See the **Use Case 8: PPU Hardware Acceleration** section in [Common Use Cases](02_10_Common_Use_Cases.md) for a complete script.
 
 **`gen_log`**
 
@@ -615,7 +615,7 @@ See [Use Case 8: PPU Hardware Acceleration](02_08_Common_Use_Cases.md#use-case-6
 - **Default**: `False`
 - **Description**: Enable the automatic Q-PRO quantization pipeline. DX-COM automatically selects and applies the optimal DXQ enhancement stages.
 - **Limitation**: Mutually exclusive with `enhanced_scheme`.
-- **See also**: [Automatic Q-PRO (`use_q_pro`)](02_06_Execution_of_DX-COM.md#automatic-q-pro-use_q_pro)
+- **See also**: the **Automatic Q-PRO (`use_q_pro`)** section above
 
 **`quant_diagnosis`**
 
@@ -692,7 +692,7 @@ dx_com.compile(
 )
 ```
 
-For more detailed examples — including DataLoader usage, multi-input models, edge device optimization, and advanced quantization — see [Common Use Cases](02_08_Common_Use_Cases.md).
+For more detailed examples — including DataLoader usage, multi-input models, edge device optimization, and advanced quantization — see [Common Use Cases](02_10_Common_Use_Cases.md).
 
 ---
 

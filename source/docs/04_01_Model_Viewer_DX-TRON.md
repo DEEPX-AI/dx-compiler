@@ -30,7 +30,7 @@ https://developer.deepx.ai
 !!! note "NOTE"  
     Account registration and authentication are required to download DX-TRON packages.
 
-For detailed installation instructions using the automated installation script, refer to the [dx-all-suite installation guide](https://github.com/DEEPX-AI/dx-all-suite/blob/main/docs/source/installation.md#local-installation).
+For detailed installation instructions using the automated installation script, refer to the [dx-all-suite installation guide](https://github.com/DEEPX-AI/dx-all-suite/blob/main/docs/source/02_Setting_Up_Environment.md).
 
 ---
 

@@ -71,17 +71,17 @@ An optimized `onnx.ModelProto` with the original CPU post-processing replaced by
 | Field | Value |
 |-------|-------|
 | **Target models** | YOLOv8, YOLOv9, YOLOv11, YOLOv12, YOLOv13 |
-| **Head structure** | 64-channel bbox (DFL decoding) + `C`-channel classification, optional 32-channel mask coefficient |
+| **Head structure** | 64-channel bbox + `C`-channel classification, optional mask coefficient |
 | **Supported tasks** | Detection, Instance Segmentation |
 | **Output (det)** | `[N, 4 + C, K]` — bbox (xywh) + class scores |
-| **Output (seg)** | `[N, 4 + C + M, K]` + `[N, M, H, W]` — det output + mask prototype |
+| **Output (seg)** | `[N, 4 + C + M, K]` + mask prototype (preserved from the original model) |
 
 ### `yolo26_postprocess`
 
 | Field | Value |
 |-------|-------|
-| **Target models** | YOLOv10, YOLO26 (models with `one2one` decoupled head) |
-| **Head structure** | 64-channel bbox (DFL decoding) + `C`-channel classification (`one2one_cv2` / `one2one_cv3`), no mask coefficient |
+| **Target models** | YOLO26 (models with `one2one` decoupled head) |
+| **Head structure** | 4-channel bbox (direct ltrb) + `C`-channel classification |
 | **Supported tasks** | Detection |
 | **Output** | `[N, K, 6]` — bbox (xyxy) + score + class_id *(note: K is the second axis, unlike `yolo_postprocess` where channels are the second axis)* |
 
@@ -288,7 +288,7 @@ dx_com.compile(model=optimized, config="config.json", output_dir="./output")
 |--|--|--|
 | Configuration location | JSON config file | Python API |
 | Segmentation support | ❌ | ✅ |
-| YOLOv10 / YOLO26 support | ❌ | ✅ (`yolo26_postprocess`) |
+| YOLO26 support | ❌ | ✅ (`yolo26_postprocess`) |
 | Required parameters | (none beyond JSON fields) | `input_height`, `input_width` (per-scale stride derivation) |
 
 ---
