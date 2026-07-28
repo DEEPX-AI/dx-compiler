@@ -1,4 +1,20 @@
 
+## v2.4.1 (2026-07-27)
+
+DX-Compiler Version
+
+-   DX-COM: v2.4.0
+-   DX-TRON: v2.0.1 (Deprecated)
+
+Documentation-only hotfix; no changes to DX-COM or DX-TRON binaries.
+
+#### Fixed
+
+-   Fixed broken internal links and reorganized several pages in the user manual for improved navigation.
+-   Corrected the `dx_com.pre_optimize()` supported-model listings in the user manual: YOLOv10 is not a valid target and has been removed from the `yolo_postprocess` and PPU-type-2 migration guidance.
+
+---
+
 ## v2.4.0 (2026-06-16)
 
 DX-Compiler Version
@@ -210,7 +226,7 @@ DX-Compiler Version
 - Added support for:
     - `-v` option: Displays **DX-COM module version**  
     - `-i` option: Displays **internal module information**  
-    → For usage, see: [CLI Execution](02_06_Execution_of_DX-COM.md#cli-execution-command-line-interface)  
+    → For usage, see: the **CLI Execution** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md)  
 
 **ONNX Support**
 

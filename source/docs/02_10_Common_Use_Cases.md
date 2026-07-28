@@ -197,7 +197,7 @@ print("Stereo model compilation complete!")
 
 - **DataLoader Output:** For multi-input models, return a **`dict[str, torch.Tensor]`** keyed by the ONNX input node names. The calibrator maps a dict by **name** (`run_session` matches each key to a model input), so the keys must match the input node names exactly.  
 - **Why dict (not tuple):** A tuple/list is also accepted, but it is mapped to inputs **by position** in the model's internal input-node order — not the order you return them. A name-keyed dict removes this ambiguity and is the recommended form for multi-input models.  
-- **Shape & dtype:** Each per-input tensor must match its ONNX input shape without the batch dim, and `batch_size` must equal the model's input batch (normally `1`). Tensors should be `float32`. See [Defining Preprocessing Transforms in the DataLoader](02_06_Execution_of_DX-COM.md#defining-preprocessing-transforms-in-the-dataloader).  
+- **Shape & dtype:** Each per-input tensor must match its ONNX input shape without the batch dim, and `batch_size` must equal the model's input batch (normally `1`). Tensors should be `float32`. See the **Defining Preprocessing Transforms in the DataLoader** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md).  
 - **Heterogeneous Inputs:** Each input branch supports independent sizes and preprocessing configurations.  
 
 ---
@@ -380,9 +380,9 @@ dx_com.compile(
 ```
 
 !!! note "GPU Device Selection"
-    By default, DX-COM automatically uses GPU if available. In multi-GPU environments, you can specify a device via `quantization_device` in the JSON config or the `dx_com.compile()` parameter (e.g., `"cuda:1"`). See [Quantization Device](02_05_JSON_File_Configuration.md#optional-parameters-quantization-device) for details.
+    By default, DX-COM automatically uses GPU if available. In multi-GPU environments, you can specify a device via `quantization_device` in the JSON config or the `dx_com.compile()` parameter (e.g., `"cuda:1"`). See the **Quantization Device** section in [JSON File Configuration](02_05_JSON_File_Configuration.md) for details.
 
-For all available DXQ schemes (DXQ-P0 to DXQ-P5) and their parameters, see [Enhanced Quantization Scheme (DXQ)](02_05_JSON_File_Configuration.md#optional-parameters-enhanced-quantization-scheme-dxq).
+For all available DXQ schemes (DXQ-P0 to DXQ-P5) and their parameters, see the **Enhanced Quantization Scheme (DXQ)** section in [JSON File Configuration](02_05_JSON_File_Configuration.md).
 
 ### Automatic Q-PRO (`use_q_pro`)
 
@@ -416,7 +416,7 @@ dx_com.compile(
 ```
 
 !!! tip "Automatic vs Manual"
-    Start with `use_q_pro=True` for the easiest path to higher-accuracy quantization. Switch to a manual `enhanced_scheme` (e.g., `{"DXQ-P3": {...}}`) only when you need precise control over a specific DXQ scheme. See [Automatic Q-PRO (`use_q_pro`)](02_06_Execution_of_DX-COM.md#automatic-q-pro-use_q_pro).
+    Start with `use_q_pro=True` for the easiest path to higher-accuracy quantization. Switch to a manual `enhanced_scheme` (e.g., `{"DXQ-P3": {...}}`) only when you need precise control over a specific DXQ scheme. See the **Automatic Q-PRO (`use_q_pro`)** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md).
 
 ---
 
@@ -546,7 +546,7 @@ dx_com.compile(
 )
 ```
 
-For supported model families (YOLOv8 / YOLOv9 / YOLOv11 / YOLOv12 / YOLOv13 via the `yolo_postprocess` pass, and YOLOv10 / YOLO26 via the `yolo26_postprocess` pass), output shapes, instance-segmentation usage, and the migration recipe from the deprecated `ppu.type = 2`, see [Pre-Optimize API](02_09_Pre_Optimize_API.md).
+For supported model families (YOLOv8 / YOLOv9 / YOLOv11 / YOLOv12 / YOLOv13 via the `yolo_postprocess` pass, and YOLO26 via the `yolo26_postprocess` pass), output shapes, instance-segmentation usage, and the migration recipe from the deprecated `ppu.type = 2`, see [Pre-Optimize API](02_09_Pre_Optimize_API.md).
 
 ---
 
@@ -557,7 +557,7 @@ For supported model families (YOLOv8 / YOLOv9 / YOLOv11 / YOLOv12 / YOLOv13 via 
 - **Option A: `dxcom` Command** – Set the `ppu` block in the JSON config file.
 - **Option B: `dx_com` Python Module** – Pass a `PPUConfig` object via `ppu_config`.
 
-Both paths configure the same hardware; the Python `PPUConfig` is the programmatic equivalent of the JSON `ppu` section. For node-name identification and the full parameter reference, see [PPU Configuration](02_05_JSON_File_Configuration.md#optional-parameters-ppu-configuration).
+Both paths configure the same hardware; the Python `PPUConfig` is the programmatic equivalent of the JSON `ppu` section. For node-name identification and the full parameter reference, see the **PPU Configuration** section in [JSON File Configuration](02_05_JSON_File_Configuration.md).
 
 !!! warning "NMS still runs on the host CPU"
     The PPU accelerates filtering and class prediction only. Non-Maximum Suppression (NMS) must still be executed on the host CPU using the filtered outputs.
@@ -640,6 +640,6 @@ ppu_config = PPUConfig(
 ```
 
 !!! note "Selecting the PPU type"
-    Match the `PPUTypes` value to your model architecture (anchor-based → `YOLO_BASE`, anchor-free → `YOLO_ANCHORFREE`, DFL-based CPU TopK → `YOLOV8`). See the [type/model table](02_05_JSON_File_Configuration.md#configuration-parameters) and the [PPUConfig API reference](02_06_Execution_of_DX-COM.md#optional-parameters).
+    Match the `PPUTypes` value to your model architecture (anchor-based → `YOLO_BASE`, anchor-free → `YOLO_ANCHORFREE`, DFL-based CPU TopK → `YOLOV8`). See the **type/model table** section in [JSON File Configuration](02_05_JSON_File_Configuration.md) and the **PPUConfig API reference** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md).
 
 ---
