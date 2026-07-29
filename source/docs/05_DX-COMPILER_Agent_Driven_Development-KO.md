@@ -22,9 +22,9 @@ PPU 설정 — 을 이해하고 있어서, *무엇을* 원하는지 설명하면
 |---|---|
 | **DX-COM** | [DX-COM 설치 가이드](02_02_Installation_of_DX-COM.md)를 통해 설치 (`pip install dx-com` 또는 DEEPX 패키지 저장소) |
 | **AI 코딩 에이전트** (택 1) | Claude Code, GitHub Copilot (VS Code), Cursor, 또는 OpenCode |
-| **Python** | 3.8–3.12 |
+| **Python** | 3.8–3.14 |
 | **ONNX** | opset 11–21 |
-| **OS** | Debian Linux (Ubuntu 20.04/22.04/24.04), x86_64 |
+| **OS** | Debian Linux (Ubuntu 20.04/22.04/24.04/26.04), x86_64 |
 
 ## 아키텍처 개요
 
