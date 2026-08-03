@@ -32,15 +32,14 @@
 DX-Compiler provides scripts for local installation, as well as scripts for building Docker images and running containers.
 
 ### Local Installation
-DX-Compiler supports installation in local environments. You can install DX-Compiler by following the instructions at this [LINK](https://github.com/DEEPX-AI/dx-all-suite/blob/main/docs/source/installation.md#local-installation).
+For detailed instructions on setting up a local environment for DX-Compiler, please refer to this [LINK](https://github.com/DEEPX-AI/dx-all-suite/blob/main/docs/source/02_Setting_Up_Environment.md).
 
 ### Docker Installation
-DX-Compiler support installation in docker envirionments.
-You can install DX-Compiler by following the instructions at this [LINK](https://github.com/DEEPX-AI/dx-all-suite/blob/main/docs/source/installation.md#build-the-docker-image)
+For detailed instructions on setting up a Docker environment for DX-Compiler, please refer to this [LINK](https://github.com/DEEPX-AI/dx-all-suite/blob/main/docs/source/02_Setting_Up_Environment.md)
 
 
-### Run
-For detailed instructions on how to run DX-Compiler, please refer to the link below. [LINK](https://github.com/DEEPX-AI/dx-all-suite/blob/main/docs/source/installation.md#run-dx-compiler)
+### Run Your First NPU Model
+For detailed instructions on running your first NPU model with DX-Compiler, please refer to the link below. [LINK](https://github.com/DEEPX-AI/dx-all-suite/blob/main/docs/source/03_Running_Your_First_NPU_Model.md)
 
 ---
 
@@ -51,7 +50,7 @@ For detailed instructions on how to run DX-Compiler, please refer to the link be
 To install the necessary Python packages, run the following command:
 
 ```bash
-pip install mkdocs mkdocs-material mkdocs-video pymdown-extensions mkdocs-to-pdf 
+pip install mkdocs mkdocs-material mkdocs-video pymdown-extensions mkdocs-with-pdf weasyprint==65.1 
 ```
 
 ### Generate Documentation (HTML and PDF)

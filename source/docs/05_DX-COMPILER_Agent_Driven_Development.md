@@ -22,9 +22,9 @@ Supported workflows include:
 |---|---|
 | **DX-COM** | Installed via [DX-COM installation guide](02_02_Installation_of_DX-COM.md) (`pip install dx-com` or DEEPX package repository) |
 | **AI coding agent** (one of) | Claude Code, GitHub Copilot (VS Code), Cursor, or OpenCode |
-| **Python** | 3.8–3.12 |
+| **Python** | 3.8–3.14 |
 | **ONNX** | opset 11–21 |
-| **OS** | Debian Linux (Ubuntu 20.04/22.04/24.04), x86_64 |
+| **OS** | Debian Linux (Ubuntu 20.04/22.04/24.04/26.04), x86_64 |
 
 ## Architecture Overview
 

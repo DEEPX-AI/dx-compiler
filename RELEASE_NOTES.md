@@ -1,5 +1,22 @@
-
 # RELEASE_NOTES
+
+## DX-Compiler v2.4.1 / 2026-07-27
+
+-   DX-COM: v2.4.0
+-   DX-TRON: v2.0.1 (Deprecated)
+
+----------
+
+Here are the **DX-Compiler v2.4.1** Release Notes. This is a documentation-only hotfix; no changes to DX-COM or DX-TRON binaries.
+
+### Documentation
+
+### 1. Fixed
+
+-   Fixed broken internal links and reorganized several pages in the user manual for improved navigation.
+-   Corrected the `dx_com.pre_optimize()` supported-model listings in the user manual: YOLOv10 is not a valid target and has been removed from the `yolo_postprocess` and PPU-type-2 migration guidance.
+
+----------
 
 ## DX-Compiler v2.4.0 / 2026-06-16
 
@@ -49,6 +66,26 @@ Here are the **DX-Compiler v2.4.0** Release Notes.
 ### 4. Known Issues
 
 -   Significant FPS degradation has been observed in models using PReLU as an activation function.
+
+### Installer
+
+### 1. Changed
+
+-   **Expanded OS Support**: `install.sh` supported the **Red Hat family** — **Fedora 42–45**, **RHEL 9–10**, and **CentOS Stream 9–10** — in addition to **Ubuntu 20.04/22.04/24.04/26.04** and **Debian 11–13**. Required repositories (CRB/PowerTools, EPEL) and build dependencies were set up automatically. Ubuntu 18.04 was no longer supported.
+-   **Expanded Python Version Support**: The installer accepted **Python 3.8–3.14** (previously 3.8–3.12), installing a supported version via the system package manager or a source build when the OS default was unsuitable.
+-   **Simplified DX-COM Installation**: DX-COM was installed as a published `pip` package, so a matching wheel no longer had to be selected per Python version. `compiler.properties` no longer carried per-Python download URLs.
+-   **Fully Unattended Installation**: All interactive prompts were removed — the Python version confirmation and its 10-second timeout, plus package prompts such as the `tzdata` timezone selection. `install.sh` ran to completion without user input, making it usable in Dockerfiles and CI pipelines.
+
+### 2. Fixed
+
+-   Fixed the installer reporting success on an unsupported OS/architecture after creating a virtual environment. It stopped early with a clear message when neither DX-COM nor DX-TRON could be installed.
+-   Fixed reinstallation failures caused by leftover files or broken symlinks from a previously interrupted install.
+-   Improved installation error reporting: a failed dependency step failed immediately with the actual error, instead of surfacing later as an unrelated build error.
+
+### 3. Added
+
+-   **DX-TRON on the Red Hat Family (Web Only)**: On Fedora/RHEL/CentOS, the web variant was installed and could be started with `./run_dxtron_web.sh`. The `dxtron` CLI/desktop build required FUSE and remained available on the Debian/Ubuntu family only.
+-   **Installation in Minimal Container Images**: The installer worked in images without `sudo` (e.g. minimal UBI/RHEL images, or running as `root` in CI), instead of failing with `sudo: command not found`.
 
 ### DX-TRON (v2.0.1)
 
@@ -275,7 +312,7 @@ Here are the **DX-Compiler v2.1.0** Release Notes.
 
 ----------
 
-Here are the **DX-Compiler v2.0.0** Release Note for each module.
+Here are the **DX-Compiler v2.0.0** Release Notes for each module.
 
 ### DX-COM (v2.0.0)
 

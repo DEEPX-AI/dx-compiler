@@ -73,7 +73,7 @@ The following ONNX operators are supported by the compiler.
 | HardSigmoid | No restrictions |
 | LeakyRelu | No restrictions |
 | Mish | No restrictions |
-| PRelu | No restrictions on functionality. **Known issue (v2.4.0):** models using `PRelu` as an activation function exhibit significant FPS degradation on the NPU runtime. Use `LeakyRelu` or `Relu` where possible until this is resolved in a future release. See [Change Log](Appendix_Change_Log.md#known-issues) for details. |
+| PRelu | No restrictions on functionality. **Known issue (v2.4.0):** models using `PRelu` as an activation function exhibit significant FPS degradation on the NPU runtime. Use `LeakyRelu` or `Relu` where possible until this is resolved in a future release. See the **Known Issues** section in [Change Log](Appendix_Change_Log.md) for details. |
 | Relu | No restrictions |
 | Selu | No restrictions |
 | Sigmoid | No restrictions |
