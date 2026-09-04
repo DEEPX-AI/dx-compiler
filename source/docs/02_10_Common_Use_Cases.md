@@ -640,6 +640,12 @@ ppu_config = PPUConfig(
 ```
 
 !!! note "Selecting the PPU type"
-    Match the `PPUTypes` value to your model architecture (anchor-based → `YOLO_BASE`, anchor-free → `YOLO_ANCHORFREE`, DFL-based CPU TopK → `YOLOV8`). See the **type/model table** section in [JSON File Configuration](02_05_JSON_File_Configuration.md) and the **PPUConfig API reference** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md).
+    Match the `PPUTypes` value to your model architecture:
+    
+    - Anchor-based (YOLOv3/v4/v5/v7) → `YOLO_BASE`
+    - Anchor-free (YOLOX, YOLOv8–v12) → `YOLO_ANCHORFREE`
+    - DFL-based with CPU TopK (YOLOv8/v9/v11/v12) → `YOLOV8`
+    
+    See the **type/model table** section in [JSON File Configuration](02_05_JSON_File_Configuration.md) and the **PPUConfig API reference** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md).
 
 ---

@@ -264,7 +264,7 @@ def compile(
 !!! note "Additional Parameters"
     The signature above lists the most commonly used parameters. `dx_com.compile()`
     accepts further advanced/diagnostic parameters (e.g. `quant_diagnosis`,
-    `super_debug`, `checkpoint` for QXNN resume). See the function docstring
+    `checkpoint` for QXNN resume). See the function docstring
     (`help(dx_com.compile)`) for the complete list.
 
 ---
@@ -422,7 +422,7 @@ The `default_loader` reads each image with `cv2.imread` (**BGR**, `HWC`, `uint8`
 - **Type**: `str`
 - **Default**: `"ema"`
 - **Description**: Calibration method for quantization
-- **Supported Values**: `"ema"` (Exponential Moving Average), `"minmax"` (Min-Max method)
+- **Supported Values**: `"ema"` (Exponential Moving Average), `"minmax"` (Min-Max method), `"iqr"` (Interquartile Range)
 
 **`calibration_num`**
 
@@ -526,7 +526,10 @@ from dx_com import PPUConfig, PPUTypes
 |------------|-------|--------------|--------|
 | `PPUTypes.YOLO_BASE` | 0 | Anchor-Based | YOLOv3/v4/v5/v7 |
 | `PPUTypes.YOLO_ANCHORFREE` | 1 | Anchor-Free | YOLOX, YOLOv8–v12 |
-| `PPUTypes.YOLOV8` | 2 | DFL-Based (CPU TopK) | YOLOv8–v12 |
+| `PPUTypes.YOLOV8` | 2 | DFL-Based (CPU TopK) | YOLOv8, v9, v11, v12 |
+
+!!! note "PPUTypes.YOLOV8 supports multiple YOLO versions"
+    Despite the enum name, `PPUTypes.YOLOV8` supports YOLOv8, YOLOv9, YOLOv11, and YOLOv12 — any DFL-based YOLO model compatible with the CPU TopK optimization path.
 
 **Construction patterns** — full init or incremental builder (chainable setters):
 

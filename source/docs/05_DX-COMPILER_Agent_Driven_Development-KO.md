@@ -21,7 +21,7 @@ PPU 설정 — 을 이해하고 있어서, *무엇을* 원하는지 설명하면
 | 요구사항 | 상세 |
 |---|---|
 | **DX-COM** | [DX-COM 설치 가이드](02_02_Installation_of_DX-COM.md)를 통해 설치 (`pip install dx-com` 또는 DEEPX 패키지 저장소) |
-| **AI 코딩 에이전트** (택 1) | Claude Code, GitHub Copilot (VS Code), Cursor, 또는 OpenCode |
+| **AI 코딩 에이전트** (택 1) | Claude Code, GitHub Copilot (VS Code), Cursor, OpenCode, 또는 Codex CLI |
 | **Python** | 3.8–3.14 |
 | **ONNX** | opset 11–21 |
 | **OS** | Debian Linux (Ubuntu 20.04/22.04/24.04/26.04), x86_64 |
@@ -255,6 +255,7 @@ PPU를 활성화하면, 에이전트가 모델 계열에 따라 PPU 타입을 �
 | **GitHub Copilot** | `@dx-model-converter` 뒤에 프롬프트를 입력합니다. |
 | **Cursor** | `dx-compiler/`를 열고 프롬프트를 입력합니다. |
 | **OpenCode** | `/dx-agent-compiler-convert` 또는 `@dx-model-converter` 뒤에 프롬프트를 입력합니다. |
+| **Codex CLI** | `dx-compiler/`를 열고 프롬프트를 바로 입력하거나, `@dx-model-converter` 뒤에 프롬프트를 입력합니다. |
 
 ### 시나리오 2: ONNX를 DXNN으로 컴파일
 
@@ -270,6 +271,7 @@ PPU를 활성화하면, 에이전트가 모델 계열에 따라 PPU 타입을 �
 | **GitHub Copilot** | `@dx-dxnn-compiler` 뒤에 프롬프트를 입력합니다. |
 | **Cursor** | `dx-compiler/`를 열고 프롬프트를 입력합니다. |
 | **OpenCode** | `/dx-agent-compiler-compile` 또는 `@dx-dxnn-compiler` 뒤에 프롬프트를 입력합니다. |
+| **Codex CLI** | `dx-compiler/`를 열고 프롬프트를 바로 입력하거나, `/dx-agent-compiler-compile` 뒤에 프롬프트를 입력합니다. |
 
 ### 시나리오 3: 전체 파이프라인 PT → DXNN
 
@@ -285,6 +287,7 @@ PPU를 활성화하면, 에이전트가 모델 계열에 따라 PPU 타입을 �
 | **GitHub Copilot** | `@dx-compiler-builder` 뒤에 프롬프트를 입력합니다. |
 | **Cursor** | `dx-compiler/`를 열고 프롬프트를 입력합니다. |
 | **OpenCode** | `@dx-compiler-builder` 뒤에 프롬프트를 입력합니다. |
+| **Codex CLI** | `dx-compiler/`를 열고 프롬프트를 바로 입력하거나, `@dx-compiler-builder` 뒤에 프롬프트를 입력합니다. |
 
 ## Config 자동 추론
 

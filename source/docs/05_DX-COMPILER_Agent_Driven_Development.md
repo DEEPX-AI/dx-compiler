@@ -21,7 +21,7 @@ Supported workflows include:
 | Requirement | Details |
 |---|---|
 | **DX-COM** | Installed via [DX-COM installation guide](02_02_Installation_of_DX-COM.md) (`pip install dx-com` or DEEPX package repository) |
-| **AI coding agent** (one of) | Claude Code, GitHub Copilot (VS Code), Cursor, or OpenCode |
+| **AI coding agent** (one of) | Claude Code, GitHub Copilot (VS Code), Cursor, OpenCode, or Codex CLI |
 | **Python** | 3.8–3.14 |
 | **ONNX** | opset 11–21 |
 | **OS** | Debian Linux (Ubuntu 20.04/22.04/24.04/26.04), x86_64 |
@@ -256,6 +256,7 @@ anchor-based YOLOv3–v7, type 1 for anchor-free YOLOv8+).
 | **GitHub Copilot** | `@dx-model-converter` followed by the prompt. |
 | **Cursor** | Open `dx-compiler/` and type the prompt. |
 | **OpenCode** | `/dx-agent-compiler-convert` or `@dx-model-converter` followed by the prompt. |
+| **Codex CLI** | Open `dx-compiler/` and type the prompt directly, or `@dx-model-converter` followed by the prompt. |
 
 ### Scenario 2: Compile ONNX to DXNN
 
@@ -271,6 +272,7 @@ anchor-based YOLOv3–v7, type 1 for anchor-free YOLOv8+).
 | **GitHub Copilot** | `@dx-dxnn-compiler` followed by the prompt. |
 | **Cursor** | Open `dx-compiler/` and type the prompt. |
 | **OpenCode** | `/dx-agent-compiler-compile` or `@dx-dxnn-compiler` followed by the prompt. |
+| **Codex CLI** | Open `dx-compiler/` and type the prompt directly, or `/dx-agent-compiler-compile` followed by the prompt. |
 
 ### Scenario 3: Full Pipeline PT → DXNN
 
@@ -286,6 +288,7 @@ anchor-based YOLOv3–v7, type 1 for anchor-free YOLOv8+).
 | **GitHub Copilot** | `@dx-compiler-builder` followed by the prompt. |
 | **Cursor** | Open `dx-compiler/` and type the prompt. |
 | **OpenCode** | `@dx-compiler-builder` followed by the prompt. |
+| **Codex CLI** | Open `dx-compiler/` and type the prompt, or `@dx-compiler-builder` followed by the prompt. |
 
 ## Config Auto-Inference
 

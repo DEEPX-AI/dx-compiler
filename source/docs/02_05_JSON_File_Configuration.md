@@ -1,4 +1,4 @@
-This chapter describes various parameters required for compiling an ONNX model using the **DX_COM**. It includes input specifications, calibration methods, data preprocessing settings, and optional parameters for advanced compilation schemes.  
+This chapter describes various parameters required for compiling an ONNX model using **DX-COM**. It includes input specifications, calibration methods, data preprocessing settings, and optional parameters for advanced compilation schemes.  
 
 These parameters are defined in a JSON file, which serves as a blueprint for how the compiler interprets and processes the input model.  
 
@@ -61,6 +61,10 @@ Available Methods
 
 - `minmax`:  
   Uses the minimum and maximum activation values to determine quantization range.
+
+- `iqr`:  
+  Uses interquartile range (IQR) based on the 25th and 75th percentiles of activation values.  
+  More robust to outliers than `minmax`, particularly useful when calibration data contains extreme values.
 
 Example
 ```json
@@ -151,7 +155,7 @@ When quantizing a model, accuracy degradation may occur compared to the original
 |------|------------------|----------------------|
 | DXQ-P0 | Very Fast | Low |
 | DXQ-P1 | Very Slow | Low-Middle |
-| DXQ-P2 | Quite Slow | Middle-High |
+| DXQ-P2 | Very Slow | Middle-High |
 | DXQ-P3 | Very Slow | High |
 | DXQ-P4 | Very Slow | High |
 | DXQ-P5 | Very Slow | High |
@@ -229,7 +233,7 @@ In this section, `type = 0` and `type = 1` still configure PPU hardware paths. `
 These configurations can automate or optimize the following operations:  
 
 - **Confidence Filtering (`type = 0`, `type = 1`)**: Removal of detection candidates below a specified threshold through the PPU hardware path.  
-- **Class Prediction (`type = 0`, `type = 1`)**: Execution of Argmax-style class selection per detection through the PPU hardware path.  
+- **Class Prediction (`type = 0`, `type = 1`)**: Execution of ArgMax-style class selection per detection through the PPU hardware path.  
 - **TopK Candidate Reduction (`type = 2`)**: CPU-side selection of the highest-scoring candidates to reduce the work required in later CPU-side decoding and filtering stages for supported DFL-based YOLO models.  
 
 !!! warning "IMPORTANT"  
@@ -273,7 +277,10 @@ The performance effect depends on the selected PPU type. `type = 0` and `type = 
 |------|--------------|------------------|
 | 0 | Anchor-Based | YOLOv3, YOLOv4, YOLOv5, YOLOv7 |
 | 1 | Anchor-Free | YOLOX, YOLOv8, YOLOv9, YOLOv10, YOLOv11, YOLOv12 |
-| 2 | DFL-Based Anchor-Free | YOLOv8, YOLOv9, YOLOv11, YOLOv12 (optional CPU-side TopK optimization path; **deprecated in v2.4.0** — use [`dx_com.pre_optimize()`](02_09_Pre_Optimize_API.md) instead) |
+| 2 | DFL-Based (CPU TopK) | YOLOv8, YOLOv9, YOLOv11, YOLOv12 |
+
+!!! warning "Type 2 is deprecated"
+    **PPU type 2** is deprecated as of DX-Compiler v2.4.0 and will be removed in a future release. Use the [`dx_com.pre_optimize()` API](02_09_Pre_Optimize_API.md) instead for the same TopK-first optimization with additional features.
 
 ---
 
@@ -540,7 +547,7 @@ Arithmetic operations on input data. The `subtract` and `div` operations may be 
 ## Appendix: Custom Loader (Legacy)
 
 !!! warning "Deprecation Notice"
-    The Custom Loader approach is **deprecated**. For new projects, use the **Python Wheel Package with torch DataLoader** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md) instead, which provides more flexibility and better integration with Python workflows.
+    The Custom Loader approach is **deprecated**. For new projects, use the **Python Wheel Package Usage** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md) instead, which provides more flexibility and better integration with Python workflows.
 
 For legacy projects that still require Custom Loader, download the [Custom Dataloader Guide](http://cs.deepx.ai/_deepx_fae_archive/docs/Custom_Dataloader_Guide_241204.zip) for detailed instructions.  
 
