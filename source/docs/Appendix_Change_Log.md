@@ -1,5 +1,22 @@
 
-## v2.4.1 (2026-07-27)
+## v2.4.2 (2026-09-02)
+
+DX-Compiler Version
+
+-   DX-COM: v2.4.1
+-   DX-TRON: v2.0.1 (Deprecated)
+
+#### Changed
+
+-   **Reduced Compiled Model Size**: Removed redundant metadata from the compiled `.dxnn` output, reducing model file size.
+
+#### Fixed
+
+-   Minor bug fixes and stability improvements.
+
+---
+
+## v2.4.1 (2026-08-14)
 
 DX-Compiler Version
 
@@ -10,6 +27,10 @@ Documentation-only hotfix; no changes to DX-COM or DX-TRON binaries.
 
 #### Fixed
 
+-   Added missing documentation for the `iqr` (Interquartile Range) calibration method.
+-   Improved PPU type configuration table formatting and clarified that `PPUTypes.YOLOV8` supports multiple YOLO versions (v8, v9, v11, v12).
+-   Added deprecation warning to the DX-TRON chapter directing users to the HTML graph viewer replacement.
+-   Added Codex CLI to Agent-Driven Development supported tools list and scenario tables.
 -   Fixed broken internal links and reorganized several pages in the user manual for improved navigation.
 -   Corrected the `dx_com.pre_optimize()` supported-model listings in the user manual: YOLOv10 is not a valid target and has been removed from the `yolo_postprocess` and PPU-type-2 migration guidance.
 

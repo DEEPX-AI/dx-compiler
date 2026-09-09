@@ -678,12 +678,12 @@ install_dx_com() {
 
         local ARCHIVED_COM_FILE
         if [ "$USE_PYPI" -eq 1 ]; then
-            # PyPI: download the latest dx-com (no version pin).
-            pip download "${PIP_DOWNLOAD_ARGS[@]}" "dx-com" || { print_colored "Failed to download dx-com for archiving." "ERROR"; popd >&2; exit 1; }
-            # Match the Python tag: archives/ may hold stale wheels for other
-            # Python versions from prior runs, and picking the wrong tag bakes a
-            # mismatched wheel into the image (forcing an in-container Python rebuild).
-            ARCHIVED_COM_FILE=$(find "$ARCHIVE_DIR" -name "dx_com-*-${PYTHON_VERSION_TAG}-*.whl" -type f | head -1)
+            # PyPI: pin the exact version from compiler.properties.
+            pip download "${PIP_DOWNLOAD_ARGS[@]}" "dx-com==${COM_VERSION}" || { print_colored "Failed to download dx-com for archiving." "ERROR"; popd >&2; exit 1; }
+            # Pin both version and Python tag: archives/ may hold stale wheels for
+            # other Python versions from prior runs, and picking the wrong tag bakes
+            # a mismatched wheel into the image (forcing an in-container Python rebuild).
+            ARCHIVED_COM_FILE=$(find "$ARCHIVE_DIR" -name "dx_com-${COM_VERSION}-${PYTHON_VERSION_TAG}-*.whl" -type f | head -1)
         else
             local COM_FIND_LINKS="https://sdk.deepx.ai/release/dxcom/v${COM_VERSION}/index.html"
             # DEEPX release index: pin the exact version from compiler.properties.
@@ -721,14 +721,8 @@ install_dx_com() {
         fi
     fi
 
-    # Install dx-com via pip
-    if [ "$USE_PYPI" -eq 1 ]; then
-        # PyPI path installs the latest published dx-com (no version pin), so
-        # COM_VERSION from compiler.properties does not apply here.
-        print_colored "Installing dx-com (latest from PyPI)..." "INFO"
-    else
-        print_colored "Installing dx-com (Version: $COM_VERSION)..." "INFO"
-    fi
+    # Install dx-com via pip (both paths pin COM_VERSION from compiler.properties)
+    print_colored "Installing dx-com (Version: $COM_VERSION)..." "INFO"
 
     # If force mode is enabled, uninstall existing dx-com first
     if [ -n "$FORCE_ARGS" ]; then
@@ -738,7 +732,7 @@ install_dx_com() {
 
     if [ "$USE_PYPI" -eq 1 ]; then
         print_colored "Installing dx-com from PyPI..." "INFO"
-        if pip install "dx-com"; then
+        if pip install "dx-com==${COM_VERSION}"; then
             print_colored "dx-com installed successfully from PyPI!" "INFO"
         else
             print_colored "Failed to install dx-com from PyPI." "ERROR"

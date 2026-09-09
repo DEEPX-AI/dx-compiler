@@ -226,7 +226,7 @@ optimized = dx_com.pre_optimize(model, passes={
 
 ---
 
-## Performance Reference (DeepX DX-M1, ARM Cortex-A53)
+## Performance Reference (DEEPX DX-M1, ARM Cortex-A53)
 
 | Model | Before (FPS) | After (FPS) | Speed-up |
 |-------|---:|---:|---:|
