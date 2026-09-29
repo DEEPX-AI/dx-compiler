@@ -9,6 +9,7 @@ pushd "$PROJECT_ROOT" >&2
 #      - types: ERROR FAIL INFO WARNING DEBUG RED BLUE YELLOW GREEN
 source "${COMPILER_PATH}/scripts/color_env.sh"
 source "${COMPILER_PATH}/scripts/common_util.sh"
+source "${COMPILER_PATH}/scripts/uv_util.sh"
 
 # --- Initialize variables for credentials and options ---
 PROJECT_NAME="dx-compiler"
@@ -22,6 +23,13 @@ REUSE_VENV=0
 FORCE_REMOVE_VENV=1
 VENV_SYSTEM_SITE_PACKAGES_ARGS=""
 USE_PYPI=1
+USE_UV=1
+# Whether --uv was passed explicitly. uv is used by default when it is already
+# installed, but it is only downloaded and installed for a user who asked.
+UV_EXPLICIT=0
+# Resolved by resolve_pip_cmd() after argument parsing; see scripts/uv_util.sh.
+PIP_CMD="pip"
+PIP_UNINSTALL_CMD="pip uninstall -y"
 
 # Global variables for script configuration
 PYTHON_VERSION=""
@@ -39,8 +47,6 @@ VENV_SYMLINK_TARGET_PATH_OVERRIDE=""
 TARGET_PKG="all"
 # Installation status flags
 DX_COM_INSTALLED=0
-DX_TRON_INSTALLED=0
-DX_TRON_WEB_ONLY=0
 
 # Properties file path
 VERSION_FILE="$PROJECT_ROOT/compiler.properties"
@@ -60,7 +66,7 @@ show_help() {
     echo -e "Usage: ${COLOR_CYAN}$(basename "$0") [OPTIONS]${COLOR_RESET}"
     echo -e ""
     echo -e "Options:"
-    echo -e "  ${COLOR_GREEN}[--target=<module_name>]${COLOR_RESET}              Install specific module (dx_com | dx_tron | all) (default: all)"
+    echo -e "  ${COLOR_GREEN}[--target=<module_name>]${COLOR_RESET}              Install specific module (dx_com | all) (default: all)"
     echo -e "  ${COLOR_GREEN}[--archive_mode=<y|n>]${COLOR_RESET}                Set archive mode (default: n)."
     echo -e ""
     echo -e "  ${COLOR_GREEN}[--docker_volume_path=<path>]${COLOR_RESET}         Set Docker volume path (required in container mode)"
@@ -68,6 +74,9 @@ show_help() {
     echo -e ""
     echo -e "  ${COLOR_GREEN}[--verbose]${COLOR_RESET}                           Enable verbose (debug) logging."
     echo -e "  ${COLOR_GREEN}[--force=<true|false>]${COLOR_RESET}                Force reinstall modules (dx_com, dx_tron) even if already installed (default: true)"
+    echo -e "  ${COLOR_GREEN}[--uv=<true|false>]${COLOR_RESET}                   Use uv instead of pip for Python package installation (default: true)"
+    echo -e "                                            - uv is used when already installed; pip is used otherwise."
+    echo -e "                                            - Passing --uv=true explicitly also installs uv if it is missing."
     echo -e "  ${COLOR_GREEN}[--help]${COLOR_RESET}                              Display this help message and exit."
     echo -e ""
     echo -e "Virtual Environment Options:"
@@ -84,7 +93,6 @@ show_help() {
     echo -e "  ${COLOR_YELLOW}${0}${COLOR_RESET}"
     echo -e "  ${COLOR_YELLOW}$0 --target=all${COLOR_RESET}"
     echo -e "  ${COLOR_YELLOW}$0 --target=dx_com${COLOR_RESET}"
-    echo -e "  ${COLOR_YELLOW}$0 --target=dx_tron${COLOR_RESET}"
     echo -e ""
     echo -e "  ${COLOR_YELLOW}$0 --docker_volume_path=/path/to/docker/volume${COLOR_RESET}"
     echo -e ""
@@ -92,6 +100,9 @@ show_help() {
     echo -e "  ${COLOR_YELLOW}$0 --venv_path=./existing_venv --venv-reuse # Reuse existing venv${COLOR_RESET}"
     echo -e "  ${COLOR_YELLOW}$0 --venv_path=./old_venv --venv-force-remove # Force remove and recreate venv${COLOR_RESET}"
     echo -e "  ${COLOR_YELLOW}$0 --venv_path=./my_venv --venv_symlink_target_path=/tmp/actual_venv # Create venv at /tmp with symlink${COLOR_RESET}"
+    echo -e ""
+    echo -e "  ${COLOR_YELLOW}$0 --uv=true # Install uv if missing, then use it${COLOR_RESET}"
+    echo -e "  ${COLOR_YELLOW}$0 --uv=false # Force the pip path${COLOR_RESET}"
     echo -e ""
 
     if [ "$1" == "error" ] && [[ ! -n "$2" ]]; then
@@ -123,12 +134,6 @@ validate_environment() {
     # Check COM_VERSION
     if [ -z "$COM_VERSION" ]; then
         print_colored "COM_VERSION not defined in '$VERSION_FILE'." "ERROR"
-        popd >&2
-        exit 1
-    fi
-
-    if [ -z "$TRON_VERSION" ] || [ -z "$TRON_DOWNLOAD_URL" ]; then
-        print_colored "TRON_VERSION or TRON_DOWNLOAD_URL not defined in '$VERSION_FILE'." "ERROR"
         popd >&2
         exit 1
     fi
@@ -218,6 +223,10 @@ install_python_and_venv() {
 
     if [ -n "${VENV_SYSTEM_SITE_PACKAGES_ARGS}" ]; then
         install_py_cmd_args+=" ${VENV_SYSTEM_SITE_PACKAGES_ARGS}"
+    fi
+
+    if [ ${USE_UV} -eq 1 ]; then
+        install_py_cmd_args+=" --uv"
     fi
 
     # Pass the determined VENV_PATH and new options to install_python_and_venv.sh
@@ -333,7 +342,7 @@ check_python_version_compatibility() {
 
     # In container mode --docker_volume_path is required. Validate up front so we
     # fail fast before the Python install prompt below. install_python_and_venv()
-    # re-validates for the dx_tron path which skips this function.
+    # re-validates independently.
     if check_container_mode && [ -z "$DOCKER_VOLUME_PATH" ]; then
         show_help "error" "--docker_volume_path must be provided in container mode."
         exit 1
@@ -518,7 +527,7 @@ install_python_package() {
         print_colored "Python package '$package_name' is already installed." "INFO"
     else
         print_colored "Python package '$package_name' not found. Installing..." "INFO"
-        pip_install_cmd="pip3 install $package_name"
+        pip_install_cmd="${PIP_CMD} install $package_name"
         if ! eval "$pip_install_cmd"; then
             print_colored "ERROR: Failed to install Python package '$package_name'. Please ensure pip3 is installed and accessible, or install it manually." "ERROR"
             popd >&2
@@ -586,54 +595,20 @@ download_sample_data() {
 
 show_installation_complete_message() {
     if [ "$ARCHIVE_MODE" != "y" ]; then
-        # Combined message for all installations
-        local MODULE_NAMES=""
-        local COMMAND_NAMES=""
-
-        if [ $DX_COM_INSTALLED -eq 1 ] && [ $DX_TRON_INSTALLED -eq 1 ]; then
-            MODULE_NAMES="dx_com and dx_tron"
-        elif [ $DX_COM_INSTALLED -eq 1 ]; then
-            MODULE_NAMES="dx_com"
-        elif [ $DX_TRON_INSTALLED -eq 1 ]; then
-            MODULE_NAMES="dx_tron"
-        else
+        if [ $DX_COM_INSTALLED -ne 1 ]; then
             return  # Nothing installed
         fi
 
         echo ""
         print_colored_v2 "HINT" "===================================================================="
-        print_colored_v2 "HINT" "  ${MODULE_NAMES} installation completed!"
+        print_colored_v2 "HINT" "  dx_com installation completed!"
         print_colored_v2 "HINT" ""
-
-        if [ $DX_COM_INSTALLED -eq 1 ]; then
-            print_colored_v2 "HINT" "  To use dx_com, activate the virtual environment first:"
-            print_colored_v2 "HINT" "    $ source ${VENV_PATH}/bin/activate"
-            print_colored_v2 "HINT" ""
-            print_colored_v2 "HINT" "  Then you can run dxcom:"
-            print_colored_v2 "HINT" "    $ dxcom -h"
-            print_colored_v2 "HINT" ""
-        fi
-
-        if [ $DX_TRON_INSTALLED -eq 1 ]; then
-            if [ $DX_TRON_WEB_ONLY -eq 1 ]; then
-                print_colored_v2 "HINT" "  dxtron (CLI/desktop) is supported only on Debian/Ubuntu family."
-                print_colored_v2 "HINT" "  On Red Hat family (Fedora/RHEL/CentOS), only the web variant is installed."
-                print_colored_v2 "HINT" ""
-                print_colored_v2 "HINT" "  To start the dxtron web server:"
-                print_colored_v2 "HINT" "    $ ./run_dxtron_web.sh --port=8080"
-                print_colored_v2 "HINT" ""
-            else
-                print_colored_v2 "HINT" "  To run dxtron (no virtual environment required):"
-                print_colored_v2 "HINT" "    $ dxtron"
-                print_colored_v2 "HINT" ""
-                print_colored_v2 "HINT" "  Or use the convenience script to start the web server:"
-                print_colored_v2 "HINT" "    $ ./run_dxtron_web.sh --port=8080"
-                print_colored_v2 "HINT" ""
-                print_colored_v2 "HINT" "  Note: the 'dxtron' CLI/desktop binary is supported only on Debian/Ubuntu family."
-                print_colored_v2 "HINT" ""
-            fi
-        fi
-
+        print_colored_v2 "HINT" "  To use dx_com, activate the virtual environment first:"
+        print_colored_v2 "HINT" "    $ source ${VENV_PATH}/bin/activate"
+        print_colored_v2 "HINT" ""
+        print_colored_v2 "HINT" "  Then you can run dxcom:"
+        print_colored_v2 "HINT" "    $ dxcom -h"
+        print_colored_v2 "HINT" ""
         print_colored_v2 "HINT" "===================================================================="
         echo ""
     fi
@@ -669,6 +644,10 @@ install_dx_com() {
         mkdir -p "$ARCHIVE_DIR"
         print_colored "ARCHIVE_MODE is ON. Downloading dx-com to ${ARCHIVE_DIR}..." "INFO"
 
+        # Archive mode stays on pip: uv has no `pip download` equivalent, and
+        # cross-version wheel fetching via --only-binary/--python-version is
+        # exactly what pip download exists for. Revisit if `uv pip download`
+        # ever ships.
         local PIP_DOWNLOAD_ARGS=(
             "--dest" "$ARCHIVE_DIR"
             "--no-deps"
@@ -711,8 +690,8 @@ install_dx_com() {
     # For Python 3.8, manually install onnxruntime 1.18.0 from direct URL (PyPI doesn't support it)
     if [ "${PYTHON_VERSION_TAG}" = "cp38" ]; then
         print_colored "Python 3.8 detected: Upgrading pip and installing onnxruntime 1.18.0 from direct URL..." "INFO"
-        pip install --upgrade pip || print_colored "Warning: Failed to upgrade pip. Continuing..." "WARNING"
-        if pip install https://files.pythonhosted.org/packages/1b/74/02cb1f6fcbadc094c98c49aff8571e7c576bdb4015c01507c385285b5bed/onnxruntime-1.18.0-cp38-cp38-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl; then
+        ${PIP_CMD} install --upgrade pip || print_colored "Warning: Failed to upgrade pip. Continuing..." "WARNING"
+        if ${PIP_CMD} install https://files.pythonhosted.org/packages/1b/74/02cb1f6fcbadc094c98c49aff8571e7c576bdb4015c01507c385285b5bed/onnxruntime-1.18.0-cp38-cp38-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl; then
             print_colored "onnxruntime 1.18.0 installed successfully for Python 3.8!" "INFO"
         else
             print_colored "Failed to install onnxruntime 1.18.0 for Python 3.8." "ERROR"
@@ -727,12 +706,12 @@ install_dx_com() {
     # If force mode is enabled, uninstall existing dx-com first
     if [ -n "$FORCE_ARGS" ]; then
         print_colored "Force mode: uninstalling existing dx-com before reinstall..." "INFO"
-        pip uninstall -y dx-com 2>/dev/null || true
+        ${PIP_UNINSTALL_CMD} dx-com 2>/dev/null || true
     fi
 
     if [ "$USE_PYPI" -eq 1 ]; then
         print_colored "Installing dx-com from PyPI..." "INFO"
-        if pip install "dx-com==${COM_VERSION}"; then
+        if ${PIP_CMD} install "dx-com==${COM_VERSION}"; then
             print_colored "dx-com installed successfully from PyPI!" "INFO"
         else
             print_colored "Failed to install dx-com from PyPI." "ERROR"
@@ -742,7 +721,7 @@ install_dx_com() {
     else
         local COM_FIND_LINKS="https://sdk.deepx.ai/release/dxcom/v${COM_VERSION}/index.html"
         print_colored "Installing dx-com from ${COM_FIND_LINKS}..." "INFO"
-        if pip install "dx-com==${COM_VERSION}" -f "$COM_FIND_LINKS"; then
+        if ${PIP_CMD} install "dx-com==${COM_VERSION}" -f "$COM_FIND_LINKS"; then
             print_colored "dx-com installed successfully!" "INFO"
         else
             print_colored "Failed to install dx-com." "ERROR"
@@ -755,135 +734,6 @@ install_dx_com() {
 
     # Set installation flag
     DX_COM_INSTALLED=1
-}
-
-install_dx_tron() {
-    echo -e "=== install_dx_tron() ${TAG_START} ==="
-
-    # Check if archive mode is enabled
-    if [ "$ARCHIVE_MODE" = "y" ]; then
-        print_colored "ARCHIVE_MODE is ON." "INFO"
-        ARCHIVE_MODE_ARGS="--archive_mode=y" # Pass this to install_module.sh
-    fi
-
-    # Install dx-tron
-    print_colored "Installing dx-tron (Version: $TRON_VERSION)..." "INFO"
-    # Pass all relevant args to install_module.sh
-    INSTALL_TRON_CMD="$PROJECT_ROOT/scripts/install_module.sh --module_name=dx_tron --version=$TRON_VERSION --download_url=$TRON_DOWNLOAD_URL $ARCHIVE_MODE_ARGS $FORCE_ARGS $VERBOSE_ARGS"
-    print_colored "Executing: $INSTALL_TRON_CMD" "DEBUG" # Debug line
-    # Use direct execution to properly pass environment variables with real-time output
-    TRON_OUTPUT_FILE=$(mktemp)
-    eval "$INSTALL_TRON_CMD" 2>&1 | tee "$TRON_OUTPUT_FILE"
-    TRON_INSTALL_EXIT_CODE=${PIPESTATUS[0]}
-    TRON_OUTPUT=$(cat "$TRON_OUTPUT_FILE")
-    rm -f "$TRON_OUTPUT_FILE"
-    if [ $TRON_INSTALL_EXIT_CODE -ne 0 ]; then
-        print_colored "Installing dx-tron failed!" "ERROR"
-        popd >&2
-        exit 1
-    fi
-
-    # Extract archived file path from output if in archive mode
-    if [ "$ARCHIVE_MODE" = "y" ]; then
-        ARCHIVED_TRON_FILE=$(echo "$TRON_OUTPUT" | grep "^ARCHIVED_FILE_PATH=" | tail -1 | cut -d'=' -f2)
-        if [ -n "$ARCHIVED_TRON_FILE" ] && [ -n "$ARCHIVE_OUTPUT_FILE" ]; then
-            echo "ARCHIVED_TRON_FILE=${ARCHIVED_TRON_FILE}" >> "$ARCHIVE_OUTPUT_FILE"
-        fi
-    fi
-
-    # --- Package Installation (Non-archive mode only) ---
-    if [ "$ARCHIVE_MODE" != "y" ]; then
-        local DX_TRON_DIR="${PROJECT_ROOT}/dx_tron"
-        
-        # Detect OS family to determine package format
-        local INSTALL_OS_ID=""
-        local INSTALL_OS_FAMILY="debian"  # default: Debian/Ubuntu DEB path
-        if [ -f /etc/os-release ]; then
-            INSTALL_OS_ID=$(grep "^ID=" /etc/os-release | sed 's/^ID=//' | tr -d '"')
-        fi
-        # Resolve OS family: prefer exact ID match, then fall back to ID_LIKE so
-        # that RHEL-family derivatives detected via os_check Pass 2 (e.g. Oracle
-        # Linux ID=ol, ID_LIKE=fedora) land in the redhat branch instead of the
-        # default DEB path.
-        case "$INSTALL_OS_ID" in
-            fedora|rhel|centos)
-                INSTALL_OS_FAMILY="redhat"
-                ;;
-            *)
-                if grep -qE 'ID_LIKE=.*(fedora|rhel|centos)' /etc/os-release 2>/dev/null; then
-                    INSTALL_OS_FAMILY="redhat"
-                fi
-                ;;
-        esac
-
-        case "$INSTALL_OS_FAMILY" in
-            redhat)
-                # Red Hat family - install web variant only.
-                # The 'dxtron' CLI/desktop binary (AppImage) is intentionally NOT
-                # installed here: AppImage requires FUSE and is not officially
-                # supported on Red Hat family by this installer. The web variant
-                # (dxtron_*_web) shipped in the dx_tron tarball is sufficient and
-                # can be launched via run_dxtron_web.sh.
-                print_colored "INFO: Red Hat family detected - installing dx_tron web variant only." "INFO"
-                print_colored "INFO: (dxtron CLI/desktop AppImage is supported only on Debian/Ubuntu family.)" "INFO"
-
-                # Verify the web variant exists in the extracted tarball.
-                local WEB_DIR=$(find -L "${DX_TRON_DIR}" -name "*_web" -print -quit 2>/dev/null)
-                if [ -z "$WEB_DIR" ]; then
-                    # Also accept a file named *_web (in case packaging changes)
-                    WEB_DIR=$(find -L "${DX_TRON_DIR}" -name "*_web*" -print -quit 2>/dev/null)
-                fi
-                if [ -z "$WEB_DIR" ]; then
-                    print_colored "ERROR: dx_tron web variant not found under '${DX_TRON_DIR}'." "ERROR"
-                    popd >&2
-                    exit 1
-                fi
-                print_colored "INFO: Found dx_tron web variant: $(basename "$WEB_DIR")" "INFO"
-
-                DX_TRON_WEB_ONLY=1
-                ;;
-            debian)
-                # Debian/Ubuntu family - use DEB packages
-                local ARCH=$(uname -m)
-                case "$ARCH" in
-                    x86_64) ARCH="amd64" ;;
-                    aarch64) ARCH="arm64" ;;
-                    armv7l) ARCH="armhf" ;;
-                esac
-
-                # Use -L to follow symlinks when searching
-                local DEB_FILE=$(find -L "${DX_TRON_DIR}" -name "*_${ARCH}.deb" -print -quit 2>/dev/null)
-
-                # Fallback to any .deb if architecture-specific not found
-                if [ -z "$DEB_FILE" ]; then
-                    DEB_FILE=$(find -L "${DX_TRON_DIR}" -name "*.deb" -print -quit 2>/dev/null)
-                fi
-
-                if [ -n "$DEB_FILE" ] && [ -f "$DEB_FILE" ]; then
-                    print_colored "INFO: Found DEB package: $(basename "$DEB_FILE")" "INFO"
-                    print_colored "INFO: Installing DX-Tron DEB package..." "INFO"
-
-                    # Update apt and install dependencies, then install deb package
-                    if sudo apt-get update && sudo apt-get install -y "$DEB_FILE"; then
-                        print_colored "INFO: DX-Tron DEB package installed successfully!" "INFO"
-                    else
-                        print_colored "ERROR: Failed to install DX-Tron DEB package '$(basename "$DEB_FILE")'." "ERROR"
-                        popd >&2
-                        exit 1
-                    fi
-                else
-                    print_colored "ERROR: No DEB package found in '${DX_TRON_DIR}'." "ERROR"
-                    popd >&2
-                    exit 1
-                fi
-                ;;
-        esac
-    fi
-
-    echo -e "=== install_dx_tron() ${TAG_DONE} ==="
-
-    # Set installation flag
-    DX_TRON_INSTALLED=1
 }
 
 os_arch_check() {
@@ -914,17 +764,6 @@ os_arch_check() {
 
         os_check_error_message="This installer supports only Ubuntu 20.04, 22.04, 24.04, 26.04 / Fedora 42-45 / RHEL 9-10 / CentOS 9-10."
         arch_check_error_message="This installer supports only x86_64/amd64 architecture."
-    elif [ "$target" == "dx_tron" ]; then
-        os_names="ubuntu debian fedora rhel centos"
-        ubuntu_versions="20.04 22.04 24.04 26.04"
-        debian_versions="11 12 13"
-        fedora_versions="42 43 44 45"
-        rhel_versions="9 10"
-        centos_versions="9 10"
-        supported_arch_names="amd64 x86_64 arm64 aarch64 armv7l"
-
-        os_check_error_message="This installer supports only Ubuntu 20.04, 22.04, 24.04, 26.04 / Debian 11-13 / Fedora 42-45 / RHEL 9-10 / CentOS 9-10."
-        arch_check_error_message="This installer supports only x86_64/amd64 and arm64/aarch64/armv7l architecture."
     else
         print_colored_v2 "ERROR" "$1 is not supported target."
         popd >&2
@@ -977,20 +816,7 @@ main() {
             show_installation_complete_message
             ;;
         dx_tron)
-            print_colored "Installing dx-tron..." "INFO"
-            os_arch_check "dx_tron" || {
-                popd >&2
-                exit 1
-            }
-            validate_environment
-            install_python_and_venv
-            setup_project
-
-            install_dx_tron
-
-            print_colored "[OK] Installing dx-tron completed successfully." "INFO"
-
-            show_installation_complete_message
+            show_help "error" "DX-TRON support has been removed from dx-compiler. Use --target=dx_com (or --target=all). For install-free .dxnn inspection, compile with 'dxcom --export_html' and open the generated <model>_summary.html."
             ;;
         all)
             print_colored "Installing all compiler modules..." "INFO"
@@ -999,52 +825,39 @@ main() {
             # In archive mode, skip OS checks - just download all modules
             # (the target Docker image OS differs from the host OS)
             local WILL_INSTALL_DX_COM=0
-            local WILL_INSTALL_DX_TRON=0
             if [ "$ARCHIVE_MODE" = "y" ]; then
                 WILL_INSTALL_DX_COM=1
-                WILL_INSTALL_DX_TRON=1
             else
                 os_arch_check "dx_com" "silent" && WILL_INSTALL_DX_COM=1
-                os_arch_check "dx_tron" "silent" && WILL_INSTALL_DX_TRON=1
             fi
 
-            # If neither module is supported, abort before installing Python/venv
-            # so we don't leave that as a side effect and falsely report success.
-            if [ $WILL_INSTALL_DX_COM -eq 0 ] && [ $WILL_INSTALL_DX_TRON -eq 0 ]; then
-                print_colored_v2 "ERROR" "Neither dx-com nor dx-tron is supported on this OS/Architecture. Nothing to install."
+            # If dx_com is not supported, abort before installing Python/venv so we
+            # don't leave that as a side effect and falsely report success.
+            #
+            # Intentional behaviour change: 'all' used to fall back to installing
+            # dx_tron, which supported Debian and arm64/aarch64/armv7l. dx_com is
+            # x86_64-only on Ubuntu/Fedora/RHEL/CentOS, so with DX-TRON removed
+            # those hosts now abort here instead of reporting a partial success.
+            if [ $WILL_INSTALL_DX_COM -eq 0 ]; then
+                print_colored_v2 "ERROR" "dx-com is not supported on this OS/Architecture. Nothing to install."
                 popd >&2
                 exit 1
             fi
 
-            # If dx_com will be installed, check Python version compatibility first
-            # This ensures venv is created with a compatible Python version for both modules
-            if [ $WILL_INSTALL_DX_COM -eq 1 ]; then
-                check_python_version_compatibility
-            fi
-
+            check_python_version_compatibility
             install_python_and_venv
             setup_project
 
-            if [ $WILL_INSTALL_DX_TRON -eq 1 ]; then
-                install_dx_tron
-            else
-                print_colored_v2 "SKIP" "dx-tron is not supported on this OS/Architecture. Skipping dx-tron installation."
-            fi
+            install_prerequisites
+            install_dx_com
+            [ $DX_COM_INSTALLED -eq 1 ] && download_sample_data
 
-            if [ $WILL_INSTALL_DX_COM -eq 1 ]; then
-                install_prerequisites
-                install_dx_com   
-                [ $DX_COM_INSTALLED -eq 1 ] && download_sample_data
-            else
-                print_colored_v2 "SKIP" "dx-com is not supported on this OS/Architecture. Skipping dx-com installation."
-            fi
-            
             print_colored "[OK] Installing all compiler modules completed successfully." "INFO"
 
             show_installation_complete_message
             ;;
         *)
-            show_help "error" "Invalid target '$TARGET_PKG'. Valid targets are: dx_com, dx_tron, all"
+            show_help "error" "Invalid target '$TARGET_PKG'. Valid targets are: dx_com, all"
             ;;
     esac
 }
@@ -1104,6 +917,17 @@ while [[ $# -gt 0 ]]; do
                 show_help "error" "Invalid value for --pypi: '$PYPI_VALUE'. Use 'true' or 'false'."
             fi
             ;;
+        --uv=*)
+            UV_EXPLICIT=1
+            UV_VALUE="${1#*=}"
+            if [ "$UV_VALUE" = "true" ]; then
+                USE_UV=1
+            elif [ "$UV_VALUE" = "false" ]; then
+                USE_UV=0
+            else
+                show_help "error" "Invalid value for --uv: '$UV_VALUE'. Use 'true' or 'false'."
+            fi
+            ;;
         --help)
             show_help
             ;;
@@ -1113,6 +937,9 @@ while [[ $# -gt 0 ]]; do
     esac
     shift
 done
+
+resolve_pip_cmd "$USE_UV" "$UV_EXPLICIT"
+print_colored "Python package installer: ${PIP_CMD}" "INFO"
 
 main
 

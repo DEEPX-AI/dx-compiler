@@ -34,6 +34,23 @@ DX-Compiler provides scripts for local installation, as well as scripts for buil
 ### Local Installation
 For detailed instructions on setting up a local environment for DX-Compiler, please refer to this [LINK](https://github.com/DEEPX-AI/dx-all-suite/blob/main/docs/source/02_Setting_Up_Environment.md).
 
+### Faster Installation with uv
+
+`install.sh` installs Python packages with [uv](https://docs.astral.sh/uv/) when uv is already available, and with pip otherwise. Nothing extra is required:
+
+```bash
+./install.sh
+```
+
+Pass `--uv=true` to install uv first if it is missing, or `--uv=false` to force the pip path:
+
+```bash
+./install.sh --uv=true
+./install.sh --uv=false
+```
+
+See [Installation of DX-COM](source/docs/02_02_Installation_of_DX-COM.md) for details.
+
 ### Docker Installation
 For detailed instructions on setting up a Docker environment for DX-Compiler, please refer to this [LINK](https://github.com/DEEPX-AI/dx-all-suite/blob/main/docs/source/02_Setting_Up_Environment.md)
 

@@ -50,14 +50,13 @@ nav:
       - Pre-Optimize API: docs/02_09_Pre_Optimize_API.md
       - Common Use Cases: docs/02_10_Common_Use_Cases.md
   - Development Tools:
-      - Model Viewer (DX-TRON): docs/04_01_Model_Viewer_DX-TRON.md
-      - Compilation Summary Report: docs/04_02_Compilation_Summary_Report.md
+      - Compilation Summary Report: docs/04_Compilation_Summary_Report.md
   - Agent-Driven Development Guide: docs/05_DX-COMPILER_Agent_Driven_Development.md
   - Change Log: docs/Appendix_Change_Log.md
 
 plugins:
   - search
-  - to-pdf:
+  - with-pdf:
       author: DEEPX.ai
       copyright: ⓒ Copyright 2026 DEEPX All Rights Reserved.
       cover_title: DXNN Compiler (DX-COM) User Manual

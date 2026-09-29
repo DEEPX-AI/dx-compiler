@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from dataclasses import dataclass, field
@@ -320,6 +321,7 @@ def check_skill_sections(deepx_dir: Path, report: FrameworkReport) -> None:
         "dx-swe-writing-plans",
         "dx-skill-router",
         "dx-harness-writing-skills",
+        "dx-harness-validate",
     }
 
     for skill_file in skills_dir.glob("*/SKILL.md"):
@@ -453,6 +455,45 @@ def check_memory_domain_tags(deepx_dir: Path, report: FrameworkReport) -> None:
     ))
 
 
+def check_docs_symlinks(deepx_dir: Path, report: FrameworkReport) -> None:
+    """No broken symlinks in the docs tree (root cause: dx_stream v3.1.2 shipped
+    docs/source/docs/RELEASE_NOTES.md as a symlink whose target was the literal
+    pymdownx.snippets directive)."""
+    # broken symlinks always land in filenames (os.walk classifies via
+    # is_dir(), which follows the link); dirnames kept as belt-and-braces
+    repo_root = deepx_dir.parent
+    issues: List[str] = []
+    for sub in ("docs", "source", ".deepx"):
+        base = repo_root / sub
+        if not base.is_dir():
+            continue
+        for dirpath, dirnames, filenames in os.walk(base):
+            for name in dirnames + filenames:
+                p = Path(dirpath) / name
+                if p.is_symlink() and not p.exists():
+                    rel = p.relative_to(repo_root)
+                    issues.append(
+                        f"{rel} -> {os.readlink(p)!r}; for a mkdocs snippet "
+                        'include the FILE CONTENT should be the --8<-- "..." line'
+                    )
+
+    if issues:
+        for issue in issues:
+            report.add(CheckResult(
+                category="docs_symlinks",
+                check_name=f"symlink:{issue.split(' -> ')[0]}",
+                passed=False,
+                message=f"broken symlink {issue}",
+            ))
+    else:
+        report.add(CheckResult(
+            category="docs_symlinks",
+            check_name="no_broken_symlinks",
+            passed=True,
+            message="No broken symlinks found",
+        ))
+
+
 # ── Main ───────────────────────────────────────────────────────────────────
 
 def main() -> int:
@@ -497,6 +538,7 @@ def main() -> int:
     check_skill_sections(deepx_dir, report)
     check_toolset_signatures(deepx_dir, report)
     check_memory_domain_tags(deepx_dir, report)
+    check_docs_symlinks(deepx_dir, report)
 
     # Output results
     if args.json:

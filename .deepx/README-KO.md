@@ -120,7 +120,7 @@
 ## Key Facts
 
 - **Compiler**: DX-COM — ONNX를 DEEPX NPU용 .dxnn으로 컴파일
-- **Inspector**: DX-TRON v2.0.1 — 시각적 .dxnn 검사 (AppImage / 웹)
+- **Inspector**: Compilation Summary Report — `dxcom --export_html`가 self-contained `<model>_summary.html` 파일을 생성
 - **Batch size**: 1이어야 함. Dynamic shapes는 지원하지 않음.
 - **ONNX opset**: 11-21 지원
 - **OS**: Debian Linux (Ubuntu 20.04 / 22.04 / 24.04), x86_64
@@ -144,3 +144,7 @@
 Codex CLI는 여기서 Copilot 스타일 `@mention` wrapper나 OpenCode slash-command
 adapter를 사용하지 않습니다. `AGENTS.md`를 시작점으로 삼고, 작업별 grounding이
 필요하면 canonical `.deepx/agents/*.md`와 `.deepx/skills/*/SKILL.md`를 직접 읽습니다.
+
+## CI Drift Gate
+
+이 repo는 `subrepo-gate` CI job(`.github/workflows/dx-agent-dev-subrepo-gate-{ghes,cloud}.yml`)으로 검사됩니다. 실행 내용, 로컬 재현, red일 때 수정 방법: [`docs/ci-subrepo-gate-KO.md`](docs/ci-subrepo-gate-KO.md).

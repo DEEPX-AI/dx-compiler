@@ -3,7 +3,9 @@ This chapter describes how to compile a model with **Quantization-Aware Training
 QAT reuses the **same JSON configuration** as a normal (PTQ) compile. When the configuration file contains a `qmaster` block, `dx_com.compile()` automatically switches to QAT mode and runs the training pipeline using the same dataset and preprocessing settings as PTQ calibration.
 
 !!! note "Version Support"
-    QAT (the `qmaster` block) is supported in **DX-COM v2.4.0 and later**.
+    QAT (the `qmaster` block) is supported in **DX-COM v2.4.0 and later**. From
+    **v2.5.0**, the Python API drives QAT through the `qmaster=QMasterConfig(...)`
+    argument (the earlier `qat_*` arguments were removed).
 
 ---
 
@@ -137,21 +139,72 @@ KD uses the original floating-point model as a teacher to guide the quantized st
 
 ---
 
+## Segmentation QAT (opt-in)
+
+!!! note "Version Support"
+    Segmentation QAT is supported in **DX-COM v2.5.0 and later**.
+
+By default, QAT expects an ImageNet-style `(image, int_label)` classification
+dataset. Set `"task_type": "segmentation"` to switch to a dense
+`(image, mask)` segmentation dataset instead — every other `task_type`
+(absent, or `"classification"`) is unaffected.
+
+```json
+"qmaster": {
+  "task_type": "segmentation",
+  "seg_root": "/path/to/dataset_root",
+  "seg_pairs_train": "/path/to/dataset_root/lists/train.txt",
+  "seg_pairs_val": "/path/to/dataset_root/lists/val.txt",
+  "seg_ignore_index": 255,
+  "seg_binary": true,
+  "use_kd": false
+}
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `task_type` | `"classification"` | Set to `"segmentation"` to enable the dense segmentation loader/criterion. |
+| `seg_root` | — | Root directory that `seg_pairs_train` / `seg_pairs_val` paths are relative to. |
+| `seg_pairs_train` / `seg_pairs_val` | — | Pair-list text files; each line is `<image_path> <mask_path>`, relative to `seg_root`. |
+| `seg_ignore_index` | `255` | Label value excluded from the loss/metric (e.g. unlabeled/void pixels). |
+| `seg_binary` | `false` | Treat the task as binary (foreground/background) segmentation. |
+
+When `task_type = "segmentation"`, `criterion` defaults to `"seg_ce"` (dense
+cross-entropy over the mask) instead of `mse`/`cross_entropy`, unless you
+override it explicitly. Masks are loaded as raw integer class-id maps and are
+**not** run through the image `preprocessings` pipeline (only the image is).
+
+---
+
 ## Control Parameters (Python API)
 
 The following parameters control **training vs. compilation** behavior. They are available through the Python API (`dx_com.compile()`); the `dxcom` CLI runs the full QAT pipeline directly from the `qmaster` block.
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `quantization_mode` | `str` | `"ptq"` | Keep as `"ptq"` (default) to let QAT be auto-selected when a `qmaster` block is present. Set to `"qat"` only when supplying `qat_config` directly in Python — doing so bypasses `qmaster` auto-detection. When set to `"qat"`, you must provide either `qat_config` (for training) or `qat_skip_training=True` (for compile-only/resume). |
-| `qat_config` | `Optional[Dict]` | `None` | QAT training hyperparameters. Normally supplied via the `qmaster` block in the config JSON; this argument is an alternative for callers that build the config in code. |
-| `qat_skip_training` | `bool` | `False` | Skip the training loop and run compilation only (Stage 2). Use with `qat_resume_from_checkpoint`. |
-| `qat_resume_from_checkpoint` | `Optional[str]` | `None` | Path to a `qat_checkpoint.qxnn`. Loads trained weights, then compiles (or continues). |
+!!! warning "Changed in v2.5.0"
+    The former flat arguments `quantization_mode`, `qat_config`, `qat_skip_training`,
+    and `qat_resume_from_checkpoint` have been **replaced by a single `qmaster`
+    argument** that takes a `QMasterConfig` object. The old arguments are no longer
+    honored from Python code. Triggering QAT from a JSON `qmaster` block is unchanged.
+
+QAT from Python is controlled by one argument, `qmaster`, which takes a
+`QMasterConfig` object (import it from the top-level `dx_com` package):
+
+| `QMasterConfig` field | Type | Default | Description |
+|-----------------------|------|---------|-------------|
+| `config` | `Optional[dict]` | `None` | QAT training hyperparameters — the same keys as the JSON `qmaster` block (see [The `qmaster` Block](#the-qmaster-block) above). |
+| `skip_training` | `bool` | `False` | Skip the training loop and run compilation only (Stage 2). Use with `resume_from_checkpoint`. |
+| `resume_from_checkpoint` | `Optional[str]` | `None` | Path to a `qat_checkpoint.qxnn`. Loads trained weights, then compiles. |
 
 !!! tip "Re-running Compilation Only"
     Training can take a long time. After a successful run you can regenerate the
-    `.dxnn` without re-training by passing the saved checkpoint:
-    `qat_skip_training=True` together with `qat_resume_from_checkpoint="<path>.qxnn"`.
+    `.dxnn` without re-training by passing the saved checkpoint through `qmaster`:
+
+    ```python
+    qmaster=QMasterConfig(
+        skip_training=True,
+        resume_from_checkpoint="<path>.qxnn",
+    )
+    ```
 
 !!! note "`fast_run` Is a Config Key"
     To run a quick smoke test, set `"fast_run": true` **inside the `qmaster` block**
@@ -173,24 +226,85 @@ dxcom -m model.onnx -c config_with_qmaster.json -o output/
 
 ```python
 import dx_com
+from dx_com import QMasterConfig
 
-# Basic QAT (training + compilation). qmaster block in config triggers QAT automatically.
+# Basic QAT (training + compilation). A qmaster block in the JSON config
+# triggers QAT automatically — no extra argument required.
 dx_com.compile(
     model="model.onnx",
     config="config_with_qmaster.json",
     output_dir="output/",
 )
 
-# Compilation only, reusing a previously trained checkpoint.
+# Building the QAT config in code instead of JSON (New in v2.5.0).
 dx_com.compile(
     model="model.onnx",
-    config="config_with_qmaster.json",
     output_dir="output/",
-    quantization_mode="qat",
-    qat_skip_training=True,
-    qat_resume_from_checkpoint="output/qat_checkpoint/qat_checkpoint.qxnn",
+    config="config.json",
+    qmaster=QMasterConfig(config={"epochs": 30, "lr": 1e-5, "use_kd": True}),
+)
+
+# Compilation only, reusing a previously trained checkpoint (New in v2.5.0).
+# QAT config comes from the qmaster= argument, so the JSON needs no qmaster block.
+dx_com.compile(
+    model="model.onnx",
+    config="config.json",
+    output_dir="output/",
+    qmaster=QMasterConfig(
+        skip_training=True,
+        resume_from_checkpoint="output/qat_checkpoint/qat_checkpoint.qxnn",
+    ),
 )
 ```
+
+---
+
+## Optimize-Phase Accuracy Check (debug)
+
+!!! note "Version Support"
+    Available in **DX-COM v2.5.0 and later**. Applies to both PTQ and QAT compiles.
+
+The compile pipeline applies further optimization passes (e.g. PAF LUT
+folding, offset fusion) after quantization/QAT training. Those passes can
+occasionally introduce their own accuracy regression, which would otherwise
+only surface once the final `.dxnn` is evaluated. `--optimize_check` runs an
+extra comparison between the pre-optimize (quantization/QAT) output and the
+post-optimize output for each NPU subgraph, right after the optimize phase,
+so this class of regression is caught immediately during compile instead of
+during a separate accuracy run.
+
+```bash
+dxcom -m model.onnx -c config.json -o output/ --optimize_check
+dxcom -m model.onnx -c config.json -o output/ --optimize_check --optimize_check_num_samples 20
+```
+
+```python
+dx_com.compile(
+    model="model.onnx",
+    config="config.json",
+    output_dir="output/",
+    optimize_check=True,
+    optimize_check_num_samples=20,
+)
+```
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `optimize_check` | `False` | Enable the optimize-phase vs. quantization/QAT accuracy check. Off by default since it costs extra compile time/memory. |
+| `optimize_check_num_samples` | `10` | Number of samples compared per subgraph. Lower values reduce the in-memory reference size and check cost. |
+
+Each subgraph is reported with its worst-case and mean cosine similarity
+across the checked samples:
+
+```text
+[INFO] - [optimize-check] subgraph 'npu_0': OK (worst cos_sim=0.9999, mean=0.9999 over 10 sample(s)).
+[WARNING] - [optimize-check] subgraph 'npu_0': worst cos_sim=0.9795, mean=0.9876 over 10 sample(s) is below the warn threshold 0.99.
+```
+
+A result below `0.99` is logged as a `WARNING`; below `0.95` is logged as an
+`ERROR`. Either case is worth investigating before shipping the compiled
+model, even though compilation still completes. These two thresholds are
+fixed internal defaults and are not currently exposed as config/CLI options.
 
 ---
 
@@ -199,7 +313,7 @@ dx_com.compile(
 | File | Description |
 |------|-------------|
 | `<output_dir>/*.dxnn` | Compiled NPU binary (the deliverable). |
-| `<output_dir>/qat_checkpoint/qat_checkpoint.qxnn` | Best training checkpoint, for `qat_resume_from_checkpoint`. |
+| `<output_dir>/qat_checkpoint/qat_checkpoint.qxnn` | Best training checkpoint, for `QMasterConfig(resume_from_checkpoint=...)`. |
 
 ---
 
