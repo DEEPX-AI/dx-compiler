@@ -66,7 +66,7 @@ FP16/FP32 출력 옵션이 없습니다. 사용자에게 출력 정밀도를 선
 
 **Gate 1 — 브레인스토밍**: 입력 확인 (모델 경로, 형식, 타겟 디바이스, 교정 데이터).
 **Gate 2 — 빌드**: 선택된 파라미터로 컴파일 실행.
-**Gate 3 — 검증**: DX-TRON으로 출력 검증, compiler.log 검토.
+**Gate 3 — 검증**: HTML summary report(`--export_html`)로 출력 검증, compiler.log 검토.
 
 ## 빠른 참조
 
@@ -89,9 +89,9 @@ dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
 | `/dx-agent-compiler-convert` | PyTorch 모델을 ONNX로 변환 |
 | `/dx-agent-compiler-compile` | ONNX 모델을 DXNN으로 컴파일 |
 | `/dx-agent-compiler-validate` | 컴파일 출력 검증 |
-| `/dx-swe-brainstorm` | 브레인스토밍, 2-3가지 접근법 제안, 스펙 자체 검토 후 계획 |
-| `/dx-swe-tdd` | 검증 주도 개발, 선택적 Red-Green-Refactor 단위 테스트 |
-| `/dx-swe-verify` | 완료 선언 전 검증 — 주장 전에 증거 |
+| `/dx-agent-brainstorm` | 모델 레지스트리 확인과 서브프로젝트 라우팅을 포함한 DEEPX 빌드 브레인스토밍 |
+| `/dx-agent-tdd` | DEEPX 빌드 검증 순서 — factory, pipeline, integration 체크 |
+| `/dx-agent-verify` | DEEPX 빌드 검증 체크리스트 — dx_app, dx_stream, cross-project |
 | `/dx-swe-writing-plans` | 세분화된 태스크로 구현 계획 작성 |
 | `/dx-swe-executing-plans` | 리뷰 체크포인트와 함께 계획 실행 |
 | `/dx-swe-subagent-dev` | 태스크별 신규 서브에이전트로 계획 실행, 2단계 리뷰 |
@@ -100,6 +100,7 @@ dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
 | `/dx-swe-requesting-review` | 기능 완료 후 코드 리뷰 요청 |
 | `/dx-skill-router` | 스킬 탐색 및 호출 — 모든 작업 전 스킬 확인 |
 | `/dx-harness-writing-skills` | 스킬 파일 생성 및 편집 |
+| `/dx-harness-validate` | 이 repo의 .deepx/ 무결성 검증 (단독 checkout이면 suite harness 자동 확보) |
 | `/dx-swe-parallel-agents` | 독립 태스크를 위한 병렬 서브에이전트 디스패치 |
 
 ## 핵심 규칙
@@ -110,7 +111,7 @@ dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
 4. **입력 이름 일치**: config.json의 `inputs` 키는 ONNX 입력 이름과 정확히 일치해야 함
 5. **대표적 교정**: 교정 이미지는 추론 분포와 일치해야 함
 6. **PPU 타입 중요**: Type 0 = anchor-based (YOLOv3-v7), Type 1 = anchor-free (YOLOX, YOLOv8-v12). YOLO26은 PPU를 지원하지 않음.
-7. **항상 검증**: 모든 컴파일 후 DX-TRON 검사 실행
+7. **항상 검증**: 모든 컴파일 시 `--export_html`를 사용하고 생성된 `<model>_summary.html` 검토
 8. **하드코딩된 경로 금지**: 교정 데이터에 상대 경로 사용 (`./calibration_dataset`)
 9. **출력 격리**: 모든 결과물은 `dx-agent-dev/<session_id>/`에 저장.
    **세션 ID 형식**: `YYYYMMDD-HHMMSS_<agent>_<coding_model>_<target_model>_<task>` — 타임스탬프는 반드시
@@ -149,8 +150,8 @@ dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
 
 | 작업에 언급된 내용... | 읽을 파일 |
 |---|---|
-| **PyTorch, PT, export, convert** | `.deepx/agents/dx-model-converter.md`, `.deepx/skills/dx-agent-compiler-convert.md` |
-| **ONNX, compile, DXNN, dxcom** | `.deepx/agents/dx-dxnn-compiler.md`, `.deepx/skills/dx-agent-compiler-compile.md` |
+| **PyTorch, PT, export, convert** | `.deepx/agents/dx-model-converter.md`, `.deepx/skills/dx-agent-compiler-convert/SKILL.md` |
+| **ONNX, compile, DXNN, dxcom** | `.deepx/agents/dx-dxnn-compiler.md`, `.deepx/skills/dx-agent-compiler-compile/SKILL.md` |
 | **CLI, command line** | `.deepx/toolsets/dxcom-cli.md` |
 | **Python API, dx_com.compile** | `.deepx/toolsets/dxcom-api.md` |
 | **config, JSON, schema** | `.deepx/toolsets/config-schema.md` |
@@ -159,12 +160,12 @@ dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
 | **PaddleOCR, RapidDoc, PaddlePaddle, OCR app, video/webcam OCR, PDF to markdown, document parsing** | `.deepx/toolsets/paddlepaddle-deepx.md` |
 | **calibration, quantization, INT8** | `.deepx/instructions/compilation-workflow.md` |
 | **PPU, YOLO, detection** | `.deepx/toolsets/config-schema.md`, `.deepx/instructions/compilation-workflow.md` |
-| **validate, verify, check** | `.deepx/skills/dx-agent-compiler-validate.md` |
+| **validate, verify, check** | `.deepx/skills/dx-agent-compiler-validate/SKILL.md` |
 | **error, fail, bug** | `.deepx/memory/common_pitfalls.md` |
 | **sample, example, test compile** | `.deepx/instructions/compilation-workflow.md` (샘플 모델 워크플로우 섹션) |
-| **Brainstorm, plan, design** | `.deepx/skills/dx-swe-brainstorm.md` |
-| **TDD, validation, incremental** | `.deepx/skills/dx-swe-tdd.md` |
-| **Completion, verify, evidence** | `.deepx/skills/dx-swe-verify.md` |
+| **Brainstorm, plan, design** | `.deepx/skills/dx-agent-brainstorm/SKILL.md` |
+| **TDD, validation, incremental** | `.deepx/skills/dx-agent-tdd/SKILL.md` |
+| **Completion, verify, evidence** | `.deepx/skills/dx-agent-verify/SKILL.md` |
 | **항상 읽기 (모든 작업)** | `.deepx/memory/common_pitfalls.md`, `.deepx/instructions/coding-standards.md` |
 
 ## 빠른 시작 — 샘플 모델 워크플로우
@@ -234,3 +235,5 @@ config.json에서 항상 상대 경로 (`./calibration_dataset`)를 사용하세
 ---
 
 {{FRAGMENT:instruction-verification-loop}}
+
+{{FRAGMENT:harness-bootstrap}}

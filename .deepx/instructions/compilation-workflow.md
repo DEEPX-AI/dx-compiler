@@ -38,7 +38,7 @@ Simplified ONNX (.onnx)
 DXNN Model (.dxnn)
     │
     ▼
-[Phase 6: Validate with DX-TRON]
+[Phase 6: Validate via HTML summary report]
     │  Visual inspection, graph review
     ▼
 [Phase 6.5: Generate Mandatory Artifacts]

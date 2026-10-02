@@ -5,10 +5,7 @@
 
 ## Introduction
 
-Compile ONNX models into DXNN format using natural language instructions. AI coding
-agents understand the DX-COM compilation pipeline — config.json generation, calibration
-data preparation, quantization strategies, and PPU configuration — so you can describe
-*what* you want and let the agent handle the implementation details.
+Compile ONNX models into DXNN format using natural language instructions. AI coding agents understand the DX-COM compilation pipeline — config.json generation, calibration data preparation, quantization strategies, and PPU configuration — so you can describe *what* you want and let the agent handle the implementation details.
 
 Supported workflows include:
 
@@ -28,9 +25,7 @@ Supported workflows include:
 
 ## Architecture Overview
 
-The agent-driven knowledge base for dx-compiler is organized in a single `.deepx/` directory
-containing agents, skills, instructions, toolsets, and memory files that the agent reads
-at task time.
+The agent-driven knowledge base for dx-compiler is organized in a single `.deepx/` directory containing agents, skills, instructions, toolsets, and memory files that the agent reads at task time.
 
 ### Compilation Pipeline
 
@@ -71,9 +66,6 @@ PyTorch (.pt)          ONNX (.onnx)                    DXNN (.dxnn)
 
 | Skill | Description |
 |-------|-------------|
-| `/dx-swe-brainstorm` | Brainstorm and plan before any compilation task |
-| `/dx-swe-tdd` | Test-driven development — validate each step incrementally |
-| `/dx-swe-verify` | Verify before claiming completion — evidence before assertions |
 | `/dx-swe-writing-plans` | Write implementation plans from specs or requirements |
 | `/dx-swe-executing-plans` | Execute implementation plans with review checkpoints |
 | `/dx-swe-debugging` | Systematic debugging before proposing fixes |
@@ -90,24 +82,32 @@ PyTorch (.pt)          ONNX (.onnx)                    DXNN (.dxnn)
 | `/dx-agent-compiler-compile` | Step-by-step ONNX to DXNN compilation workflow |
 | `/dx-agent-compiler-convert` | Step-by-step PyTorch to ONNX conversion workflow |
 | `/dx-agent-compiler-validate` | Validate compiled .dxnn model output |
+| `/dx-agent-brainstorm` | DEEPX build brainstorming with model registry check and sub-project routing |
+| `/dx-agent-tdd` | DEEPX build validation order — factory, pipeline, and integration checks |
+| `/dx-agent-verify` | DEEPX build verification checklists — dx_app, dx_stream, and cross-project |
+
+#### Harness
+
+| Skill | Description |
+|-------|-------------|
+| `/dx-harness-writing-skills` | Create and edit skill files |
+| `/dx-harness-validate` | Validate this repo's `.deepx/` integrity (bootstraps the suite harness when standalone) |
 
 ## Supported AI Tools
 
-Agent-Driven development works with five AI coding tools. Each tool auto-loads
-the `.deepx/` knowledge base through its own configuration mechanism.
+Agent-Driven development works with five AI coding tools. Each tool auto-loads the `.deepx/` knowledge base through its own configuration mechanism.
 
 | Tool | Type | Auto-Load Mechanism | Agent Invocation |
 |---|---|---|---|
 | **Claude Code** | CLI | `CLAUDE.md` at project root | Free-form conversation; Context Routing Table dispatches automatically |
 | **GitHub Copilot** | VS Code | `.github/copilot-instructions.md` | `@dx-compiler-builder "prompt"` in Copilot Chat |
-| **Cursor** | IDE | `.cursor/rules/` (19 files: `dx-compiler.mdc`, 3 agent `.mdc` files, 15 `skill-*.mdc` files) | Free-form conversation; rules loaded by `alwaysApply` |
+| **Cursor** | IDE | `.cursor/rules/` (20 files: `dx-compiler.mdc`, 3 agent `.mdc` files, 16 `skill-*.mdc` files) | Free-form conversation; rules loaded by `alwaysApply` |
 | **OpenCode** | CLI | `AGENTS.md` + `opencode.json` | `@dx-compiler-builder "prompt"` or `/dx-agent-compiler-compile` |
 | **Codex CLI** | CLI | `AGENTS.md` + `.codex/skills/dx-codex-identity/SKILL.md` | Free-form conversation via `codex` / `codex exec`; inspect `.deepx/skills/*/SKILL.md` directly when needed |
 
 ### First-Time Setup
 
-No additional configuration is needed. Open the `dx-compiler/` directory in your
-preferred tool and the configuration files are loaded automatically:
+No additional configuration is needed. Open the `dx-compiler/` directory in your preferred tool and the configuration files are loaded automatically:
 
 ```bash
 # Claude Code
@@ -140,7 +140,7 @@ Each AI coding agent auto-loads different configuration files at the dx-compiler
 | `.github/copilot-instructions.md` | Copilot Chat/CLI | Auto |
 | `CLAUDE.md` | Claude Code | Auto |
 | `AGENTS.md` + `opencode.json` | OpenCode | Auto |
-| `.cursor/rules/` (19 files) | Cursor | Auto |
+| `.cursor/rules/` (20 files) | Cursor | Auto |
 | `AGENTS.md` + `.codex/skills/dx-codex-identity/SKILL.md` | Codex CLI | Auto |
 
 #### Agent Files (Manual @mention)
@@ -159,7 +159,7 @@ Each AI coding agent auto-loads different configuration files at the dx-compiler
 
 Skills exist across all platforms:
 
-- `.deepx/skills/` — canonical definitions (15 skills)
+- `.deepx/skills/` — canonical definitions (16 skills)
 - `.github/skills/` — Copilot inline copies
 - `.claude/skills/` — Claude thin wrappers
 - `.opencode/agents/` — OpenCode, via skill references
@@ -168,7 +168,7 @@ Skills exist across all platforms:
 
 | Skill | File |
 |-------|------|
-| `/dx-swe-brainstorm` | `.deepx/skills/dx-swe-brainstorm/SKILL.md` |
+| `/dx-agent-brainstorm` | `.deepx/skills/dx-agent-brainstorm/SKILL.md` |
 | `/dx-agent-compiler-compile` | `.deepx/skills/dx-agent-compiler-compile/SKILL.md` |
 | `/dx-agent-compiler-convert` | `.deepx/skills/dx-agent-compiler-convert/SKILL.md` |
 | `/dx-swe-parallel-agents` | `.deepx/skills/dx-swe-parallel-agents/SKILL.md` |
@@ -178,10 +178,12 @@ Skills exist across all platforms:
 | `/dx-skill-router` | `.deepx/skills/dx-skill-router/SKILL.md` |
 | `/dx-swe-subagent-dev` | `.deepx/skills/dx-swe-subagent-dev/SKILL.md` |
 | `/dx-swe-debugging` | `.deepx/skills/dx-swe-debugging/SKILL.md` |
-| `/dx-swe-tdd` | `.deepx/skills/dx-swe-tdd/SKILL.md` |
+| `/dx-agent-tdd` | `.deepx/skills/dx-agent-tdd/SKILL.md` |
 | `/dx-agent-compiler-validate` | `.deepx/skills/dx-agent-compiler-validate/SKILL.md` |
-| `/dx-swe-verify` | `.deepx/skills/dx-swe-verify/SKILL.md` |
+| `/dx-agent-verify` | `.deepx/skills/dx-agent-verify/SKILL.md` |
 | `/dx-swe-writing-plans` | `.deepx/skills/dx-swe-writing-plans/SKILL.md` |
+| `/dx-harness-writing-skills` | `.deepx/skills/dx-harness-writing-skills/SKILL.md` |
+| `/dx-harness-validate` | `.deepx/skills/dx-harness-validate/SKILL.md` |
 
 #### Shared Knowledge Base (`.deepx/`)
 
@@ -209,28 +211,19 @@ A pre-commit hook enforces no drift between `.deepx/` sources and generated plat
 
 ### Mandatory Brainstorming Questions
 
-Before any compilation task, the agent asks three mandatory questions to ensure
-correct configuration. These questions cannot be skipped.
+Before any compilation task, the agent asks three mandatory questions to ensure correct configuration. These questions cannot be skipped.
 
 #### Q1: NMS-Free Model Detection (PT → ONNX tasks)
 
-For YOLO models, the agent auto-detects NMS-free capability and presents a YOLO
-version characteristics table showing anchor type, NMS-free support, and PPU type
-for each version (v3–v26). The recommended export mode depends on the model's
-NMS-free architecture:
+For YOLO models, the agent auto-detects NMS-free capability and presents a YOLO version characteristics table showing anchor type, NMS-free support, and PPU type for each version (v3–v26). The recommended export mode depends on the model's NMS-free architecture:
 
-- **NMS-free models** (YOLOv10, YOLO26): **end2end=True** (recommended) — native
-  NMS-free output `[1, 300, 6]`, no postprocessing needed. These models use
-  one-to-one matching natively.
-- **Optional NMS-free models** (YOLOv8, v9, v11, v12): **end2end=False** (recommended,
-  default) — fused output `[1, 84, 8400]`, requires NMS postprocessing but gives
+- **NMS-free models** (YOLOv10, YOLO26): **end2end=True** (recommended) — native NMS-free output `[1, 300, 6]`, no postprocessing needed. These models use one-to-one matching natively.
+- **Optional NMS-free models** (YOLOv8, v9, v11, v12): **end2end=False** (recommended, default) — fused output `[1, 84, 8400]`, requires NMS postprocessing but gives
   full control over NMS parameters.
 
 #### Q2: ONNX Simplification
 
-Default is OFF. The agent presents pros (graph cleanup, reduced model size) and cons
-(numerical precision loss, debugging difficulty, model breakage risk, input name changes).
-The user confirms whether to run `onnx-simplifier` after export.
+Default is OFF. The agent presents pros (graph cleanup, reduced model size) and cons (numerical precision loss, debugging difficulty, model breakage risk, input name changes). The user confirms whether to run `onnx-simplifier` after export.
 
 #### Q3: PPU Compilation Support (ONNX → DXNN tasks)
 
@@ -239,8 +232,7 @@ For detection models, the agent auto-detects PPU eligibility and presents the tr
 - **Without PPU** (default) — full control over NMS parameters at inference time
 - **With PPU** — post-processing runs on hardware, simpler deployment
 
-If PPU is enabled, the agent auto-infers PPU type from the model family (type 0 for
-anchor-based YOLOv3–v7, type 1 for anchor-free YOLOv8+).
+If PPU is enabled, the agent auto-infers PPU type from the model family (type 0 for anchor-based YOLOv3–v7, type 1 for anchor-free YOLOv8+).
 
 ### Scenario 1: Convert PyTorch Model to ONNX
 
@@ -256,7 +248,7 @@ anchor-based YOLOv3–v7, type 1 for anchor-free YOLOv8+).
 | **GitHub Copilot** | `@dx-model-converter` followed by the prompt. |
 | **Cursor** | Open `dx-compiler/` and type the prompt. |
 | **OpenCode** | `/dx-agent-compiler-convert` or `@dx-model-converter` followed by the prompt. |
-| **Codex CLI** | Open `dx-compiler/` and type the prompt directly, or `@dx-model-converter` followed by the prompt. |
+| **Codex CLI** | Open `dx-compiler/` and type the prompt directly. |
 
 ### Scenario 2: Compile ONNX to DXNN
 
@@ -288,7 +280,7 @@ anchor-based YOLOv3–v7, type 1 for anchor-free YOLOv8+).
 | **GitHub Copilot** | `@dx-compiler-builder` followed by the prompt. |
 | **Cursor** | Open `dx-compiler/` and type the prompt. |
 | **OpenCode** | `@dx-compiler-builder` followed by the prompt. |
-| **Codex CLI** | Open `dx-compiler/` and type the prompt, or `@dx-compiler-builder` followed by the prompt. |
+| **Codex CLI** | Open `dx-compiler/` and type the prompt. |
 
 ## Config Auto-Inference
 
@@ -305,8 +297,7 @@ When you provide a model and calibration data, the agent automatically infers:
 
 ## Output Isolation
 
-All compilation artifacts go to `dx-agent-dev/<session_id>/` by default.
-This keeps each compilation session self-contained and reproducible.
+All compilation artifacts go to `dx-agent-dev/<session_id>/` by default. This keeps each compilation session self-contained and reproducible.
 
 **Session ID format**: `YYYYMMDD-HHMMSS_<agent>_<model>_<task>` where `<agent>` is `claude`, `codex`, `copilot`, `cursor`, or `opencode`
 
@@ -321,7 +312,7 @@ dx-agent-dev/<session_id>/
 ├── calibration_dataset   → ../../dx_com/calibration_dataset/ (symlink)
 ├── config.json           (auto-generated)
 ├── model.onnx            (input or converted)
-├── model.dxnn        (compiled output)
+├── model.dxnn            (compiled output)
 ├── compiler.log          (compilation log)
 ├── detect_model.py       (inference application)
 ├── verify.py             (ONNX vs DXNN verification)
@@ -341,8 +332,7 @@ The agent automatically manages calibration data:
 
 ## Sample Model Workflow
 
-The `example/` directory provides a complete 3-step workflow for testing the
-compilation pipeline with pre-built sample models:
+The `example/` directory provides a complete 3-step workflow for testing the compilation pipeline with pre-built sample models:
 
 ```bash
 cd dx-compiler
@@ -353,9 +343,7 @@ cd dx-compiler
 
 **Available sample models**: YOLOV5S-1, YOLOV5S_Face-1, MobileNetV2-1
 
-The downloaded JSON config files serve as canonical references for agents generating
-config.json for new models — they demonstrate proper input naming, preprocessing
-parameters, calibration settings, and PPU configuration.
+The downloaded JSON config files serve as canonical references for agents generating config.json for new models — they demonstrate proper input naming, preprocessing parameters, calibration settings, and PPU configuration.
 
 ## Session Sentinels
 
@@ -391,8 +379,7 @@ Rules:
 
 ## Mandatory Output Artifacts
 
-Every compilation session that generates an inference application MUST also produce
-these deployment artifacts in the session directory:
+Every compilation session that generates an inference application MUST also produce these deployment artifacts in the session directory:
 
 | Artifact | Purpose |
 |---|---|
@@ -401,8 +388,7 @@ these deployment artifacts in the session directory:
 | `README.md` | Session summary: pipeline, generated files, quick start, environment info |
 | `verify.py` | ONNX vs DXNN inference comparison — catches postprocessing bugs |
 
-The user should be able to run `bash setup.sh && bash run.sh` immediately after
-compilation with zero manual setup.
+The user should be able to run `bash setup.sh && bash run.sh` immediately after compilation with zero manual setup.
 
 ## TDD Verification Gate
 
@@ -420,6 +406,4 @@ compare ONNX inference (ground truth) against DXNN inference output:
 - **PASS** → compilation and inference app are correct
 - **FAIL** → postprocessing bugs exist; agent must debug and fix before reporting success
 
-This gate was introduced after real-world testing revealed that compiled models can
-benchmark correctly (e.g., 139 FPS) while the generated inference application produces
-wrong results due to postprocessing bugs (wrong class mapping, incorrect bbox decoding).
+This gate was introduced after real-world testing revealed that compiled models can benchmark correctly (e.g., 139 FPS) while the generated inference application produces wrong results due to postprocessing bugs (wrong class mapping, incorrect bbox decoding).

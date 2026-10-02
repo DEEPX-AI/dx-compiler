@@ -2,7 +2,7 @@
 
 The **Compilation Summary Report** is a self-contained HTML report that summarizes the result of a DX-COM compilation. When enabled, DX-COM writes a single `<model_name>_summary.html` file into the output directory after the `.dxnn` file is generated.
 
-Because the report embeds all of its assets, it can be opened directly in any web browser and shared as a single file — without copying the rest of the output directory. It provides a quick, install-free view of the compiled model, similar to the [DX-TRON Model Viewer](04_01_Model_Viewer_DX-TRON.md).
+Because the report embeds all of its assets, it can be opened directly in any web browser and shared as a single file — without copying the rest of the output directory. It provides a quick, install-free view of the compiled model.
 
 **Key Features**
 
@@ -41,7 +41,7 @@ dx_com.compile(
 )
 ```
 
-!!! note "NOTE"
+!!! note "NOTE"  
     `--export_html` / `export_html=True` is also documented as a compilation option in [Execution of DX-COM](02_06_Execution_of_DX-COM.md).
 
 ---
@@ -72,7 +72,7 @@ The report renderer relies on the `jinja2` library, which is included as a built
 
 ## Troubleshooting
 
-!!! note "Compilation is never blocked by the report"
+!!! note "Compilation is never blocked by the report"  
     Generating the HTML report is a best-effort, post-compilation step. If the report cannot be produced, DX-COM emits a warning and the compilation still completes successfully — the `.dxnn` output is unaffected.
 
 - **No HTML file is produced**: Confirm that `--export_html` (or `export_html=True`) was specified, and check the compilation logs for a warning indicating the report was skipped or failed.

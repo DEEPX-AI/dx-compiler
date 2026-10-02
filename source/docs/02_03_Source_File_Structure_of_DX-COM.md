@@ -2,18 +2,15 @@ After running `install.sh`, the prepared `dx_com/` directory is organized as fol
 
 ```
 dx_com/
-├── dx_com-*.whl              # DX-COM wheel package
 ├── sample_models/            # Sample model assets
 │  ├── onnx/                  # Sample ONNX models
 │  └── json/                  # Sample JSON files
-└── calibration_dataset/      # Sample calibration dataset
+├── calibration_dataset/      # Sample calibration dataset
+└── output/                   # Compiled .dxnn files (created by 3-compile_sample_models.sh)
 ```
 
 **dx_com/**  
-This directory stores the DX-COM wheel file and the sample assets prepared during `install.sh`.  
-
-**dx_com-*.whl**  
-This Python wheel package contains the `dxcom` command-line interface and the `dx_com` Python module. Install it using `pip install dx_com-*.whl`. Refer to [Installation of DX-COM](02_02_Installation_of_DX-COM.md) for installation instructions.  
+This directory stores the sample assets prepared during `install.sh`. The `dxcom` command-line interface and the `dx_com` Python module are installed into the virtual environment by `install.sh`; refer to [Installation of DX-COM](02_02_Installation_of_DX-COM.md) for installation instructions.  
 
 **sample_models**  
 This directory contains the downloaded sample ONNX models and JSON configuration files used by the sample compilation workflow.  

@@ -5,7 +5,7 @@ description: Compilation validation and verification
 
 # /dx-agent-compiler-validate — Compilation Validation Skill
 
-> Validates .dxnn compilation output: file integrity, DX-TRON inspection,
+> Validates .dxnn compilation output: file integrity, HTML summary report,
 > reference comparison, and accuracy metrics reporting.
 
 ## Trigger Words
@@ -15,7 +15,7 @@ description: Compilation validation and verification
 ## Prerequisites Checklist
 
 - [ ] Compilation completed (output directory exists)
-- [ ] DX-TRON available (AppImage or web mode)
+- [ ] Compilation ran with `--export_html` (or `export_html=True`)
 - [ ] Original ONNX model accessible (for comparison)
 
 ## Phase 1: Check Output Artifacts
@@ -35,26 +35,42 @@ stat --format="%s bytes" output/*.dxnn
 
 **Validation gate**: .dxnn file exists and has non-zero size.
 
-## Phase 2: Inspect with DX-TRON
+## Phase 2: Inspect the Compilation Summary Report
 
-**Gate**: DX-TRON loads model without errors.
+**Gate**: `<model>_summary.html` exists and the compiler logged the save line.
+
+DX-COM writes a self-contained HTML report when compiled with `--export_html`
+(CLI) or `export_html=True` (Python API). It embeds the interactive graph
+viewer, NPU-vs-CPU workload distribution, per-partition CPU-fallback reasons,
+input/output shapes, and the compilation settings — no separate viewer install.
 
 ```bash
-# Web server mode (recommended for remote/headless)
-dx-tron --web --port 8080 output/model.dxnn
-# Open http://localhost:8080 to inspect
+# Compile with the report enabled
+dxcom -m "${WORK_DIR}/model.onnx" -c "${WORK_DIR}/config.json" \
+      -o "${WORK_DIR}/" --export_html
 
-# AppImage mode (local with display)
-./DX-TRON-v2.0.1.AppImage output/model.dxnn
+# Verify the report was produced
+REPORT=$(ls "${WORK_DIR}"/*_summary.html 2>/dev/null | head -1)
+if [ -z "${REPORT}" ]; then
+    echo "FAIL: no *_summary.html — was --export_html passed?"
+else
+    echo "PASS: summary report at ${REPORT} ($(stat --format=%s "${REPORT}") bytes)"
+fi
 ```
 
-Verify in DX-TRON:
-- Model graph renders correctly
+Report generation is best-effort: DX-COM warns and still succeeds if the
+report fails, so a missing report never means the `.dxnn` is bad. Check
+`compiler.log` for the skip reason.
+
+Review in the report (open in any browser):
 - Input/output shapes match expectations
 - NPU subgraph coverage (higher = better)
-- No unexpected CPU fallback nodes
+- No unexpected CPU fallback partitions, and the stated fallback reasons
 
-**Validation gate**: DX-TRON loads model. Graph renders. Shapes correct.
+For the machine-checkable version of the same partition data, use the
+`compiler.log` grep in Phase 3.
+
+**Validation gate**: `*_summary.html` exists with non-zero size. Shapes correct.
 
 ## Phase 3: Review Compiler Log
 
@@ -136,7 +152,7 @@ Validation Report:
   CPU Ops:    8 / 150 (5.3%)
   Errors:     0
   Warnings:   2 (non-critical)
-  DX-TRON:    Loaded successfully
+  Report:     model_summary.html (generated)
 ```
 
 ## Error Recovery
@@ -144,6 +160,6 @@ Validation Report:
 | Issue | Action |
 |---|---|
 | .dxnn missing | Re-run compilation; check for errors in terminal output |
-| DX-TRON fails to load | Check .dxnn integrity; recompile with `--gen_log` |
+| No `*_summary.html` | Confirm `--export_html` was passed; check compiler.log for the report warning |
 | High CPU fallback ratio | Use `--aggressive_partitioning`; check unsupported ops |
 | Quantization warnings | Try `minmax` instead of `ema`; increase `calibration_num` |

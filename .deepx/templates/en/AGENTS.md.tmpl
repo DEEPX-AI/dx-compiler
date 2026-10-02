@@ -68,7 +68,7 @@ questions if the user explicitly says "just compile it" or "use defaults".
 
 **Gate 1 — Brainstorm**: Confirm inputs (model path, format, target device, calibration data).
 **Gate 2 — Build**: Execute compilation with chosen parameters.
-**Gate 3 — Verify**: Validate output with DX-TRON, review compiler.log.
+**Gate 3 — Verify**: Validate output via the HTML summary report (`--export_html`), review compiler.log.
 
 ## Quick Reference
 
@@ -91,9 +91,9 @@ dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
 | `/dx-agent-compiler-convert` | Convert PyTorch model to ONNX |
 | `/dx-agent-compiler-compile` | Compile ONNX model to DXNN |
 | `/dx-agent-compiler-validate` | Validate compilation output |
-| `/dx-swe-brainstorm` | Brainstorm, propose 2-3 approaches, spec self-review, then plan |
-| `/dx-swe-tdd` | Validation-driven development with optional Red-Green-Refactor for unit tests |
-| `/dx-swe-verify` | Verify before claiming completion — evidence before assertions |
+| `/dx-agent-brainstorm` | DEEPX build brainstorming with model registry check and sub-project routing |
+| `/dx-agent-tdd` | DEEPX build validation order — factory, pipeline, and integration checks |
+| `/dx-agent-verify` | DEEPX build verification checklists — dx_app, dx_stream, and cross-project |
 | `/dx-swe-writing-plans` | Write implementation plans with bite-sized tasks |
 | `/dx-swe-executing-plans` | Execute plans with review checkpoints |
 | `/dx-swe-subagent-dev` | Execute plans via fresh subagent per task with two-stage review |
@@ -102,6 +102,7 @@ dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
 | `/dx-swe-requesting-review` | Request code review after completing features |
 | `/dx-skill-router` | Skill discovery and invocation — check skills before any action |
 | `/dx-harness-writing-skills` | Create and edit skill files |
+| `/dx-harness-validate` | Validate this repo's .deepx/ integrity (bootstraps the suite harness when standalone) |
 | `/dx-swe-parallel-agents` | Dispatch parallel subagents for independent tasks |
 
 ## Critical Conventions
@@ -112,7 +113,7 @@ dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
 4. **Input name match**: config.json `inputs` key must exactly match ONNX input name
 5. **Representative calibration**: Calibration images must match inference distribution
 6. **PPU type matters**: Type 0 = anchor-based (YOLOv3-v7), Type 1 = anchor-free (YOLOX, YOLOv8-v12). YOLO26 does not support PPU.
-7. **Always validate**: Run DX-TRON inspection after every compilation
+7. **Always validate**: Compile with `--export_html` and review the generated `<model>_summary.html` after every compilation
 8. **No hardcoded paths**: Use relative paths for calibration data (`./calibration_dataset`)
 9. **Output isolation**: All artifacts go to `dx-agent-dev/<session_id>/`.
    **Session ID format**: `YYYYMMDD-HHMMSS_<agent>_<coding_model>_<target_model>_<task>` — the timestamp MUST use the
@@ -151,8 +152,8 @@ dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
 
 | If the task mentions... | Read these files |
 |---|---|
-| **PyTorch, PT, export, convert** | `.deepx/agents/dx-model-converter.md`, `.deepx/skills/dx-agent-compiler-convert.md` |
-| **ONNX, compile, DXNN, dxcom** | `.deepx/agents/dx-dxnn-compiler.md`, `.deepx/skills/dx-agent-compiler-compile.md` |
+| **PyTorch, PT, export, convert** | `.deepx/agents/dx-model-converter.md`, `.deepx/skills/dx-agent-compiler-convert/SKILL.md` |
+| **ONNX, compile, DXNN, dxcom** | `.deepx/agents/dx-dxnn-compiler.md`, `.deepx/skills/dx-agent-compiler-compile/SKILL.md` |
 | **CLI, command line** | `.deepx/toolsets/dxcom-cli.md` |
 | **Python API, dx_com.compile** | `.deepx/toolsets/dxcom-api.md` |
 | **config, JSON, schema** | `.deepx/toolsets/config-schema.md` |
@@ -161,12 +162,12 @@ dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
 | **PaddleOCR, RapidDoc, PaddlePaddle, OCR app, video/webcam OCR, PDF to markdown, document parsing** | `.deepx/toolsets/paddlepaddle-deepx.md` |
 | **calibration, quantization, INT8** | `.deepx/instructions/compilation-workflow.md` |
 | **PPU, YOLO, detection** | `.deepx/toolsets/config-schema.md`, `.deepx/instructions/compilation-workflow.md` |
-| **validate, verify, check** | `.deepx/skills/dx-agent-compiler-validate.md` |
+| **validate, verify, check** | `.deepx/skills/dx-agent-compiler-validate/SKILL.md` |
 | **error, fail, bug** | `.deepx/memory/common_pitfalls.md` |
 | **sample, example, test compile** | `.deepx/instructions/compilation-workflow.md` (Sample Model Workflow section) |
-| **Brainstorm, plan, design** | `.deepx/skills/dx-swe-brainstorm.md` |
-| **TDD, validation, incremental** | `.deepx/skills/dx-swe-tdd.md` |
-| **Completion, verify, evidence** | `.deepx/skills/dx-swe-verify.md` |
+| **Brainstorm, plan, design** | `.deepx/skills/dx-agent-brainstorm/SKILL.md` |
+| **TDD, validation, incremental** | `.deepx/skills/dx-agent-tdd/SKILL.md` |
+| **Completion, verify, evidence** | `.deepx/skills/dx-agent-verify/SKILL.md` |
 | **Debug, root cause, investigate** | `.deepx/skills/dx-swe-debugging/SKILL.md` |
 | **Plan, execute, subagent** | `.deepx/skills/dx-swe-writing-plans/SKILL.md`, `.deepx/skills/dx-swe-executing-plans/SKILL.md` |
 | **Code review, feedback** | `.deepx/skills/dx-swe-receiving-review/SKILL.md`, `.deepx/skills/dx-swe-requesting-review/SKILL.md` |
@@ -249,3 +250,5 @@ Domain tags: `[UNIVERSAL]`, `[DX_COMPILER]`, `[QUANTIZATION]`
 ---
 
 {{FRAGMENT:instruction-verification-loop}}
+
+{{FRAGMENT:harness-bootstrap}}

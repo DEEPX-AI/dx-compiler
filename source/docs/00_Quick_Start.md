@@ -27,6 +27,8 @@ Then run all sample compilations at once:
 ./example/3-compile_sample_models.sh
 ```
 
+The compiled `.dxnn` files are saved to `dx_com/output/`.
+
 ---
 
 ## Compile Your Own Model

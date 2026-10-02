@@ -1,6 +1,6 @@
 # Supported ONNX Operators
 
-This chapter describes the ONNX operations currently supported by DX-COM. When you build or export models to ONNX format, you **must** use only the supported operations to ensure successful compilation and optimal performance on our NPU.  
+This chapter describes the ONNX operations currently supported by DX-COM. When you build or export models to ONNX format, you **must** use only the supported operations to ensure successful compilation and optimal performance on our NPU.
 
 ---
 
@@ -35,13 +35,14 @@ The following ONNX operators are supported by the compiler.
 | Concat | No restrictions |
 | Constant | Only numeric constants are supported |
 | ConstantOfShape | No restrictions |
-| Conv | **Common constraints:** <br> - `dilations` < 64 <br> - `pads` < 64 <br> - `strides` < 16 <br> **Standard Conv:** <br> - `kernel_shape` < 16 <br> **Depth-wise Conv:** <br> - `kernel_shape` ∈ {[3, 3], [5, 5]} <br> - Only constant weights are supported |
-| ConvTranspose | - `dilations` = [1, 1] <br> - `output_padding` = [0, 0] <br> - `pads` ≤ 14 <br> - `strides` ∈ [2, 8] and symmetric (`strides[0]` = `strides[1]`) <br> - `kernel_shape` < 16 <br> - `group` = 1 |
+| Conv | **Common constraints:** <br> - `dilations` < 64 <br> - `pads` < 64 <br> - `strides` < 16 <br> **Standard Conv:** <br> - `kernel_shape` < 16 <br> **Depth-wise Conv:** <br> - `kernel_shape` ∈ {[3, 3], [5, 5]} <br> - Only constant weights are supported <br> **5D input (3 spatial dims):** additionally requires <br> - `group` = 1 <br> - `dilations` = [1, 1, 1] <br> - `auto_pad` = `NOTSET` <br> - Weight must be a compile-time constant <br> Otherwise runs on CPU. |
+| ConvTranspose | - `dilations` = [1, 1] <br> - `output_padding` = [0, 0] <br> - `pads` ≤ 14 <br> - `strides` ∈ [2, 8] and symmetric (`strides[0]` = `strides[1]`) <br> - `kernel_shape` < 16 <br> - `group` = 1 <br> **5D input (3 spatial dims):** additionally requires <br> - `group` = 1 <br> - `dilations` = [1, 1, 1] <br> - `output_padding` = [0, 0, 0] <br> - `auto_pad` = `NOTSET` <br> - No `output_shape` attribute <br> Otherwise runs on CPU. |
 | Div | Supported as: <br> - Constant scalar division <br> - Input normalization <br> - Part of `Softmax` <br> - Part of `LayerNorm` |
 | Dropout | Removed during inference |
+| Einsum | Only supported for **two-input** equations that reduce to a (batched) matrix multiplication: <br> - Exactly one contracted (summed) index shared between the two inputs <br> - Each input has exactly one non-batch, non-contracted free index, and it must appear in the output <br> - Any leading indices identical across both inputs and the output are treated as batch dimensions <br> Examples: `ij,jk->ik`, `bij,bjk->bik`, `bik,bjk->bij` <br> Single-input equations (e.g. diagonal, transpose, reduction) and equations with three or more inputs are not supported. |
 | Erf | Only supported as part of `GELU` |
 | Flatten | No restrictions |
-| Gather | Supported when `indices` is a 0-D or 1-D tensor. <br> Examples: <br> - Scalar index: `indices = [0]` to select first element <br> - 1-D index: `indices = [0, 2, 5]` to select multiple elements |
+| Gather | Supported when `indices` is a 0-D, 1-D, or 2-D tensor. <br> Examples: <br> - Scalar index: `indices = [0]` to select first element <br> - 1-D index: `indices = [0, 2, 5]` to select multiple elements <br> - 2-D index (**New in v2.5.0**): `indices = [[0, 2], [1, 3]]` to select a 2-D block of elements |
 | Gemm | No restrictions |
 | GlobalAveragePool | No restrictions |
 | Identity | No restrictions |
@@ -52,7 +53,7 @@ The following ONNX operators are supported by the compiler.
 | ReduceMean | Only supported when reducing along: <br> - Channel dimension <br> - (Width, Height) dimensions |
 | ReduceSum | Only supported when reducing along the channel dimension |
 | Reshape | No restrictions |
-| Resize | Only supported with the following attributes: <br> - `coordinate_transformation_mode` = `pytorch_half_pixel` <br> - `mode` ∈ {`nearest`, `linear`} <br> - Scale values ∈ ℤ (integers) |
+| Resize | Only supported with the following attributes: <br> - `coordinate_transformation_mode` = `pytorch_half_pixel` <br> - `mode` ∈ {`nearest`, `linear`} <br> **Upsampling** <br> &nbsp;&nbsp;- scale > 1 <br> &nbsp;&nbsp;- `linear` <br> &nbsp;&nbsp;&nbsp;&nbsp;- `s ∈ ℤ, s ≥ 2, s ∉ {p : p is prime, p > 8}` <br> &nbsp;&nbsp;&nbsp;&nbsp;- i.e. integer factors ≥ 2; primes > `8` (`11`, `13`, `17`, …) are not supported, while non-prime factors such as `9`, `10` are supported <br> &nbsp;&nbsp;- `nearest` <br> &nbsp;&nbsp;&nbsp;&nbsp;- `s ∈ {2^k : k ≥ 1}` <br> &nbsp;&nbsp;&nbsp;&nbsp;- powers of two only (`2`, `4`, `8`, `16`, …) <br> **Downsampling** <br> &nbsp;&nbsp;- scale < 1 <br> &nbsp;&nbsp;- `linear` <br> &nbsp;&nbsp;&nbsp;&nbsp;- `s = 0.5` <br> &nbsp;&nbsp;&nbsp;&nbsp;- only a scale factor of `0.5` is supported <br> &nbsp;&nbsp;- `nearest` <br> &nbsp;&nbsp;&nbsp;&nbsp;- not supported |
 | Shape | Cannot be used as a model output |
 | Slice | No restrictions |
 | Softmax | Only supported if the size of the input along the specified `axis` is ≤ 4080 |

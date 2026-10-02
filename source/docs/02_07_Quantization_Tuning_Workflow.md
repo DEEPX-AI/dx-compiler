@@ -5,7 +5,7 @@ When a model's quantized accuracy is lower than expected, DX-COM provides a tuni
 - **Quantization Diagnosis (`quant_diagnosis`)** — generates an HTML report of per-region quantization quality and a reusable `.qxnn` checkpoint.
 - **QXNN Resume** — re-runs quantization from a `.qxnn` checkpoint, skipping the earlier compile phases.
 
-!!! note "Version Support"
+!!! note "Version Support"  
     `quant_diagnosis` and QXNN Resume are available in **DX-COM v2.4.0 and later**. Both are accessible from the `dxcom` CLI and the `dx_com` Python API.
 
 ---
@@ -26,7 +26,7 @@ Enabling `quant_diagnosis` during compilation produces an HTML report that visua
 
 The option is self-contained — it does not require any other debug flag.
 
-!!! note "What is a *region*?"
+!!! note "What is a *region*?"  
     A **region** is a quantization block — a group of operations that are quantized and evaluated together as one unit during diagnosis. The report grades each region into a severity tier (**OK / Warning / Critical**) and reports region-level metrics (Cosine Similarity, QSNR) measured in isolation, which may not fully reflect deployed whole-model behavior.
 
 The report contains three parts:
@@ -81,7 +81,7 @@ dx_com.compile(
 | `quant_diagnosis/{model}.qxnn` | Resume checkpoint consumed by QXNN Resume |
 | `quant_diagnosis/diagnosis_report.html` | Per-region quantization quality report with retry snippets |
 
-!!! note
+!!! note "NOTE"  
     The `.qxnn` checkpoint is always written when diagnosis runs; the HTML report is written on diagnosis success.
 
 ---
@@ -91,6 +91,9 @@ dx_com.compile(
 QXNN Resume takes a `.qxnn` checkpoint and re-runs only the quantization-dependent stages (`Quantization → Optimize → Codegen → SingleArtifact`). The original ONNX model and config are **not** needed — the calibration settings are embedded in the checkpoint.
 
 A `.qxnn` checkpoint is produced by `quant_diagnosis` (see above).
+
+!!! note "Not the QAT checkpoint"  
+    The `qat_checkpoint.qxnn` written by QAT is a different artifact. Pass it only through `QMasterConfig(resume_from_checkpoint=...)` (see [Quantization-Aware Training (QAT)](02_08_Quantization_Aware_Training.md)), not through `--checkpoint` / `checkpoint=`.
 
 ### Selecting Resume Mode
 
@@ -141,7 +144,7 @@ The following arguments apply **only** in QXNN resume mode (i.e., together with 
 | `--enhanced_scheme` | `enhanced_scheme` | Manual Q-PRO scheme selection (e.g., `P3:num_samples=1024`). Mutually exclusive with `--use_q_pro`. |
 | `--dataset_path` | `dataset_path` | Override the calibration dataset path embedded in the checkpoint. |
 
-!!! warning "Constraints"
+!!! warning "Constraints"  
     - `--checkpoint` and `-m/--model_path` are **mutually exclusive**.
     - `--output_dir` (`-o`) is **required** for resume.
     - `--use_q_pro` and `--enhanced_scheme` are **mutually exclusive**.

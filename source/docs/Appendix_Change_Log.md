@@ -1,18 +1,42 @@
-
-## v2.4.2 (2026-09-02)
+## v2.5.0 (2026-09-30)
 
 DX-Compiler Version
 
--   DX-COM: v2.4.1
--   DX-TRON: v2.0.1 (Deprecated)
+-   DX-COM: v2.5.0
+-   DX-TRON: Removed
+
+!!! warning "Removal Notice — DX-TRON"
+    **DX-TRON** was deprecated in **DX-Compiler v2.4.0** and is **removed as of v2.5.0**. Use the DX-COM **Compilation Summary Report** (`--export_html`) for model inspection and visualization.
 
 #### Changed
 
--   **Reduced Compiled Model Size**: Removed redundant metadata from the compiled `.dxnn` output, reducing model file size.
+-   **Python Entry Point Signature**: `dx_com.compile()` now takes keyword arguments (`**kwargs`); call it with keyword arguments as documented in [Execution of DX-COM](02_06_Execution_of_DX-COM.md).
+-   **QAT Parameters Restructured**: The Python arguments `quantization_mode`, `qat_config`, `qat_skip_training`, and `qat_resume_from_checkpoint` are **replaced by a single `qmaster` argument** that accepts a `QMasterConfig` object (import from `dx_com`). The old `qat_*` arguments are no longer honored from Python code. Triggering QAT from a JSON `qmaster` block is unchanged — QAT is still auto-selected.
+-   Removed DX-TRON support: `--target=dx_tron` is no longer accepted by `install.sh` or `uninstall.sh`, and the `run_dxtron_web.sh` / `run_dxtron_appimage.sh` launcher scripts were deleted. Valid targets are now `dx_com` and `all`; in `uninstall.sh` both now do the same work.
+-   `compiler.properties` keeps only `COM_VERSION`; the DX-TRON version and download URL properties were removed.
+-   Removing an installed `dxtron` DEB package is now manual: `sudo apt-get remove dxtron`.
+-   Removed the *Model Viewer — DX-TRON* page from this manual and renumbered *Compilation Summary Report* to `04_Compilation_Summary_Report.md`.
+-   **`pre_optimize` Pass Renaming (Breaking)**: `yolo_postprocess` → `yolo_dfl_postprocess` and `yolo26_postprocess` → `yolo_no_dfl_postprocess`. The previous pass names are no longer accepted and raise an error.
+-   **`pre_optimize` Configuration Changes (Breaking)**: The YOLO passes (`yolo_dfl_postprocess`, `yolo_no_dfl_postprocess`) now require an explicit `task` key (`base` / `seg` / `pose`). The `input_height` / `input_width` keys are removed — the input size is derived from the model input, and supplying them raises `ValueError`. See [Pre-Optimize API](02_09_Pre_Optimize_API.md).
+-   **`Resize` Supported Scale Ranges Documented**: `nearest` upsampling supports powers of two only (`2`, `4`, `8`, `16`, …). `linear` upsampling supports integer factors ≥ 2, except primes greater than `8` (`11`, `13`, `17`, …). Downsampling is supported only for `linear` at scale `0.5`; `nearest` downsampling is not supported.
 
 #### Fixed
 
--   Minor bug fixes and stability improvements.
+-   `uninstall.sh` cleans up a leftover `dx_tron/` directory or symlink from an earlier release, so upgrading does not orphan it.
+
+#### Added
+
+-   **`--use_gpu {True,False}` (CLI)** and **`use_gpu` (Python)**: Toggle quantization between GPU (default, when available) and CPU. On the CLI, select a specific GPU with the `CUDA_VISIBLE_DEVICES` environment variable.
+-   **`--verbose` (CLI)** and **`verbose` (Python)**: Expand masked error messages to include the origin type, the original message, and one bounded direct cause.
+-   **`QMasterConfig`** public configuration object for QAT (exported from `dx_com`).
+-   **Segmentation QAT**: Quantization-Aware Training now supports dense segmentation models via an opt-in `task_type` block in the `qmaster` config (`seg_root`, `seg_pairs_train` / `seg_pairs_val`, `seg_ignore_index`, `seg_binary`, `seg_ce`).
+-   **Optimize-Phase Accuracy Check (Debug)**: Added a `--optimize_check` debug CLI flag (with `--optimize_check_num_samples`) that re-quantizes offloaded CPU→NPU inputs and reports an accuracy check right after the optimize phase, before full compilation.
+-   Passing `--target=dx_tron` now exits with a specific explanation instead of a generic "invalid target" error, pointing at `--target=dx_com` and the `--export_html` summary report.
+-   **New `pre_optimize` Tasks**: The `task` key (`base` / `seg` / `pose`) adds pose (keypoint) and segmentation post-processing support.
+-   **`rtmdet_postprocess` Pass**: RTMDet detection post-processing.
+-   **`Gather` operator**: 2-D `indices` tensors are now supported (previously 0-D/1-D only). See [Supported ONNX Operators](03_Building_Models.md).
+-   **`Einsum` operator**: Two-input `Einsum` equations that reduce to a (batched) matrix multiplication (e.g., `ij,jk->ik`, `bij,bjk->bik`) are now supported. See [Supported ONNX Operators](03_Building_Models.md).
+-   **3D Convolution Support**: `Conv` and `ConvTranspose` with a 5D input (3 spatial dimensions) are now supported on the NPU (previously CPU-only), subject to constraints such as `group=1`, no dilation, and a compile-time constant weight. See [Supported ONNX Operators](03_Building_Models.md) for the full constraints.
 
 ---
 
@@ -58,7 +82,7 @@ DX-Compiler Version
 #### Fixed
 
 -   Fixed a Python API issue where models expecting integer inputs were sometimes fed float data, causing accuracy degradation.
--   Fixed several Q-PRO / DXQ quantization crashes and stability issues observed on real models.
+-   Fixed several Q-PRO/DXQ quantization crashes and stability issues observed on real models.
 -   Fixed multiple compilation errors and runtime issues caused by tiling, partitioning, and memory allocation in models containing `Split`, `Concat`, `Reshape`, `Bilinear Resize`, `Clip`, or odd spatial dimensions.
 -   Fixed compatibility issues with **NumPy 2.4+** and **onnxruntime ≥ 1.25.0**.
 
@@ -102,8 +126,8 @@ DX-Compiler Version
 
 DX-Compiler Version
 
-- dx_com : 2.3.0  
-- dx_tron : 2.0.1
+-   DX-COM: v2.3.0
+-   DX-TRON: v2.0.1
 
 #### Changed
 
@@ -122,7 +146,7 @@ DX-Compiler Version
 
 - **TopK-Optimized Post-Processing Pipeline**: Added an optimized post-processing pipeline for supported DFL-based YOLO models that applies TopK filtering before bounding box decoding, reducing CPU post-processing workload and improving runtime efficiency.
 - **Batched Convolution Support**: Added support for batched convolution.
-- **Linux Distribution Validation**: In addition to Ubuntu 20.04, 22.04, and 24.04, DX-COM v2.3.0 was also validated on Fedora 42-45, Red Hat 9-10, and CentOS Stream 9-10.
+- **Linux Distribution Validation**: In addition to Ubuntu 20.04, 22.04, and 24.04, DX-COM v2.3.0 was also validated on Fedora 42–45, RHEL 9–10, and CentOS Stream 9–10.
 
 ---
 
@@ -130,8 +154,8 @@ DX-Compiler Version
 
 DX-Compiler Version
 
-- dx_com : 2.2.1  
-- dx_tron : 2.0.1
+-   DX-COM: v2.2.1
+-   DX-TRON: v2.0.1
 
 #### Changed
 
@@ -154,8 +178,8 @@ DX-Compiler Version
 
 DX-Compiler Version
 
-- dx_com : 2.2.0  
-- dx_tron : 2.0.1
+-   DX-COM: v2.2.0
+-   DX-TRON: v2.0.1
 
 #### Changed
 
@@ -163,7 +187,7 @@ DX-Compiler Version
 
 #### Fixed
 
-- **Model Accuracy**: Resolved accuracy degradation issue in the `DeepLabV3PlusMobilenet-1` model from DX ModelZoo.
+- **Model Accuracy**: Resolved accuracy degradation issue in the `DeepLabV3PlusMobilenet-1` model from DX-ModelZoo.
 
 #### Added
 
@@ -181,16 +205,15 @@ DX-Compiler Version
 
 DX-Compiler Version
 
-- dx_com : 2.1.0  
-- dx_tron : 2.0.0  
+-   DX-COM: v2.1.0
+-   DX-TRON: v2.0.0
 
 #### Changed
 
 - **Command-Line Interface**: Removed deprecated command-line options: `--jobs`, `--shrink`, `--info` (or `-i`).
-
 - **ONNX Support**:
     - Removed restrictions on `Split`, `Transpose`, `Reshape`, `Flatten`, and `Slice` operators.
-    - Clarified ONNX opset version support (versions 11-21 are supported; version 22 and above are not supported).
+    - Clarified ONNX opset version support (versions 11–21 are supported; version 22 and above are not supported).
 
 #### Added
 
@@ -198,11 +221,8 @@ DX-Compiler Version
     - `--aggressive_partitioning`: Enables aggressive partitioning to maximize operations executed on NPU.
     - `--opt_level {0,1}`: Controls optimization level (default: 1).
     - `--compile_input_nodes` and `--compile_output_nodes`: Support for partial compilation.
-
 - **ONNX Support**: Added support for `Gather` operator.
-
 - **Quantization**: Reintroduced the DXQ enhanced quantization option (`enhanced_scheme`, DXQ-P0 to DXQ-P5), previously removed in dx_com v2.0.0.
-
 - **PPU (Post-Processing Unit)**: Reinstated PPU support.
     - Supported models: YOLOv3, YOLOv4, YOLOv5, YOLOv7 (anchor-based), YOLOX (anchor-free).
 
@@ -236,7 +256,7 @@ DX-Compiler Version
 
 ---
 
-## v1.60.1 (June 2025)
+## v1.60.1 (July 2025)
 
 **Bug Fixes**
 

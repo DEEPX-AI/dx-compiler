@@ -29,7 +29,7 @@ The compiled results may exhibit variation dependent on the underlying system en
 
 The compiler can be executed via the `dxcom` command, requiring the model, configuration, and desired output directory to generate the final `.dxnn` output file.
 
-!!! note "Execution Method"
+!!! note "Execution Method"  
     Use the `dxcom` command for command-line compilation.
 
 ### Basic Command
@@ -61,6 +61,9 @@ dxcom -m <MODEL_PATH> -c <CONFIG_PATH> -o <OUTPUT_DIR> [OPTIONS]
 | `--config_path CONFIG_PATH` | `-c` | Path to the Model Configuration JSON file (`*.json`) |
 | `--output_dir OUTPUT_DIR` | `-o` | Directory to save the compiled model data |
 
+!!! note "QXNN Resume mode"  
+    When `--checkpoint` is used, `-m` and `-c` are not required; only `-o` is required. See [Quantization Tuning Workflow](02_07_Quantization_Tuning_Workflow.md).
+
 ---
 
 ### Advanced Compilation Options
@@ -75,6 +78,7 @@ These options manage the balance between compilation time, NPU execution latency
 | :--- | :--- | :--- |
 | `--opt_level` | `{0,1}` <br> (Default: `1`) | Controls the model optimization level during compilation | 
 | `--aggressive_partitioning` | Flag | **(Experimental)** Enables partitioning designed to maximize operations executed on the NPU |
+| `--use_gpu` | `{True,False}` <br> (Default: `True`) | **(New in v2.5.0)** Run quantization on GPU when available (`True`) or force CPU (`False`). Select which physical GPU to use with the `CUDA_VISIBLE_DEVICES` environment variable |
 | `--float64_calibration` | Flag | Use float64 precision during calibration and offset calculations for cross-CPU determinism |
 
 **Optimization Level Detail**  
@@ -89,6 +93,9 @@ Enabling `--aggressive_partitioning` maximizes operations executed on the NPU. T
 - **Benefit**: This is particularly advantageous in environments with limited host CPU performance (e.g., embedded systems, edge devices), as it significantly improves overall performance by minimizing CPU workload.  
 - **Consideration**: In systems with powerful host CPUs, the compiler's default partitioning strategy might yield better end-to-end performance. Note that using this option may increase compilation time and memory usage.  
 
+**GPU / CPU Selection (`--use_gpu`) — New in v2.5.0**  
+Quantization runs on GPU by default when a CUDA-capable GPU is available, and falls back to CPU otherwise. Pass `--use_gpu False` to force CPU. To pin a specific GPU on the command line, set the `CUDA_VISIBLE_DEVICES` environment variable (e.g. `CUDA_VISIBLE_DEVICES=1 dxcom ...`). For an explicit device string, use the `-c/--config` JSON `quantization_device` field instead; set only one of the two.  
+
 ---
 
 #### Quantization Quality and Tuning
@@ -101,7 +108,7 @@ These options control quantization accuracy enhancement and the diagnose → re-
 | `--quant_diagnosis` | Flag | Produce a per-region quantization diagnosis report (`quant_diagnosis/diagnosis_report.html`) and a reusable resume checkpoint (`quant_diagnosis/{model}.qxnn`). |
 | `--checkpoint` | `<path>.qxnn` | Path to a `.qxnn` resume artifact. Selects **QXNN resume** mode (re-quantize without recompile). Mutually exclusive with `-m/--model_path`. |
 | `--recalibration_method` | `{minmax,ema,iqr}` | **(Resume-only)** Observer override applied during re-calibration. |
-| `--enhanced_scheme` | e.g. `P3:num_samples=2048` | **(Resume-only)** Manual Q-PRO scheme selection. Mutually exclusive with `--use_q_pro`. |
+| `--enhanced_scheme` | e.g. `P3:num_samples=1024` | **(Resume-only)** Manual Q-PRO scheme selection. Mutually exclusive with `--use_q_pro`. |
 | `--dataset_path` | Path | **(Resume-only)** Override the calibration dataset path embedded in the checkpoint. |
 
 For automatic Q-PRO details see [Automatic Q-PRO (`use_q_pro`)](#automatic-q-pro-use_q_pro) below. For the full diagnose → resume workflow, see [Quantization Tuning Workflow](02_07_Quantization_Tuning_Workflow.md).
@@ -123,7 +130,7 @@ dx_com.compile(model="model.onnx", output_dir="./output", config="config.json", 
 - **Mutually exclusive** with a manual `enhanced_scheme` — choose one, not both.
 - Can also be enabled while re-quantizing via the **QXNN Resume** section in [Quantization Tuning Workflow](02_07_Quantization_Tuning_Workflow.md).
 
-!!! tip "Automatic vs Manual"
+!!! tip "Automatic vs Manual"  
     Prefer `--use_q_pro` for the easiest path to higher-accuracy quantization. Drop down to a manual `enhanced_scheme` only when you need to pin a specific DXQ scheme.
 
 ---
@@ -135,7 +142,10 @@ These options are vital for troubleshooting, logging, and targeting specific sec
 | **Option** | **Shorthand** | **Description** |
 | :--- | :--- | :--- |
 | `--gen_log` | N/A | When enabled, the compiler collects all compilation logs into a `compiler.log` file in the specified output directory. Useful for debugging or analyzing the compilation process |
-| `--export_html` | N/A | Generate a self-contained HTML summary report (`<model_name>_summary.html`) in the output directory after compilation. See [Compilation Summary Report](04_02_Compilation_Summary_Report.md) |
+| `--export_html` | N/A | Generate a self-contained HTML summary report (`<model_name>_summary.html`) in the output directory after compilation. See [Compilation Summary Report](04_Compilation_Summary_Report.md) |
+| `--verbose` | N/A | **(New in v2.5.0)** Expand masked error messages to include the origin type, the original message, and one bounded direct cause. Useful when a compilation error is otherwise reported in summarized form |
+| `--optimize_check` | N/A | **(New in v2.5.0, debug)** Compare the pre-optimize (quantization/QAT) output with the post-optimize output for each NPU subgraph right after the optimize phase. See [Optimize-Phase Accuracy Check](#optimize-phase-accuracy-check) |
+| `--optimize_check_num_samples` | `<int>` <br> (Default: `10`) | **(New in v2.5.0, debug)** Number of samples compared per subgraph. Used with `--optimize_check` |
 | `--version` | `-v` | Prints the compiler module version and exits |
 
 **Partial Compilation (`--compile_input_nodes`, `--compile_output_nodes`)**  
@@ -149,6 +159,39 @@ These advanced options allow compiling only a specific subgraph of the ONNX mode
 !!! warning "Crucial Naming Requirement"  
     You **must** specify the ONNX Operator Node names (the operations/boxes in visualization tools like Netron), not the tensor/edge names (the lines connecting them).  
 
+##### Optimize-Phase Accuracy Check
+
+!!! note "Version Support"  
+    Available in **DX-COM v2.5.0 and later** (debug option). Applies to both PTQ and QAT compiles.
+
+The compile pipeline applies further optimization passes (e.g. PAF LUT folding, offset fusion) after quantization/QAT training. Those passes can occasionally introduce their own accuracy regression, which would otherwise only surface once the final `.dxnn` is evaluated. `--optimize_check` runs an extra comparison between the pre-optimize (quantization/QAT) output and the post-optimize output for each NPU subgraph, right after the optimize phase, so this class of regression is caught immediately during compile instead of during a separate accuracy run.
+
+It is off by default because it costs extra compile time and memory. `--optimize_check_num_samples` sets the number of samples compared per subgraph (default `10`); lower values reduce the in-memory reference size and check cost.
+
+```bash
+dxcom -m model.onnx -c config.json -o output/ --optimize_check
+dxcom -m model.onnx -c config.json -o output/ --optimize_check --optimize_check_num_samples 20
+```
+
+```python
+dx_com.compile(
+    model="model.onnx",
+    config="config.json",
+    output_dir="output/",
+    optimize_check=True,
+    optimize_check_num_samples=20,
+)
+```
+
+Each subgraph is reported with its worst-case and mean cosine similarity across the checked samples:
+
+```text
+[INFO] - [optimize-check] subgraph 'npu_0': OK (worst cos_sim=0.9999, mean=0.9999 over 10 sample(s)).
+[WARNING] - [optimize-check] subgraph 'npu_0': worst cos_sim=0.9795, mean=0.9876 over 10 sample(s) is below the warn threshold 0.99.
+```
+
+A result below `0.99` is logged as a `WARNING`; below `0.95` is logged as an `ERROR`. Either case is worth investigating before shipping the compiled model, even though compilation still completes. These two thresholds are fixed internal defaults and are not currently exposed as config/CLI options.
+
 ---
 
 ### CLI Execution Examples
@@ -157,7 +200,7 @@ The following examples demonstrate common usage patterns for CLI compilation.
 
 **Basic Command**     
 This command compiles the model using the required model path (`-m`), config file (`-c`), and output directory (`-o`).  
-```
+```bash
 dxcom \
 -m sample/MobilenetV1.onnx \
 -c sample/MobilenetV1.json \
@@ -166,7 +209,7 @@ dxcom \
 
 **With Log Generation**  
 This command uses the `--gen_log` flag to collect all compilation logs into `compiler.log` in the output directory.  
-```
+```bash
 dxcom \
 -m sample/MobilenetV1.onnx \
 -c sample/MobilenetV1.json \
@@ -186,13 +229,13 @@ dxcom \
 
 **Version Information**  
 This command prints the compiler module version and exits.  
-```
+```bash
 dxcom --version
 ```
 
 **With Quantization Diagnosis**  
 This command enables `--quant_diagnosis` to produce a per-region diagnosis report and a `.qxnn` resume checkpoint under `quant_diagnosis/` in the output directory.  
-```
+```bash
 dxcom \
 -m large_model.onnx \
 -c config.json \
@@ -202,7 +245,7 @@ dxcom \
 
 **Re-quantize from a Checkpoint (QXNN Resume)**  
 This command re-runs quantization from a `.qxnn` checkpoint with a different calibration observer, skipping the earlier compile phases. No `-m`/`-c` is required.  
-```
+```bash
 dxcom \
 --checkpoint output/large_model/quant_diagnosis/large_model.qxnn \
 -o output/large_model_iqr \
@@ -220,7 +263,7 @@ For the end-to-end sample workflow, see the **Compile Sample Models** section in
 
 The Python wheel package also provides a programmatic interface for model compilation directly from Python code. This approach is particularly useful for automated workflows, multi-input models, and integration with existing Python pipelines.  
 
-!!! note "Examples and Guides"
+!!! note "Examples and Guides"  
     For practical code examples and step-by-step guides, see:
 
     - [Quick Start Guide](00_Quick_Start.md)
@@ -244,6 +287,7 @@ def compile(
     calibration_method: str = "ema",
     calibration_num: int = 100,
     quantization_device: Optional[str] = None,
+    use_gpu: Optional[bool] = None,  # New in v2.5.0
     opt_level: int = 1,
     aggressive_partitioning: bool = False,
     input_nodes: Optional[List[str]] = None,
@@ -251,20 +295,32 @@ def compile(
     use_q_pro: bool = False,
     enhanced_scheme: Optional[Dict] = None,
     ppu_config: Optional[PPUConfig] = None,
+    qmaster: Optional[QMasterConfig] = None,  # New in v2.5.0 (replaces qat_* args)
     gen_log: bool = False,
     float64_calibration: bool = False,
     export_html: bool = False,
-    quantization_mode: str = "ptq",
-    qat_config: Optional[Dict] = None,
-    qat_skip_training: bool = False,
-    qat_resume_from_checkpoint: Optional[str] = None,
+    verbose: bool = False,  # New in v2.5.0
+    **kwargs,
 ) -> None
 ```
 
-!!! note "Additional Parameters"
+!!! warning "Changed in v2.5.0 — entry point signature and QAT parameters"  
+    - `dx_com.compile()` now accepts keyword arguments (`**kwargs`); call it with
+      keyword arguments as shown above.
+    - **QAT parameters were restructured.** The former `quantization_mode`,
+      `qat_config`, `qat_skip_training`, and `qat_resume_from_checkpoint` arguments
+      have been **replaced by a single `qmaster` argument** that takes a
+      `QMasterConfig` object (import it from the top-level `dx_com` package). The old
+      `qat_*` arguments are **no longer honored** when compiling from Python code.
+      Compiling from a JSON config that contains a `qmaster` block is **unchanged** —
+      QAT is still auto-selected (see [Quantization-Aware Training (QAT)](02_08_Quantization_Aware_Training.md)).
+    - New arguments: `use_gpu` (GPU/CPU quantization toggle) and `verbose`
+      (expanded error messages).
+
+!!! note "Additional Parameters"  
     The signature above lists the most commonly used parameters. `dx_com.compile()`
     accepts further advanced/diagnostic parameters (e.g. `quant_diagnosis`,
-    `checkpoint` for QXNN resume). See the function docstring
+    `checkpoint` for QXNN resume, `optimize_check`). See the function docstring
     (`help(dx_com.compile)`) for the complete list.
 
 ---
@@ -343,7 +399,7 @@ dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
 
 When you compile with a `dataloader`, the JSON `default_loader.preprocessings` block is **not** used. All preprocessing (resize, color conversion, normalization, layout) must be applied **inside the Dataset's `__getitem__`**, so that each tensor the DataLoader yields is already in the exact shape and value range the ONNX model expects.
 
-!!! warning "Calibration must match deployment preprocessing"
+!!! warning "Calibration must match deployment preprocessing"  
     The transform applied here **must match the preprocessing used at inference time**. A mismatch (e.g. different mean/std, wrong channel order, missing `/255`) degrades calibration quality and post-quantization accuracy.
 
 **Two common ways to define transforms:**
@@ -407,10 +463,10 @@ The `default_loader` reads each image with `cv2.imread` (**BGR**, `HWC`, `uint8`
 | `dtype` | `t` (numpy dtype) | `img.astype(t)` |
 | `pil_2_cv` | — | PIL→numpy BGR conversion |
 
-!!! note "Output shape, dtype, and batch size"
+!!! note "Output shape, dtype, and batch size"  
     The compiler runs the verifier on `next(iter(dataloader))` and requires the **batched** sample shape to match the ONNX input shape **exactly**, including the batch dimension. So each `__getitem__` item must be `model_input_shape` without the leading batch dim (e.g. `[3, 224, 224]` for input `[1, 3, 224, 224]`), and `batch_size` must equal the model's input batch (normally `1`). Tensors should be `float32`.
 
-!!! note "Supported return types"
+!!! note "Supported return types"  
     Each `__getitem__` may return: a single `torch.Tensor` (single-input models), a **`dict[str, torch.Tensor]`** keyed by ONNX input node name (**recommended for multi-input** — mapped by name), or a **list/tuple of tensors** (mapped by the model's internal input-node order, which may differ from your return order). All elements must be tensors. See the **Use Case 2: Multi-Input Models** section in [Common Use Cases](02_10_Common_Use_Cases.md).
 
 ---
@@ -440,6 +496,17 @@ The `default_loader` reads each image with `cv2.imread` (**BGR**, `HWC`, `uint8`
 ```python
 quantization_device="cuda"  # Use GPU
 quantization_device="cuda:1"  # Use specific GPU
+```
+
+**`use_gpu`** *(New in v2.5.0)*
+
+- **Type**: `Optional[bool]`
+- **Default**: `None` — auto-detect (GPU when available, otherwise CPU). This is the same effective behavior as the CLI `--use_gpu` default of `True`.
+- **Description**: Convenience toggle for GPU vs. CPU quantization. `True` runs on GPU when available, `False` forces CPU. To select a **specific** device string, use `quantization_device` instead; set only one of the two.
+
+```python
+use_gpu=True   # run quantization on GPU
+use_gpu=False  # force CPU
 ```
 
 **`opt_level`**
@@ -506,6 +573,7 @@ enhanced_scheme={
 - **Default**: `False`
 - **Description**: Enable the automatic Q-PRO quantization optimization pipeline. The compiler auto-selects and applies the optimal combination of enhancement stages based on model structure.
 - **Limitation**: Mutually exclusive with `enhanced_scheme` (set only one). ONNX compile path only.
+- **See also**: the **Automatic Q-PRO (`use_q_pro`)** section above
 
 **`ppu_config`**
 
@@ -526,9 +594,12 @@ from dx_com import PPUConfig, PPUTypes
 |------------|-------|--------------|--------|
 | `PPUTypes.YOLO_BASE` | 0 | Anchor-Based | YOLOv3/v4/v5/v7 |
 | `PPUTypes.YOLO_ANCHORFREE` | 1 | Anchor-Free | YOLOX, YOLOv8–v12 |
-| `PPUTypes.YOLOV8` | 2 | DFL-Based (CPU TopK) | YOLOv8, v9, v11, v12 |
+| `PPUTypes.YOLOV8` | 2 | DFL-Based (CPU TopK) — **deprecated since v2.4.0** | YOLOv8, v9, v11, v12 |
 
-!!! note "PPUTypes.YOLOV8 supports multiple YOLO versions"
+!!! warning "PPU type 2 is deprecated"  
+    `PPUTypes.YOLOV8` (type 2) is deprecated as of DX-Compiler v2.4.0. Use the [`dx_com.pre_optimize()` API](02_09_Pre_Optimize_API.md) instead (see **Use Case 7** in [Common Use Cases](02_10_Common_Use_Cases.md)).
+
+!!! note "PPUTypes.YOLOV8 supports multiple YOLO versions"  
     Despite the enum name, `PPUTypes.YOLOV8` supports YOLOv8, YOLOv9, YOLOv11, and YOLOv12 — any DFL-based YOLO model compatible with the CPU TopK optimization path.
 
 **Construction patterns** — full init or incremental builder (chainable setters):
@@ -588,7 +659,7 @@ cfg.add_layer(bbox="bbox_head_p5", cls_conf="cls_head_p5")
 | `add_layer(...)` | Add a detection head; signature depends on type |
 | `validate()` | Validate required fields (called by `compile()`) |
 
-!!! note "`add_layer` signature by type"
+!!! note "`add_layer` signature by type"  
     - **Type 0**: `add_layer("Conv_245", num_anchors=3)` — `layer` is a dict.
     - **Type 1 / 2**: `add_layer(bbox="...", cls_conf="...")` (optional `obj_conf=`) — `layer` is a list. Call once per detection scale.
 
@@ -610,15 +681,7 @@ See the **Use Case 8: PPU Hardware Acceleration** section in [Common Use Cases](
 
 - **Type**: `bool`
 - **Default**: `False`
-- **Description**: Generate a self-contained HTML summary report (`<model_name>_summary.html`) in the output directory after compilation. See [Compilation Summary Report](04_02_Compilation_Summary_Report.md) for details.
-
-**`use_q_pro`**
-
-- **Type**: `bool`
-- **Default**: `False`
-- **Description**: Enable the automatic Q-PRO quantization pipeline. DX-COM automatically selects and applies the optimal DXQ enhancement stages.
-- **Limitation**: Mutually exclusive with `enhanced_scheme`.
-- **See also**: the **Automatic Q-PRO (`use_q_pro`)** section above
+- **Description**: Generate a self-contained HTML summary report (`<model_name>_summary.html`) in the output directory after compilation. See [Compilation Summary Report](04_Compilation_Summary_Report.md) for details.
 
 **`quant_diagnosis`**
 
@@ -632,7 +695,11 @@ See the **Use Case 8: PPU Hardware Acceleration** section in [Common Use Cases](
 - **Type**: `Optional[str]`
 - **Default**: `None`
 - **Description**: Path to a `.qxnn` resume artifact. When provided, selects the **QXNN resume** path, which re-runs quantization without recompiling. The `model`/`config` arguments are not required in this mode.
-- **Related parameters** (resume-only): `recalibration_method` (`"minmax"`/`"ema"`/`"iqr"`), `dataset_path`, and `enhanced_scheme`.
+- **Related parameters** (resume-only):
+
+    - `recalibration_method` (`str`): Observer override applied during re-calibration. One of `"minmax"`, `"ema"`, `"iqr"`.
+    - `dataset_path` (`str`): Override the calibration dataset path embedded in the checkpoint.
+    - `enhanced_scheme`: Manual Q-PRO scheme selection. Mutually exclusive with `use_q_pro`.
 
 ```python
 import dx_com
@@ -643,32 +710,46 @@ dx_com.compile(
     recalibration_method="iqr",   # or: use_q_pro=True
 )
 ```
-**`quantization_mode`**
 
-- **Type**: `str`
-- **Default**: `"ptq"`
-- **Description**: Quantization mode. The default `"ptq"` runs Post-Training Quantization. When the config JSON contains a `qmaster` block, QAT is **auto-selected** — you do not need to pass this argument. Set to `"qat"` explicitly only when supplying `qat_config` directly in Python; doing so bypasses `qmaster` auto-detection. When set to `"qat"`, you must provide either `qat_config` (for training) or `qat_skip_training=True` (for compile-only/resume).
-- **Supported Values**: `"ptq"`, `"qat"`
+**`qmaster`** *(New in v2.5.0 — replaces the former `qat_*` arguments)*
 
-**`qat_config`**
+- **Type**: `Optional[QMasterConfig]`
+- **Default**: `None` (PTQ)
+- **Description**: Quantization-Aware Training (QAT) configuration object. When omitted, `dx_com.compile()` runs normal PTQ (unless the JSON config supplies a `qmaster` block, which still auto-selects QAT). Import `QMasterConfig` from the top-level `dx_com` package.
+- **Fields**:
 
-- **Type**: `Optional[Dict]`
-- **Default**: `None`
-- **Description**: QAT training hyperparameters. Usually supplied via the `qmaster` block in the config JSON instead of this argument.
+    - `config` (`Optional[dict]`): QAT training hyperparameters — the same keys as the JSON `qmaster` block (see [Quantization-Aware Training (QAT)](02_08_Quantization_Aware_Training.md)).
+    - `skip_training` (`bool`, default `False`): Skip the training loop and run compilation only. Use with `resume_from_checkpoint`.
+    - `resume_from_checkpoint` (`Optional[str]`): Path to a saved `qat_checkpoint.qxnn` to load trained weights before compilation.
 
-**`qat_skip_training`**
+```python
+from dx_com import QMasterConfig
+
+# Train + compile
+qmaster = QMasterConfig(config={"epochs": 30, "lr": 1e-5, "use_kd": True})
+
+# Compile only, reusing a trained checkpoint
+qmaster = QMasterConfig(
+    skip_training=True,
+    resume_from_checkpoint="output/qat_checkpoint/qat_checkpoint.qxnn",
+)
+```
+
+**`verbose`** *(New in v2.5.0)*
 
 - **Type**: `bool`
 - **Default**: `False`
-- **Description**: Skip the QAT training loop and run compilation only. Use together with `qat_resume_from_checkpoint`.
+- **Description**: Expand masked error messages to include the origin type, the original message, and one bounded direct cause. The Python equivalent of the CLI `--verbose` flag.
 
-**`qat_resume_from_checkpoint`**
+**`optimize_check`** *(New in v2.5.0, debug)*
 
-- **Type**: `Optional[str]`
-- **Default**: `None`
-- **Description**: Path to a saved `qat_checkpoint.qxnn` to load trained weights before compilation.
+- **Type**: `bool`
+- **Default**: `False`
+- **Description**: Compare the pre-optimize (quantization/QAT) output with the post-optimize output for each NPU subgraph right after the optimize phase. The Python equivalent of the CLI `--optimize_check` flag. Costs extra compile time and memory.
+- **Related parameter**: `optimize_check_num_samples` (`int`, default `10`) — number of samples compared per subgraph.
+- **See also**: [Optimize-Phase Accuracy Check](#optimize-phase-accuracy-check)
 
-!!! note "QAT Details"
+!!! note "QAT Details"  
     For the full QAT workflow, the `qmaster` block, and all training hyperparameters,
     see [Quantization-Aware Training (QAT)](02_08_Quantization_Aware_Training.md).
 
@@ -701,20 +782,20 @@ For more detailed examples — including DataLoader usage, multi-input models, e
 
 ### Important Considerations
 
-!!! warning "Input Selection: Config vs DataLoader"
+!!! warning "Input Selection: Config vs DataLoader"  
     Users must provide **either** a configuration file **or** a DataLoader. These inputs are mutually exclusive.
 
     - **Config:** Recommended for static, file-based compilation workflows.
     - **DataLoader:** Required for programmatic data provision and models with multiple inputs.
     When constructing a DataLoader for compilation, the **batch_size must be set to 1.**
 
-!!! note "Hardware Acceleration (CUDA)"
+!!! note "Hardware Acceleration (CUDA)"  
     To enable GPU-accelerated quantization (quantization_device="cuda"), ensure the following requirements are met:
 
     - **System:** NVIDIA CUDA drivers and toolkit are installed.
     - **Framework:** PyTorch is built with CUDA support (torch.cuda.is_available() is True).
 
-!!! note "Deprecation Notice: CustomLoader"
+!!! note "Deprecation Notice: CustomLoader"  
     The legacy CustomLoader for non-image data is **deprecated.**
 
     - **New Standard:** Use the standard **PyTorch DataLoader** for all data modalities (Image, Tensor, etc.) to ensure long-term compatibility and performance.
@@ -742,7 +823,7 @@ The following error types may occur during the compilation process using either 
 | 3  | ConfigInputError | Input definitions in the config file do not match the ONNX model. <br> Examples: mismatched input name or shape |
 | 4  | DatasetPathError | The dataset path specified in the configuration is invalid. <br> Examples: path does not exist, or is not a directory |
 | 5  | NodeNotFoundError | The ONNX model contains a node that is unsupported by the compiler |
-| 6  | OSError | The operating system is unsupported. <br> Examples: OS is not Ubuntu |
+| 6  | OSError | The operating system is unsupported. <br> Examples: an OS outside the list in [System Requirements of DX-COM](02_01_System_Requirements_of_DX-COM.md) |
 | 7  | UbuntuVersionError | The installed Ubuntu version is outside the supported range |
 | 8  | LDDVersionError | The installed `ldd` version is unsupported |
 | 9  | RamSizeError | The system does not meet the minimum RAM requirements |
