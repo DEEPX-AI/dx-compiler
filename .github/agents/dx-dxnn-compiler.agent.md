@@ -1,7 +1,7 @@
 ---
 name: dx-dxnn-compiler
 description: 'Compiles ONNX models to .dxnn format using DEEPX DX-COM (v2.2.1). Handles config.json generation, calibration
-  data preparation, PPU configuration for YOLO models, and output validation with DX-TRON.
+  data preparation, PPU configuration for YOLO models, and output validation via the HTML summary report.
 
   '
 tools:
@@ -194,12 +194,12 @@ if it fails. If the sanity check **still fails after install.sh**:
 - **NEVER call dxcom functions without verifying installation first.** If dxcom
   is not installed, the agent must install it — NOT fabricate API calls.
 - **NEVER guess dxcom API signatures.** Always reference the toolset files:
-  - CLI usage: `.github/toolsets/dxcom-cli.md`
-  - Python API: `.github/toolsets/dxcom-api.md`
-  - Config schema: `.github/toolsets/config-schema.md`
+  - CLI usage: `.deepx/toolsets/dxcom-cli.md`
+  - Python API: `.deepx/toolsets/dxcom-api.md`
+  - Config schema: `.deepx/toolsets/config-schema.md`
 - **NEVER generate config.json from memory.** Always read a sample config first:
   - Sample configs: `dx_com/sample_models/json/*.json`
-  - Schema reference: `.github/toolsets/config-schema.md`
+  - Schema reference: `.deepx/toolsets/config-schema.md`
 - **NEVER modify `compiler.properties`** — this is a system configuration file
   managed by the DX-COM installer. Writing to it can break the compiler for all
   users. If compilation fails, the fix is in `config.json` or `dxcom` arguments,
@@ -534,14 +534,21 @@ ls -la "${WORK_DIR}/"
 # Expected: model.dxnn, config.json, calibration_dataset (symlink), compiler.log
 ```
 
-Validate with DX-TRON (visual inspection):
-```bash
-# AppImage mode
-./DX-TRON-v2.0.1.AppImage "${WORK_DIR}/model.dxnn"
+Validate via the Compilation Summary Report (compile with `--export_html`):
 
-# Web server mode
-dx-tron --web --port 8080 "${WORK_DIR}/model.dxnn"
+```bash
+REPORT=$(ls "${WORK_DIR}"/*_summary.html 2>/dev/null | head -1)
+[ -n "${REPORT}" ] && [ -s "${REPORT}" ] \
+    && echo "PASS: summary report ${REPORT}" \
+    || echo "FAIL: no *_summary.html — recompile with --export_html"
+
+# Machine-checkable partition evidence (the report itself is not parseable)
+grep -iE "npu|cpu|partition|fallback" "${WORK_DIR}/compiler.log" 2>/dev/null | head -20
 ```
+
+The report is for human review — open it in any browser to inspect the graph,
+NPU-vs-CPU partition, CPU-fallback reasons, and I/O shapes. The `compiler.log`
+lines above are the automated evidence to record in the session report.
 
 ### Phase 5.5: Generate Mandatory Artifacts
 
@@ -1145,7 +1152,7 @@ session working directory:
 
 ### Next Steps
 - Run the app: `bash setup.sh && bash run.sh`
-- Validate with DX-TRON: `dx-tron --web --port 8080 <session_dir>/model.dxnn`
+- Validate via the summary report: compile with `--export_html`, then open `<session_dir>/*_summary.html`
 - Deploy to dx_app: copy .dxnn to `dx-runtime/dx_app/resources/models/`
 ```
 

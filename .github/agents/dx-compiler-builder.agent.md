@@ -48,14 +48,14 @@ that mentions DX-M1A — DX-M1A is discontinued and no longer supported.
 Before classifying or routing any task:
 
 1. Read `.github/copilot-instructions.md` for this level's global context (MANDATORY)
-2. Read `.github/memory/common_pitfalls.md` (always)
+2. Read `.deepx/memory/common_pitfalls.md` (always)
 3. Read `source/docs/` SDK official guide documents for API and feature reference (MANDATORY):
    - `02_05_JSON_File_Configuration.md` — config.json schema and all options
    - `02_07_Common_Use_Cases.md` — calibration patterns, DataLoader examples
    - `02_03_Python_API.md` — dxcom Python API reference
    - Other files as needed for the specific task
-4. Read `.github/toolsets/config-schema.md` (if writing config.json)
-5. Read `.github/toolsets/dxcom-cli.md` or `.github/toolsets/dxcom-api.md` (if running dxcom)
+4. Read `.deepx/toolsets/config-schema.md` (if writing config.json)
+5. Read `.deepx/toolsets/dxcom-cli.md` or `.deepx/toolsets/dxcom-api.md` (if running dxcom)
 
 ## MANDATORY OUTPUT REQUIREMENTS — READ FIRST
 
@@ -393,7 +393,7 @@ Before routing, present the execution plan:
 - Generate config.json with EMA calibration
 - Calibrate with 100 samples from /data/coco/val2017/
 - Compile with opt_level=1
-- Validate output with DX-TRON
+- Validate output via the HTML summary report (`--export_html`)
 
 Proceed? [Y/n]
 ```
@@ -440,7 +440,7 @@ For full pipeline, route sequentially:
 | Component | Version | Purpose |
 |---|---|---|
 | DX-COM | v2.2.1 | ONNX → DXNN compiler |
-| DX-TRON | v2.0.1 | .dxnn visual inspection |
+| Summary report (`--export_html`) | built into DX-COM | .dxnn visual inspection |
 | ONNX | opset 11-21 | Intermediate representation |
 | Python | 3.8-3.12 | Runtime environment |
 
@@ -520,8 +520,8 @@ transpose skipped), the DXNN model's input format changes from the original ONNX
 the actual input format** and branch preprocessing accordingly (NHWC uint8 vs
 NCHW float32). NEVER hardcode preprocessing based on the ONNX model's format.
 
-See `dx_app/.github/memory/common_pitfalls.md` Pitfall #19 for the complete
-auto-detect code pattern. See `dx-compiler/.github/memory/common_pitfalls.md`
+See `../dx-runtime/dx_app/.deepx/memory/common_pitfalls.md` Pitfall #19 for the complete
+auto-detect code pattern. See `.deepx/memory/common_pitfalls.md`
 Pitfall #20 for the compilation-side explanation.
 
 ### Skeleton-First Demo Development (MANDATORY for cross-project tasks)
@@ -536,7 +536,7 @@ as a skeleton:
 4. Modify ONLY: factory class name, model name, preprocessor/postprocessor, input shape
 5. Add DXNN input format auto-detection (Pitfall #19)
 
-See `dx_app/.github/memory/common_pitfalls.md` Pitfall #20 for the full
+See `../dx-runtime/dx_app/.deepx/memory/common_pitfalls.md` Pitfall #20 for the full
 task→skeleton mapping table.
 
 ### CPU MemoryOps and `DXRT_DYNAMIC_CPU_THREAD=ON`

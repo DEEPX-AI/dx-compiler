@@ -64,22 +64,23 @@ echo "File: ${DXNN}  Size: ${SIZE} bytes ($(( SIZE / 1024 )) KB)"
 
 **Evidence**: File path, size, PASS/WARNING status.
 
-### Step 4: DX-TRON Inspection
+### Step 4: Compilation Summary Report
 
 ```bash
-dx-tron --web --port 8080 output/model.dxnn &
-TRON_PID=$!; sleep 3
-curl -s http://localhost:8080/api/model/info | python -c "
-import json, sys; info = json.load(sys.stdin)
-print('=== DX-TRON Model Info ===')
-for k in ('layer_count','input_shape','output_shape','npu_subgraphs','cpu_subgraphs'):
-    print(f'{k}: {info.get(k, \"N/A\")}')
-print('PASS: DX-TRON inspection complete')
-"
-kill $TRON_PID 2>/dev/null
+REPORT=$(ls output/*_summary.html 2>/dev/null | head -1)
+if [ -z "${REPORT}" ]; then
+    echo "FAIL: no *_summary.html — recompile with --export_html"
+else
+    echo "=== Summary Report ==="
+    echo "File: ${REPORT}  Size: $(stat --format=%s "${REPORT}") bytes"
+    echo "PASS: summary report generated"
+fi
+grep -iE "npu|cpu|partition|fallback" output/compiler.log 2>/dev/null | head -20
 ```
 
-**Evidence**: DX-TRON loaded model. Shapes and partition visible.
+**Evidence**: Report path and size, plus the NPU/CPU partition lines from
+compiler.log. The report's interactive graph viewer is for human review; the
+compiler.log lines are the machine-checkable proof of the partition split.
 
 ### Step 5: Compiler Log Review
 
@@ -138,7 +139,7 @@ Confirm ALL before claiming completion:
 - [ ] Input model exists and is valid (Step 1)
 - [ ] Config is valid JSON, input names match (Step 2)
 - [ ] Output .dxnn exists with reasonable size (Step 3)
-- [ ] DX-TRON loads model, metadata correct (Step 4)
+- [ ] `*_summary.html` generated, compiler.log partition lines reviewed (Step 4)
 - [ ] Compiler log reviewed, no errors (Step 5)
 
 ## Completion Report Template
@@ -168,7 +169,7 @@ Confirm ALL before claiming completion:
 - CPU ops: <N>/<total> (<percent>%)
 
 ### Validation
-- DX-TRON: PASS
+- Summary report: PASS
 - Compiler log errors: 0
 - Compiler log warnings: <N>
 
@@ -185,6 +186,6 @@ dx-agent-dev/<session_id>/
 
 - Saying "compilation complete" without running Steps 1-5
 - Relying on stale evidence from a previous session
-- Skipping DX-TRON inspection because "the file exists"
+- Skipping the summary report and compiler.log review because "the file exists"
 - Claiming success when compiler.log contains errors
 - Reporting completion without the verification checklist

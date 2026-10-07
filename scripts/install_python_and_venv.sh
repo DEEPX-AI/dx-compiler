@@ -4,6 +4,7 @@ SCRIPT_DIR=$(realpath "$(dirname "$0")")
 # color env settings
 source "${SCRIPT_DIR}/color_env.sh"
 source "${SCRIPT_DIR}/common_util.sh"
+source "${SCRIPT_DIR}/uv_util.sh"
 
 # Global variables for script configuration
 DEFAULT_MIN_PY_VERSION="3.8.10"
@@ -39,6 +40,9 @@ usage() {
     echo -e ""
     echo -e "  ${COLOR_GREEN}-f | --venv-force-remove${COLOR_RESET}    If specified, force remove existing virtual environment at --venv_path before creation."
     echo -e "  ${COLOR_GREEN}-r | --venv-reuse${COLOR_RESET}           If specified, reuse existing virtual environment at --venv_path if it's valid, skipping creation."
+    echo -e ""
+    echo -e "  ${COLOR_GREEN}--uv${COLOR_RESET}                        Create the virtual environment with 'uv venv --seed' instead of 'python -m venv'."
+    echo -e "                                  - Falls back to 'python -m venv' if uv is unavailable or fails."
     echo -e ""
     echo -e "  ${COLOR_GREEN}--help${COLOR_RESET}                      Display this help message and exit."
     echo -e ""
@@ -891,7 +895,19 @@ setup_venv() {
 
     if [ "${SKIP_VENV_CREATION_FLAG}" != "y" ]; then
         echo -e "${TAG_INFO} Setting up Virtual Environment at ${VENV_ORIGIN_DIR} using ${DX_PYTHON_EXEC}..."
-        if ! "${DX_PYTHON_EXEC}" -m venv "${VENV_ORIGIN_DIR}" ${VENV_MAKE_ARGS}; then
+        # uv venv is materially faster than python -m venv, but ships no pip
+        # by default — --seed puts pip back (plus setuptools/wheel on Python
+        # < 3.12) so the pip fallback path and the customer's own
+        # `pip install` inside the venv keep working.
+        local VENV_CREATE_OK=0
+        if [ "${USE_UV:-0}" -eq 1 ] && uv_available; then
+            if uv venv --seed --python "${DX_PYTHON_EXEC}" "${VENV_ORIGIN_DIR}" ${VENV_MAKE_ARGS}; then
+                VENV_CREATE_OK=1
+            else
+                echo -e "${TAG_WARN} uv venv failed; falling back to python -m venv." >&2
+            fi
+        fi
+        if [ ${VENV_CREATE_OK} -eq 0 ] && ! "${DX_PYTHON_EXEC}" -m venv "${VENV_ORIGIN_DIR}" ${VENV_MAKE_ARGS}; then
             print_colored "Failed to create virtual environment at ${VENV_ORIGIN_DIR}." >&2
             case "${OPT_X_STATE}" in *x*) set -x;; esac # Restore set -x before returning
             return 1
@@ -949,6 +965,15 @@ setup_venv() {
     echo -e "${TAG_INFO} *** OS: ${OS_ID} ${OS_VERSION} ***"
 
     local PIP_INSTALL_STATUS=0
+
+    # uv resolves and installs wheels itself and does not shell out to pip,
+    # so the per-distro pip/wheel/setuptools upgrade dance buys nothing here.
+    if [ "${USE_UV:-0}" -eq 1 ] && uv_available; then
+        echo -e "${TAG_INFO} uv mode: skipping pip/wheel/setuptools upgrade."
+        deactivate || true
+        case "${OPT_X_STATE}" in *x*) set -x;; esac
+        return 0
+    fi
     
     # For Ubuntu 24.04, 26.04 - only upgrade setuptools
     if [ "$OS_ID" = "ubuntu" ] && { [ "$OS_VERSION" = "24.04" ] || [ "$OS_VERSION" = "26.04" ]; }; then
@@ -990,6 +1015,7 @@ main() {
     local REUSE_VENV="n"
     local VENV_SYSTEM_SITE_PACKAGES_ARGS=""
     local SKIP_VENV_CREATION="n" # Flag to control venv creation in setup_venv
+    local USE_UV=0  # bash dynamic scoping makes this visible inside setup_venv
 
     # Get OS information using /etc/os-release (supports all Linux distros)
     local OS_ID=""
@@ -1031,6 +1057,9 @@ main() {
                 ;;
             --system-site-packages)
                 VENV_SYSTEM_SITE_PACKAGES_ARGS="--system-site-packages"
+                ;;
+            --uv)
+                USE_UV=1
                 ;;
             --help)
                 usage

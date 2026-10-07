@@ -86,20 +86,19 @@ test -n "${DXNN_FILE}" && test -s "${DXNN_FILE}" \
 
 **Gate**: File exists AND size > 0. If FAIL, review compiler.log.
 
-### Check 5: DX-TRON Inspection
+### Check 5: Compilation Summary Report
 
 ```bash
-dx-tron --web --port 8080 output/model.dxnn &
-TRON_PID=$!; sleep 3
-curl -s http://localhost:8080/api/model/info | python -c "
-import json, sys; info = json.load(sys.stdin)
-print(f'Layers: {info.get(\"layer_count\",\"?\")}  Input: {info.get(\"input_shape\",\"?\")}')
-print('PASS: DX-TRON metadata valid')
-"
-kill $TRON_PID 2>/dev/null
+REPORT=$(ls output/*_summary.html 2>/dev/null | head -1)
+[ -n "${REPORT}" ] && [ -s "${REPORT}" ] \
+    && echo "PASS: summary report ${REPORT}" \
+    || echo "FAIL: no *_summary.html — recompile with --export_html"
+grep -iE "npu|cpu|partition" output/compiler.log 2>/dev/null | head -10
 ```
 
-**Gate**: DX-TRON loads model without error. Shapes match expectations.
+**Gate**: `*_summary.html` exists and is non-empty, and shapes match
+expectations. Review whatever partition lines the grep returns — a model that
+runs entirely on the NPU may produce none, which is not a failure.
 
 ### Check 6: session.json
 
@@ -150,7 +149,7 @@ See `dx-dxnn-compiler.md` Phase 5.7 for the full Differential Diagnosis Decision
 | 2 | Compilation config | Parses, input name match |
 | 3 | Conversion output | Valid ONNX, batch=1, static, single output |
 | 4 | .dxnn output | Exists, non-zero size |
-| 5 | DX-TRON inspection | Loads, metadata valid |
+| 5 | Summary report | `*_summary.html` non-empty, partition logged |
 | 6 | session.json | Valid JSON, required keys |
 | Final | Framework validator | Exit code 0 |
 
@@ -159,5 +158,5 @@ See `dx-dxnn-compiler.md` Phase 5.7 for the full Differential Diagnosis Decision
 - Compiling before validating the ONNX model
 - Proceeding past a FAIL gate
 - Skipping config input name verification
-- Assuming .dxnn is valid without DX-TRON check
+- Assuming .dxnn is valid without the summary report and compiler.log check
 - Running framework validator as the only check (it supplements, not replaces)

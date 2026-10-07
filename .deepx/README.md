@@ -120,7 +120,7 @@
 ## Key Facts
 
 - **Compiler**: DX-COM v2.2.1 — compiles ONNX to .dxnn for DEEPX NPU
-- **Inspector**: DX-TRON v2.0.1 — visual .dxnn inspection (AppImage / web)
+- **Inspector**: Compilation Summary Report — `dxcom --export_html` writes a self-contained `<model>_summary.html`
 - **Batch size**: Must be 1. Dynamic shapes not supported.
 - **ONNX opset**: 11-21 supported
 - **OS**: Debian Linux (Ubuntu 20.04 / 22.04 / 24.04), x86_64
@@ -144,3 +144,7 @@ This compiler knowledge base is consumed by five AI coding tools:
 Codex CLI does not use Copilot-style `@mention` wrappers or OpenCode slash-command
 adapters here. It starts from `AGENTS.md`, then reads canonical `.deepx/agents/*.md`
 and `.deepx/skills/*/SKILL.md` files directly when it needs task-specific grounding.
+
+## CI Drift Gate
+
+This repo is checked by the `subrepo-gate` CI job (`.github/workflows/dx-agent-dev-subrepo-gate-{ghes,cloud}.yml`). What it runs, how to reproduce it locally and how to fix a red gate: [`docs/ci-subrepo-gate.md`](docs/ci-subrepo-gate.md).

@@ -331,9 +331,9 @@ dx_com.compile(
    # Expected: model.dxnn, config.json, calibration_dataset (symlink), compiler.log
    ```
 
-2. Inspect with DX-TRON:
+2. Open the HTML summary report (compile with `--export_html`):
    ```bash
-   dx-tron --web --port 8080 "${WORK_DIR}/model.dxnn"
+   ls "${WORK_DIR}"/*_summary.html
    ```
 
 3. Review compiler.log for warnings:
@@ -341,7 +341,7 @@ dx_com.compile(
    grep -i "warning\|error\|unsupported" "${WORK_DIR}/compiler.log"
    ```
 
-**Validation gate**: .dxnn exists. No errors in log. DX-TRON loads model.
+**Validation gate**: .dxnn exists. No errors in log. `*_summary.html` generated.
 
 ## Phase 5.5: Generate Mandatory Artifacts
 
@@ -603,7 +603,7 @@ The report should include:
 - Compilation statistics (NPU/CPU subgraphs, time)
 - Quantization method and calibration details
 - **Verification result: PASS/FAIL (from verify.py)** — MANDATORY field
-- Next steps: validation with DX-TRON, deployment to dx_app
+- Next steps: validation via the HTML summary report, deployment to dx_app
 
 ## Error Recovery
 

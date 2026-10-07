@@ -835,10 +835,6 @@ COM_CP310_DOWNLOAD_URL=https://developer.deepx.ai/download/?id=...
 COM_CP311_DOWNLOAD_URL=https://developer.deepx.ai/download/?id=...
 COM_CP312_DOWNLOAD_URL=https://developer.deepx.ai/download/?id=...
 
-# DX-TRON visual inspector version and download URL
-TRON_VERSION=2.0.1
-TRON_DOWNLOAD_URL=https://developer.deepx.ai/download/?id=...
-
 # Optional: auto-login credentials for DEEPX developer portal
 # If set, install.sh uses these instead of prompting for credentials.
 DX_USERNAME=<email>
@@ -848,7 +844,6 @@ DX_PASSWORD=<password>
 **Required properties** (validated by `install.sh` `validate_environment()`):
 - `COM_VERSION` — must be set
 - `COM_CP{38,39,310,311,312}_DOWNLOAD_URL` — Python-version-specific wheel URLs
-- `TRON_VERSION` and `TRON_DOWNLOAD_URL` — DX-TRON download info
 
 **Why agents must NEVER modify it**:
 1. **Contains credentials**: `DX_USERNAME` and `DX_PASSWORD` are plaintext login
@@ -952,3 +947,31 @@ DX_PASSWORD=<password>
   `YOLO("<model>_deepx_model")`. Full reference: `.deepx/toolsets/ultralytics-deepx-export.md`.
   Fall back to the manual PT→ONNX→`dxcom` pipeline only for non-detection / non-YOLO /
   custom-graph cases or when fine `config.json` control is required.
+
+---
+
+## 26. [DX_COMPILER] Stacking Duplicate Version Blocks in RELEASE_NOTES.md / Appendix_Change_Log.md
+
+- **Symptom**: After resolving a merge/rebase conflict in `RELEASE_NOTES.md` or
+  `source/docs/Appendix_Change_Log.md`, the same version number (e.g. `v2.5.0`)
+  appears as **two or more separate `##` headers** — one undated (from the PR branch)
+  and one dated (already released on `main`), sometimes under a stale renamed header
+  (e.g. an old `v2.4.2` block that actually shipped as `v2.5.0`).
+- **Root Cause**: A naive conflict resolution keeps "our" version block and "their"
+  version block side by side instead of merging their content. Git's 3-way merge does
+  not know two `## vX.Y.Z` sections describe the same release.
+- **Fix**: **Never leave two `##`/`## DX-Compiler` headers for the same version.**
+  Merge all blocks for that version into **one** section:
+  - Pick a single unified date (ask the user or use today's date if unspecified).
+  - Union the version bullet list (`DX-COM:`/`DX-TRON:` …) to the **final** state
+    (e.g. if one side says "Deprecated" and a later change says "Removed", the
+    merged block states "Removed").
+  - Concatenate `#### Changed` / `#### Added` / `#### Fixed` items from all blocks
+    under one set of subsections — do not duplicate the `### DX-COM (vX.Y.Z)` /
+    `#### Added` sub-headers.
+  - Drop any now-redundant intermediate "----------" separators and repeated
+    "Here are the **DX-Compiler vX.Y.Z** Release Notes." boilerplate lines.
+  - Apply the same merge to **both** `RELEASE_NOTES.md` and
+    `source/docs/Appendix_Change_Log.md` — they must stay in sync.
+  - Verify with `grep -n "^## v" source/docs/Appendix_Change_Log.md` and
+    `grep -n "^## DX-Compiler" RELEASE_NOTES.md` — each version must appear exactly once.

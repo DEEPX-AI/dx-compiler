@@ -164,7 +164,7 @@ questions if the user explicitly says "just compile it" or "use defaults".
 
 **Gate 1 — Brainstorm**: Confirm inputs (model path, format, target device, calibration data).
 **Gate 2 — Build**: Execute compilation with chosen parameters.
-**Gate 3 — Verify**: Validate output with DX-TRON, review compiler.log.
+**Gate 3 — Verify**: Validate output via the HTML summary report (`--export_html`), review compiler.log.
 
 ## Quick Reference
 
@@ -202,9 +202,9 @@ config.json for new models — read a sample JSON of a similar model type.
 | `/dx-agent-compiler-convert` | Convert PyTorch model to ONNX |
 | `/dx-agent-compiler-compile` | Compile ONNX model to DXNN |
 | `/dx-agent-compiler-validate` | Validate compilation output |
-| `/dx-swe-brainstorm` | Brainstorm, propose 2-3 approaches, spec self-review, then plan |
-| `/dx-swe-tdd` | Validation-driven development with optional Red-Green-Refactor for unit tests |
-| `/dx-swe-verify` | Verify before claiming completion — evidence before assertions |
+| `/dx-agent-brainstorm` | DEEPX build brainstorming with model registry check and sub-project routing |
+| `/dx-agent-tdd` | DEEPX build validation order — factory, pipeline, and integration checks |
+| `/dx-agent-verify` | DEEPX build verification checklists — dx_app, dx_stream, and cross-project |
 | `/dx-swe-writing-plans` | Write implementation plans with bite-sized tasks |
 | `/dx-swe-executing-plans` | Execute plans with review checkpoints |
 | `/dx-swe-subagent-dev` | Execute plans via fresh subagent per task with two-stage review |
@@ -213,14 +213,15 @@ config.json for new models — read a sample JSON of a similar model type.
 | `/dx-swe-requesting-review` | Request code review after completing features |
 | `/dx-skill-router` | Skill discovery and invocation — check skills before any action |
 | `/dx-harness-writing-skills` | Create and edit skill files |
+| `/dx-harness-validate` | Validate this repo's .deepx/ integrity (bootstraps the suite harness when standalone) |
 | `/dx-swe-parallel-agents` | Dispatch parallel subagents for independent tasks |
 
 ## Context Routing Table
 
 | If the task mentions... | Read these files |
 |---|---|
-| **PyTorch, PT, export, convert** | `.deepx/agents/dx-model-converter.md`, `.deepx/skills/dx-agent-compiler-convert.md` |
-| **ONNX, compile, DXNN, dxcom** | `.deepx/agents/dx-dxnn-compiler.md`, `.deepx/skills/dx-agent-compiler-compile.md` |
+| **PyTorch, PT, export, convert** | `.deepx/agents/dx-model-converter.md`, `.deepx/skills/dx-agent-compiler-convert/SKILL.md` |
+| **ONNX, compile, DXNN, dxcom** | `.deepx/agents/dx-dxnn-compiler.md`, `.deepx/skills/dx-agent-compiler-compile/SKILL.md` |
 | **CLI, command line** | `.deepx/toolsets/dxcom-cli.md` |
 | **Python API, dx_com.compile** | `.deepx/toolsets/dxcom-api.md` |
 | **config, JSON, schema** | `.deepx/toolsets/config-schema.md` |
@@ -229,12 +230,12 @@ config.json for new models — read a sample JSON of a similar model type.
 | **PaddleOCR, RapidDoc, PaddlePaddle, OCR app, video/webcam OCR, PDF to markdown, document parsing** | `.deepx/toolsets/paddlepaddle-deepx.md` |
 | **calibration, quantization, INT8** | `.deepx/instructions/compilation-workflow.md` |
 | **PPU, YOLO, detection** | `.deepx/toolsets/config-schema.md`, `.deepx/instructions/compilation-workflow.md` |
-| **validate, verify, check** | `.deepx/skills/dx-agent-compiler-validate.md` |
+| **validate, verify, check** | `.deepx/skills/dx-agent-compiler-validate/SKILL.md` |
 | **error, fail, bug** | `.deepx/memory/common_pitfalls.md` |
 | **sample, example, test compile** | `.deepx/instructions/compilation-workflow.md` (Sample Model Workflow section) |
-| **Brainstorm, plan, design** | `.deepx/skills/dx-swe-brainstorm.md` |
-| **TDD, validation, incremental** | `.deepx/skills/dx-swe-tdd.md` |
-| **Completion, verify, evidence** | `.deepx/skills/dx-swe-verify.md` |
+| **Brainstorm, plan, design** | `.deepx/skills/dx-agent-brainstorm/SKILL.md` |
+| **TDD, validation, incremental** | `.deepx/skills/dx-agent-tdd/SKILL.md` |
+| **Completion, verify, evidence** | `.deepx/skills/dx-agent-verify/SKILL.md` |
 | **Debug, root cause, investigate** | `.deepx/skills/dx-swe-debugging/SKILL.md` |
 | **Plan, execute, subagent** | `.deepx/skills/dx-swe-writing-plans/SKILL.md`, `.deepx/skills/dx-swe-executing-plans/SKILL.md` |
 | **Code review, feedback** | `.deepx/skills/dx-swe-receiving-review/SKILL.md`, `.deepx/skills/dx-swe-requesting-review/SKILL.md` |
@@ -278,7 +279,7 @@ Always use relative paths (`./calibration_dataset`) in config.json, never absolu
 4. **Input name match**: config.json `inputs` key must exactly match ONNX input name
 5. **Representative calibration**: Calibration images must match inference distribution
 6. **PPU type matters**: Type 0 = anchor-based (YOLOv3-v7), Type 1 = anchor-free (YOLOX, YOLOv8-v12). YOLO26 does not support PPU.
-7. **Always validate**: Run DX-TRON inspection after every compilation
+7. **Always validate**: Compile with `--export_html` and review the generated `<model>_summary.html` after every compilation
 8. **No hardcoded paths**: Use parameters or environment variables for all paths
 9. **No auto-simplification**: Do NOT run `onnx-simplifier` unless the user explicitly requests it — risks include numerical precision loss, node name changes breaking config.json, and potential model breakage
 10. **Ultralytics YOLO export**: Must set `Detect.export=True` or use `model.export(format="onnx")` — standard `torch.onnx.export()` produces 6 outputs instead of 1. Always verify ONNX has exactly 1 output node after export.
@@ -867,3 +868,62 @@ This gate applies when `.deepx/` files are the *primary deliverable* (e.g., addi
 rules, syncing platforms, creating KO translations, modifying agents/skills). It
 does NOT apply when a feature implementation incidentally triggers a single-line
 change in `.deepx/`.
+
+## Standalone Checkout — Harness Bootstrap (HARD GATE)
+
+This repo is a sub-project of dx-all-suite, but it can also be cloned **on its
+own**. In that standalone case the harness tooling is simply not present:
+
+| Present in this repo | Ships only with dx-all-suite |
+|---|---|
+| `.deepx/{agents,skills,templates/{en,ko},scripts,memory,instructions,toolsets}` | `.deepx/tools/` — the `dx-agent-gen` generator |
+| `.deepx/scripts/validate_framework.py` | `.deepx/templates/fragments/` — the shared fragments |
+| this instruction file (already generated) | `.deepx/tests/conformance/` |
+
+The Instruction File Verification Loop above tells you to run
+`dx-agent-gen generate` / `check` and the conformance tests. In a standalone
+checkout **none of those commands can work** — which is exactly how `.deepx/`
+edits get committed unverified and become drift that only CI catches.
+
+### Required before the FIRST `.deepx/` edit
+
+```bash
+bash .deepx/scripts/harness_bootstrap.sh --check
+```
+
+It resolves a real dx-all-suite checkout in this order — explicit
+`--suite-dir` / `$DX_SUITE_DIR`, then a parent directory (the normal nested
+case: nothing is downloaded), then a previously acquired `.dx-harness/suite`
+cache, then a shallow clone into `.dx-harness/` — and then runs **the same
+verification the CI `subrepo-gate` runs**: the generator drift check plus this
+repo's `validate_framework.py`.
+
+`.dx-harness/` is git-ignored, so nothing it downloads can reach the index.
+
+### When it exits 3 — STOP
+
+Exit code 3 means no suite could be acquired (no local suite, no cache, no
+network). Then:
+
+- **Do NOT edit any file under `**/.deepx/**`** in this checkout. Without the
+  generator and the fragments you cannot regenerate `CLAUDE.md` / `AGENTS.md` /
+  `.claude/` / `.github/` / `.cursor/` / `.opencode/`, so every edit ships as
+  drift.
+- **Do NOT work around it.** Specifically, if the generator reports
+  `unresolved template variables` listing `FRAGMENT` placeholders, those
+  fragments are **missing, not wrong**. Editing the templates, renaming
+  fragments, or adding variables to `_build_template_context()` turns a missing
+  input into a second, worse drift that is committed.
+- Say so plainly, and offer the two documented ways forward:
+  `--suite-dir /path/to/dx-all-suite`, `$DX_SUITE_DIR`, or doing the harness
+  work from a full dx-all-suite checkout.
+
+Non-harness work is unaffected: application code, `src/`, docs, tests and
+`dx-agent-dev/<session_id>/` outputs proceed normally when bootstrap fails.
+
+### Scope note
+
+`--check` deliberately does **not** run the suite conformance suite. Those
+checks are cross-level — they compare all 5 levels against each other — so they
+cannot be satisfied when the other sub-repos are absent. Matching the
+`subrepo-gate` scope exactly is what makes "local green" mean "CI green".
