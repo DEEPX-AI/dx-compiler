@@ -75,6 +75,7 @@ These options manage the balance between compilation time, NPU execution latency
 | :--- | :--- | :--- |
 | `--opt_level` | `{0,1}` <br> (Default: `1`) | Controls the model optimization level during compilation | 
 | `--aggressive_partitioning` | Flag | **(Experimental)** Enables partitioning designed to maximize operations executed on the NPU |
+| `--use_gpu` | `{True,False}` <br> (Default: `True`) | **(New in v2.5.0)** Run quantization on GPU when available (`True`) or force CPU (`False`). Select which physical GPU to use with the `CUDA_VISIBLE_DEVICES` environment variable |
 | `--float64_calibration` | Flag | Use float64 precision during calibration and offset calculations for cross-CPU determinism |
 
 **Optimization Level Detail**  
@@ -88,6 +89,9 @@ Enabling `--aggressive_partitioning` maximizes operations executed on the NPU. T
 
 - **Benefit**: This is particularly advantageous in environments with limited host CPU performance (e.g., embedded systems, edge devices), as it significantly improves overall performance by minimizing CPU workload.  
 - **Consideration**: In systems with powerful host CPUs, the compiler's default partitioning strategy might yield better end-to-end performance. Note that using this option may increase compilation time and memory usage.  
+
+**GPU / CPU Selection (`--use_gpu`) — New in v2.5.0**  
+Quantization runs on GPU by default when a CUDA-capable GPU is available, and falls back to CPU otherwise. Pass `--use_gpu False` to force CPU. To pin a specific GPU on the command line, set the `CUDA_VISIBLE_DEVICES` environment variable (e.g. `CUDA_VISIBLE_DEVICES=1 dxcom ...`). For an explicit device string, use the `-c/--config` JSON `quantization_device` field instead; set only one of the two.  
 
 ---
 
@@ -135,7 +139,8 @@ These options are vital for troubleshooting, logging, and targeting specific sec
 | **Option** | **Shorthand** | **Description** |
 | :--- | :--- | :--- |
 | `--gen_log` | N/A | When enabled, the compiler collects all compilation logs into a `compiler.log` file in the specified output directory. Useful for debugging or analyzing the compilation process |
-| `--export_html` | N/A | Generate a self-contained HTML summary report (`<model_name>_summary.html`) in the output directory after compilation. See [Compilation Summary Report](04_02_Compilation_Summary_Report.md) |
+| `--export_html` | N/A | Generate a self-contained HTML summary report (`<model_name>_summary.html`) in the output directory after compilation. See [Compilation Summary Report](04_Compilation_Summary_Report.md) |
+| `--verbose` | N/A | **(New in v2.5.0)** Expand masked error messages to include the origin type, the original message, and one bounded direct cause. Useful when a compilation error is otherwise reported in summarized form |
 | `--version` | `-v` | Prints the compiler module version and exits |
 
 **Partial Compilation (`--compile_input_nodes`, `--compile_output_nodes`)**  
@@ -244,6 +249,7 @@ def compile(
     calibration_method: str = "ema",
     calibration_num: int = 100,
     quantization_device: Optional[str] = None,
+    use_gpu: Optional[bool] = None,  # New in v2.5.0
     opt_level: int = 1,
     aggressive_partitioning: bool = False,
     input_nodes: Optional[List[str]] = None,
@@ -251,15 +257,27 @@ def compile(
     use_q_pro: bool = False,
     enhanced_scheme: Optional[Dict] = None,
     ppu_config: Optional[PPUConfig] = None,
+    qmaster: Optional[QMasterConfig] = None,  # New in v2.5.0 (replaces qat_* args)
     gen_log: bool = False,
     float64_calibration: bool = False,
     export_html: bool = False,
-    quantization_mode: str = "ptq",
-    qat_config: Optional[Dict] = None,
-    qat_skip_training: bool = False,
-    qat_resume_from_checkpoint: Optional[str] = None,
+    verbose: bool = False,  # New in v2.5.0
+    **kwargs,
 ) -> None
 ```
+
+!!! warning "Changed in v2.5.0 — entry point signature and QAT parameters"
+    - `dx_com.compile()` now accepts keyword arguments (`**kwargs`); call it with
+      keyword arguments as shown above.
+    - **QAT parameters were restructured.** The former `quantization_mode`,
+      `qat_config`, `qat_skip_training`, and `qat_resume_from_checkpoint` arguments
+      have been **replaced by a single `qmaster` argument** that takes a
+      `QMasterConfig` object (import it from the top-level `dx_com` package). The old
+      `qat_*` arguments are **no longer honored** when compiling from Python code.
+      Compiling from a JSON config that contains a `qmaster` block is **unchanged** —
+      QAT is still auto-selected (see [Quantization-Aware Training (QAT)](02_08_Quantization_Aware_Training.md)).
+    - New arguments: `use_gpu` (GPU/CPU quantization toggle) and `verbose`
+      (expanded error messages).
 
 !!! note "Additional Parameters"
     The signature above lists the most commonly used parameters. `dx_com.compile()`
@@ -442,6 +460,17 @@ quantization_device="cuda"  # Use GPU
 quantization_device="cuda:1"  # Use specific GPU
 ```
 
+**`use_gpu`** *(New in v2.5.0)*
+
+- **Type**: `Optional[bool]`
+- **Default**: `None` — auto-detect (GPU when available, otherwise CPU). This is the same effective behavior as the CLI `--use_gpu` default of `True`.
+- **Description**: Convenience toggle for GPU vs. CPU quantization. `True` runs on GPU when available, `False` forces CPU. To select a **specific** device string, use `quantization_device` instead; set only one of the two.
+
+```python
+use_gpu=True   # run quantization on GPU
+use_gpu=False  # force CPU
+```
+
 **`opt_level`**
 
 - **Type**: `int`
@@ -610,7 +639,7 @@ See the **Use Case 8: PPU Hardware Acceleration** section in [Common Use Cases](
 
 - **Type**: `bool`
 - **Default**: `False`
-- **Description**: Generate a self-contained HTML summary report (`<model_name>_summary.html`) in the output directory after compilation. See [Compilation Summary Report](04_02_Compilation_Summary_Report.md) for details.
+- **Description**: Generate a self-contained HTML summary report (`<model_name>_summary.html`) in the output directory after compilation. See [Compilation Summary Report](04_Compilation_Summary_Report.md) for details.
 
 **`use_q_pro`**
 
@@ -643,30 +672,35 @@ dx_com.compile(
     recalibration_method="iqr",   # or: use_q_pro=True
 )
 ```
-**`quantization_mode`**
+**`qmaster`** *(New in v2.5.0 — replaces the former `qat_*` arguments)*
 
-- **Type**: `str`
-- **Default**: `"ptq"`
-- **Description**: Quantization mode. The default `"ptq"` runs Post-Training Quantization. When the config JSON contains a `qmaster` block, QAT is **auto-selected** — you do not need to pass this argument. Set to `"qat"` explicitly only when supplying `qat_config` directly in Python; doing so bypasses `qmaster` auto-detection. When set to `"qat"`, you must provide either `qat_config` (for training) or `qat_skip_training=True` (for compile-only/resume).
-- **Supported Values**: `"ptq"`, `"qat"`
+- **Type**: `Optional[QMasterConfig]`
+- **Default**: `None` (PTQ)
+- **Description**: Quantization-Aware Training (QAT) configuration object. When omitted, `dx_com.compile()` runs normal PTQ (unless the JSON config supplies a `qmaster` block, which still auto-selects QAT). Import `QMasterConfig` from the top-level `dx_com` package.
+- **Fields**:
 
-**`qat_config`**
+    - `config` (`Optional[dict]`): QAT training hyperparameters — the same keys as the JSON `qmaster` block (see [Quantization-Aware Training (QAT)](02_08_Quantization_Aware_Training.md)).
+    - `skip_training` (`bool`, default `False`): Skip the training loop and run compilation only. Use with `resume_from_checkpoint`.
+    - `resume_from_checkpoint` (`Optional[str]`): Path to a saved `qat_checkpoint.qxnn` to load trained weights before compilation.
 
-- **Type**: `Optional[Dict]`
-- **Default**: `None`
-- **Description**: QAT training hyperparameters. Usually supplied via the `qmaster` block in the config JSON instead of this argument.
+```python
+from dx_com import QMasterConfig
 
-**`qat_skip_training`**
+# Train + compile
+qmaster = QMasterConfig(config={"epochs": 30, "lr": 1e-5, "use_kd": True})
+
+# Compile only, reusing a trained checkpoint
+qmaster = QMasterConfig(
+    skip_training=True,
+    resume_from_checkpoint="output/qat_checkpoint/qat_checkpoint.qxnn",
+)
+```
+
+**`verbose`** *(New in v2.5.0)*
 
 - **Type**: `bool`
 - **Default**: `False`
-- **Description**: Skip the QAT training loop and run compilation only. Use together with `qat_resume_from_checkpoint`.
-
-**`qat_resume_from_checkpoint`**
-
-- **Type**: `Optional[str]`
-- **Default**: `None`
-- **Description**: Path to a saved `qat_checkpoint.qxnn` to load trained weights before compilation.
+- **Description**: Expand masked error messages to include the origin type, the original message, and one bounded direct cause. The Python equivalent of the CLI `--verbose` flag.
 
 !!! note "QAT Details"
     For the full QAT workflow, the `qmaster` block, and all training hyperparameters,

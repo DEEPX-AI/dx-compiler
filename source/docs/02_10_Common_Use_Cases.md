@@ -509,7 +509,11 @@ dx_com.compile(
 
 **Scenario**: Deploying a YOLO-family detection or instance-segmentation model on a CPU-constrained edge host (for example, an ARM Cortex-A53) where CPU-side post-processing (Sigmoid, DFL decoding, dist2bbox over the full anchor grid) becomes the end-to-end throughput bottleneck.
 
-**Approach**: Apply `dx_com.pre_optimize()` before `dx_com.compile()`. The API rewrites the post-processing graph so that TopK selection happens first, and expensive operations are applied only to the `K` selected candidates (default 300) instead of the full anchor grid.
+**Approach**: Apply `pre_optimize` before compilation. It rewrites the post-processing graph so that TopK selection happens first, and expensive operations run only on the `K` selected candidates (default 300) instead of the full anchor grid. Choose one of two equivalent entry points.
+
+### Option A — Python API
+
+Call `dx_com.pre_optimize()`, then pass the result to `dx_com.compile()`.
 
 ```python
 import onnx
@@ -517,36 +521,71 @@ import dx_com
 
 model = onnx.load("yolov8n.onnx")
 optimized = dx_com.pre_optimize(model, passes={
-    "yolo_postprocess": {
+    "yolo_dfl_postprocess": {
+        "task": "base",
         "layers": [
-            {
-                "bbox": "/model.22/cv2.0/cv2.0.2/Conv_output_0",
-                "cls_conf": "/model.22/cv3.0/cv3.0.2/Conv_output_0",
-            },
-            {
-                "bbox": "/model.22/cv2.1/cv2.1.2/Conv_output_0",
-                "cls_conf": "/model.22/cv3.1/cv3.1.2/Conv_output_0",
-            },
-            {
-                "bbox": "/model.22/cv2.2/cv2.2.2/Conv_output_0",
-                "cls_conf": "/model.22/cv3.2/cv3.2.2/Conv_output_0",
-            },
+            {"bbox": "/model.22/cv2.0/cv2.0.2/Conv_output_0",
+             "cls_conf": "/model.22/cv3.0/cv3.0.2/Conv_output_0"},
+            {"bbox": "/model.22/cv2.1/cv2.1.2/Conv_output_0",
+             "cls_conf": "/model.22/cv3.1/cv3.1.2/Conv_output_0"},
+            {"bbox": "/model.22/cv2.2/cv2.2.2/Conv_output_0",
+             "cls_conf": "/model.22/cv3.2/cv3.2.2/Conv_output_0"},
         ],
         "num_classes": 80,
         "topk": 300,
-        "input_height": 640,
-        "input_width": 640,
     },
 })
 
 dx_com.compile(
     model=optimized,
-    config="yolov8n.json",
-    output_dir="./yolov8n_optimized",
+    config="config.json",
+    output_dir="./optimized",
 )
 ```
 
-For supported model families (YOLOv8 / YOLOv9 / YOLOv11 / YOLOv12 / YOLOv13 via the `yolo_postprocess` pass, and YOLO26 via the `yolo26_postprocess` pass), output shapes, instance-segmentation usage, and the migration recipe from the deprecated `ppu.type = 2`, see [Pre-Optimize API](02_09_Pre_Optimize_API.md).
+### Option B — Config JSON
+
+Add a `pre_optimize` block to the compile config; the pass runs automatically inside `dx_com.compile()`.
+
+```json
+{
+  "inputs": { "images": [1, 3, 640, 640] },
+  "calibration_method": "ema",
+  "calibration_num": 100,
+  "default_loader": {
+    "dataset_path": "./calibration_images",
+    "file_extensions": ["jpeg", "jpg", "png"],
+    "preprocessings": [
+      {"convertColor": {"form": "BGR2RGB"}},
+      {"resize": {"width": 640, "height": 640}},
+      {"div": {"x": 255}}
+    ]
+  },
+  "pre_optimize": [
+    {
+      "yolo_dfl_postprocess": {
+        "task": "base",
+        "layers": [
+          {"bbox": "/model.22/cv2.0/cv2.0.2/Conv_output_0",
+           "cls_conf": "/model.22/cv3.0/cv3.0.2/Conv_output_0"},
+          {"bbox": "/model.22/cv2.1/cv2.1.2/Conv_output_0",
+           "cls_conf": "/model.22/cv3.1/cv3.1.2/Conv_output_0"},
+          {"bbox": "/model.22/cv2.2/cv2.2.2/Conv_output_0",
+           "cls_conf": "/model.22/cv3.2/cv3.2.2/Conv_output_0"}
+        ],
+        "num_classes": 80,
+        "topk": 300
+      }
+    }
+  ]
+}
+```
+
+```python
+dx_com.compile(model="yolov8n.onnx", config="config.json", output_dir="./optimized")
+```
+
+For supported model families and tasks (YOLOv8 / v9 / v11 / v12 / v13 detection · segmentation · pose via `yolo_dfl_postprocess`; YOLO26 via `yolo_no_dfl_postprocess`; RTMDet via `rtmdet_postprocess`), output shapes, and the migration recipe from the deprecated `ppu.type = 2`, see [Pre-Optimize API](02_09_Pre_Optimize_API.md).
 
 ---
 

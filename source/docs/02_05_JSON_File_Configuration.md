@@ -133,6 +133,13 @@ Example
 }
 ```
 
+!!! note "CLI GPU toggle (`--use_gpu`) — New in v2.5.0"
+    From **DX-COM v2.5.0** the `dxcom` CLI accepts a `--use_gpu {True,False}` flag to
+    switch quantization between GPU and CPU without editing the JSON. To pin a specific
+    GPU on the command line, set `CUDA_VISIBLE_DEVICES` (e.g.
+    `CUDA_VISIBLE_DEVICES=1 dxcom ...`). The `quantization_device` field described here
+    still works and takes precedence when you need an explicit device string.
+
 !!! warning "Hardware Requirements"
     - **GPU**: NVIDIA GPU with CUDA support.
     - **Framework**: PyTorch built with CUDA support (`torch.cuda.is_available()` must return `True`).

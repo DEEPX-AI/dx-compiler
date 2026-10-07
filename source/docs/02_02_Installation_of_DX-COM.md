@@ -77,6 +77,35 @@ pip install dx_com-<VERSION>-cp311-cp311-manylinux_2_31_x86_64.whl
 !!! note "Wheel filename format"
     The wheel filename follows PEP 425 / PEP 600 conventions: `dx_com-<VERSION>-<PYTAG>-<ABITAG>-<PLATFORMTAG>.whl`. For DX-COM v2.4.0 on CPython 3.12, this looks like `dx_com-2.4.0-cp312-cp312-manylinux_2_31_x86_64.whl`.
 
+**Option 3: Install with uv (Fastest)**
+
+[uv](https://docs.astral.sh/uv/) resolves and installs dependencies substantially faster than pip. `install.sh` uses uv automatically when it is already installed, so no flag is needed:
+
+```bash
+./install.sh --target=dx_com
+```
+
+If uv is not installed, `install.sh` uses pip and says so. Pass `--uv=true` to have it install uv first, or `--uv=false` to force the pip path:
+
+```bash
+./install.sh --target=dx_com --uv=true
+./install.sh --target=dx_com --uv=false
+```
+
+To use uv directly against an existing virtual environment:
+
+```bash
+uv pip install dx-com
+```
+
+!!! note "uv and pip coexist"
+    When uv is used, `install.sh` creates the virtual environment with `uv venv --seed`, so `pip` remains available inside it. `--uv=false` keeps the original pip-only path unchanged. uv is only downloaded when you pass `--uv=true`; a plain `./install.sh` on a machine without uv behaves exactly as it did before, using pip.
+
+!!! warning "Archive mode still uses pip"
+    `--archive_mode=y` downloads wheels with `pip download`; uv has no equivalent command, so archive mode is unaffected by `--uv`.
+
+---
+
 **Verify the Installation**
 
 ```bash

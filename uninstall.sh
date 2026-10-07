@@ -2,8 +2,19 @@
 SCRIPT_DIR=$(realpath "$(dirname "$0")")
 PROJECT_ROOT=$(realpath "$SCRIPT_DIR")
 DOWNLOAD_DIR="$SCRIPT_DIR/download"
-PROJECT_NAME=$(basename "$SCRIPT_DIR")
+# Must match install.sh, which hardcodes this. Deriving it from the directory
+# name instead makes the two disagree whenever the checkout is not literally
+# named "dx-compiler" — a differently-named clone, a git worktree, a submodule
+# path — and uninstall then looks for a venv that install never created.
+PROJECT_NAME="dx-compiler"
 VENV_PATH="$PROJECT_ROOT/venv-$PROJECT_NAME"
+VENV_PATH_OVERRIDE=""
+# oneline-install.sh installs outside the repository, so removing only the
+# in-repo venv would report success while leaving a multi-GB tree and a dxcom
+# launcher on PATH. Mirror its defaults here.
+ONELINE_ROOT="${DX_INSTALL_DIR:-$HOME/deepx}"
+ONELINE_VENV="${ONELINE_ROOT}/venv-dx-compiler"
+ONELINE_BIN_DIR="${DX_BIN_DIR:-$HOME/.local/bin}"
 
 pushd "$PROJECT_ROOT" >&2
 
@@ -18,7 +29,9 @@ show_help() {
     echo -e "Usage: ${COLOR_CYAN}$(basename "$0") [OPTIONS]${COLOR_RESET}"
     echo -e ""
     echo -e "Options:"
-    echo -e "  ${COLOR_GREEN}[--target=<module_name>]${COLOR_RESET}              Uninstall specific module (dx_com | dx_tron | all) (default: all)"
+    echo -e "  ${COLOR_GREEN}[--target=<module_name>]${COLOR_RESET}              Uninstall specific module (dx_com | all) (default: all)"
+    echo -e "  ${COLOR_GREEN}[--venv_path=<path>]${COLOR_RESET}                  Remove the venv at this path instead of the default"
+    echo -e "                                                      (mirror of install.sh --venv_path)"
     echo -e "  ${COLOR_GREEN}[-v|--verbose]${COLOR_RESET}                        Enable verbose (debug) logging"
     echo -e "  ${COLOR_GREEN}[-h|--help]${COLOR_RESET}                           Display this help message and exit"
     echo -e ""
@@ -54,15 +67,41 @@ delete_module_entry() {
     fi
 }
 
+# Remove an install made by oneline-install.sh: its venv, and the dxcom launcher
+# but only while that launcher still points into the venv being removed, so a
+# dxcom owned by some other install survives.
+uninstall_oneline_files() {
+    if [ -L "${ONELINE_BIN_DIR}/dxcom" ]; then
+        local target
+        target=$(readlink -f "${ONELINE_BIN_DIR}/dxcom" 2>/dev/null)
+        case "$target" in
+            "${ONELINE_VENV}"/*)
+                print_colored_v2 "INFO" "Deleting launcher: ${ONELINE_BIN_DIR}/dxcom"
+                rm -f "${ONELINE_BIN_DIR}/dxcom"
+                ;;
+        esac
+    fi
+    if [ -d "${ONELINE_VENV}" ] && [ -f "${ONELINE_VENV}/pyvenv.cfg" ]; then
+        print_colored_v2 "INFO" "Deleting one-line install venv: ${ONELINE_VENV}"
+        delete_dir "${ONELINE_VENV}"
+        rmdir "${ONELINE_ROOT}" 2>/dev/null || true
+    fi
+}
+
 uninstall_common_files() {
     delete_symlinks "$DOWNLOAD_DIR"
     # Note: do NOT call delete_symlinks "$PROJECT_ROOT" here.
-    # Module symlinks (dx_com/, dx_tron/) are handled individually per target
-    # to avoid accidentally removing modules that were not selected.
+    # The dx_com/ module symlink is handled per target to avoid removing a
+    # module that was not selected.
+    # ponytail: dx_tron/ is a leftover from releases that still shipped DX-TRON;
+    # clean it up unconditionally so upgrades don't orphan the directory. Drop
+    # this line once no supported upgrade path can still have dx_tron/ on disk.
+    delete_module_entry "${PROJECT_ROOT}/dx_tron"
     delete_symlinks "${VENV_PATH}"
     delete_symlinks "${VENV_PATH}-local"
-    delete_dir "${VENV_PATH}"
-    delete_dir "${VENV_PATH}-local"
+    # install.sh can make these venv paths symlinks to directories elsewhere.
+    delete_module_entry "${VENV_PATH}"
+    delete_module_entry "${VENV_PATH}-local"
     delete_dir "${DOWNLOAD_DIR}"
 }
 
@@ -70,8 +109,14 @@ uninstall_dx_com_files() {
     delete_module_entry "${PROJECT_ROOT}/dx_com"
 }
 
-uninstall_dx_tron_files() {
-    delete_module_entry "${PROJECT_ROOT}/dx_tron"
+# DX-TRON support was removed and this script no longer runs `apt-get remove
+# dxtron`. Only warn when the package is actually still installed, so users who
+# never had DX-TRON see nothing.
+warn_leftover_dxtron_package() {
+    command -v dpkg >/dev/null 2>&1 || return 0
+    dpkg -l dxtron 2>/dev/null | grep -q "^ii" || return 0
+    print_colored_v2 "WARNING" "The 'dxtron' package is still installed. DX-TRON support has been removed from dx-compiler."
+    print_colored_v2 "HINT" "  Remove it with: sudo apt-get remove dxtron"
 }
 
 uninstall_dx_com() {
@@ -95,42 +140,27 @@ uninstall_dx_com() {
     fi
 }
 
-uninstall_dx_tron() {
-    print_colored_v2 "INFO" "Uninstalling dxtron DEB package..."
-
-    if dpkg -l dxtron &>/dev/null; then
-        if sudo apt-get remove -y dxtron; then
-            print_colored_v2 "INFO" "dxtron uninstalled successfully."
-        else
-            print_colored_v2 "WARNING" "Failed to uninstall dxtron. You may need to remove it manually."
-        fi
-    else
-        print_colored_v2 "WARNING" "dxtron is not installed. Skipping."
-    fi
-}
-
 main() {
     echo "Uninstalling ${PROJECT_NAME} ..."
 
+    if [ -n "${VENV_PATH_OVERRIDE}" ]; then
+        VENV_PATH="${VENV_PATH_OVERRIDE}"
+        print_colored_v2 "INFO" "Using venv path override: ${VENV_PATH}"
+    fi
+
     case $TARGET_PKG in
-        dx_com)
+        dx_com|all)
             uninstall_dx_com
             uninstall_dx_com_files
             uninstall_common_files
+            uninstall_oneline_files
+            warn_leftover_dxtron_package
             ;;
         dx_tron)
-            uninstall_dx_tron
-            uninstall_dx_tron_files
-            ;;
-        all)
-            uninstall_dx_com
-            uninstall_dx_tron
-            uninstall_dx_com_files
-            uninstall_dx_tron_files
-            uninstall_common_files
+            show_help "error" "DX-TRON support has been removed from dx-compiler. If the dxtron DEB package is still installed, remove it with: sudo apt-get remove dxtron"
             ;;
         *)
-            show_help "error" "Invalid target '$TARGET_PKG'. Valid targets are: dx_com, dx_tron, all"
+            show_help "error" "Invalid target '$TARGET_PKG'. Valid targets are: dx_com, all"
             ;;
     esac
 
@@ -148,6 +178,9 @@ for i in "$@"; do
     case "$1" in
         --target=*)
             TARGET_PKG="${1#*=}"
+            ;;
+        --venv_path=*)
+            VENV_PATH_OVERRIDE="${1#*=}"
             ;;
         -v|--verbose)
             ENABLE_DEBUG_LOGS=1

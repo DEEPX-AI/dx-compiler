@@ -234,7 +234,7 @@ os_check() {
     # No diagnostic is printed here: the caller (os_arch_check) decides whether
     # to emit a user-facing error based on its print_message_mode argument,
     # so emitting one here would leak output in "silent" mode (e.g. probing
-    # whether to skip dx_tron on AlmaLinux during the 'all' install flow).
+    # whether to skip a module on an unsupported distro during the 'all' flow).
     case "$OS_ID" in
         almalinux|rocky)
             return 1

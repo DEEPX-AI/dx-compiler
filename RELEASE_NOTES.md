@@ -1,23 +1,66 @@
 # RELEASE_NOTES
 
-## DX-Compiler v2.4.2 / 2026-09-02
+## DX-Compiler v2.5.0 / 2026-09-30
 
--   DX-COM: v2.4.1
--   DX-TRON: v2.0.1 (Deprecated)
+-   DX-COM: v2.5.0
+-   DX-TRON: Removed
 
 ----------
 
-Here are the **DX-Compiler v2.4.2** Release Notes.
+> **⚠️ Removal Notice — DX-TRON**
+>
+> DX-TRON was deprecated in DX-Compiler **v2.4.0** and is **removed as of v2.5.0**. The `dx_tron` install target, the `dxtron` CLI/desktop AppImage, the web-server variant, and the `run_dxtron_web.sh` / `run_dxtron_appimage.sh` launcher scripts no longer ship with this package. Use the DX-COM **Compilation Summary Report** (`--export_html`) for model inspection and visualization.
 
-### DX-COM (v2.4.1)
+Here are the **DX-Compiler v2.5.0** Release Notes.
+
+### DX-COM (v2.5.0)
 
 ### 1. Changed
 
--   **Reduced Compiled Model Size**: Removed redundant metadata from the compiled `.dxnn` output, reducing model file size.
+-   **Python Entry Point Signature**: `dx_com.compile()` now accepts keyword arguments (`**kwargs`). Invoke it with keyword arguments as documented in [Execution of DX-COM](source/docs/02_06_Execution_of_DX-COM.md).
+-   **QAT Parameters Restructured**: the Python arguments `quantization_mode`, `qat_config`, `qat_skip_training`, and `qat_resume_from_checkpoint` are **replaced by a single `qmaster` argument** that takes a `QMasterConfig` object (import it from `dx_com`). The former `qat_*` arguments are no longer honored from Python code. Triggering QAT from a JSON `qmaster` block is unchanged — QAT is still auto-selected.
+-   **`pre_optimize` pass renaming (breaking)**: `yolo_postprocess` → `yolo_dfl_postprocess` and `yolo26_postprocess` → `yolo_no_dfl_postprocess`. The previous pass names are no longer accepted and raise an error.
+
+### 2. Added
+
+-   **Segmentation QAT**: Quantization-Aware Training now supports dense segmentation models via an opt-in `task_type` block in the `qmaster` config (`seg_root`, `seg_pairs_train`/`seg_pairs_val`, `seg_ignore_index`, `seg_binary`, `seg_ce`).
+-   **GPU/CPU Quantization Toggle**: new `--use_gpu {True,False}` CLI flag and `use_gpu` Python argument to run quantization on GPU (default, when available) or force CPU. Select a specific GPU on the CLI with the `CUDA_VISIBLE_DEVICES` environment variable.
+-   **Verbose Error Output**: new `--verbose` CLI flag and `verbose` Python argument that expand masked error messages with the origin type, the original message, and one bounded direct cause.
+-   **`QMasterConfig`**: public QAT configuration object exported from the top-level `dx_com` package.
+-   **New `pre_optimize` tasks**: the `task` key (`base` / `seg` / `pose`) adds pose (keypoint) and segmentation postprocessing support.
+-   **`rtmdet_postprocess` pass**: RTMDet detection postprocessing.
+-   **`Gather` 2-D Indices**: the `Gather` operator now supports a 2-D `indices` tensor (previously limited to 0-D/1-D). See [Supported ONNX Operators](source/docs/03_Building_Models.md).
+-   **3D Convolution Support**: `Conv` and `ConvTranspose` with a 5D input (3 spatial dimensions) are now supported on the NPU (previously CPU-only), subject to constraints such as `group=1`, no dilation, and a compile-time constant weight. See [Supported ONNX Operators](source/docs/03_Building_Models.md) for the full constraints.
+
+----------
+
+### Installer
+
+### 1. Changed
+
+-   **DX-TRON Support Removed**: `--target=dx_tron` is no longer accepted by `install.sh` or `uninstall.sh`. Valid targets are now `dx_com` and `all`.
+-   **DX-TRON Launcher Scripts Removed**: `run_dxtron_web.sh` and `run_dxtron_appimage.sh` were deleted.
+-   **`compiler.properties` Simplified**: `TRON_VERSION` and `TRON_DOWNLOAD_URL` were removed, leaving only `COM_VERSION`. `install.sh` no longer reads or validates the DX-TRON properties.
+-   **DX-TRON DEB Removal Is Now Manual**: `uninstall.sh` no longer runs `apt-get remove dxtron`. If the `dxtron` DEB package is still installed on a Debian/Ubuntu host, remove it with `sudo apt-get remove dxtron`.
+-   **`--target=all` and `--target=dx_com` Converged in `uninstall.sh`**: with DX-TRON gone the two targets perform the same work. In `install.sh` they remain distinct — `all` skips the OS/architecture check in archive mode and probes silently, while `dx_com` checks strictly.
+-   **Dead Installer Internals Removed**: `scripts/install_module.sh` and `scripts/downloader.py` were deleted. They implemented the tarball download / extract / symlink flow used only by the DX-TRON installer; DX-COM has always installed via `pip`.
 
 ### 2. Fixed
 
--   Minor bug fixes and stability improvements.
+-   **Leftover `dx_tron/` Cleanup**: `uninstall.sh` removes a leftover `dx_tron/` directory or symlink from an earlier release whenever it uninstalls (`--target=dx_com` or the default `all`), so upgrading does not orphan it.
+
+### 3. Added
+
+-   **Explicit Message for the Removed Target**: passing `--target=dx_tron` now exits non-zero with a specific explanation instead of the generic "invalid target" error — `install.sh` points at `--target=dx_com` and the `--export_html` summary report, and `uninstall.sh` points at `sudo apt-get remove dxtron`. Existing scripts and CI jobs fail with the reason rather than a misleading message.
+
+### Documentation
+
+### 1. Changed
+
+-   **Model Viewer Page Removed**: The *Model Viewer — DX-TRON* user manual page, its navigation entry and its four screenshots were removed. The page documented an install target, launcher scripts, and a binary that no longer ship, instructing readers to run commands that now fail. Use the *Compilation Summary Report* page instead.
+-   **Compilation Summary Report Renumbered**: `04_02_Compilation_Summary_Report.md` became `04_Compilation_Summary_Report.md`, now that *Development Tools* holds a single document. All references were repointed.
+-   **Validation Guidance Updated**: The agent-driven development knowledge base (`.deepx/`) and all generated platform instruction files now direct validation to `dxcom --export_html` and the resulting `<model_name>_summary.html` instead of DX-TRON inspection.
+-   **Documented `Resize` supported scale ranges per mode**: `nearest` upsampling supports powers of two only (`2`, `4`, `8`, `16`, …); `linear` upsampling supports integer factors ≥ 2 with primes > `8` (`11`, `13`, `17`, …) not supported. Downsampling is supported only for `linear` at scale `0.5`; `nearest` downsampling is not supported.
 
 ----------
 

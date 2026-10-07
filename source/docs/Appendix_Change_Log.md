@@ -1,18 +1,38 @@
-
-## v2.4.2 (2026-09-02)
+## v2.5.0 (2026-09-30)
 
 DX-Compiler Version
 
--   DX-COM: v2.4.1
--   DX-TRON: v2.0.1 (Deprecated)
+-   DX-COM: v2.5.0
+-   DX-TRON: Removed
+
+DX-TRON was deprecated in v2.4.0 and is removed in this release. Use the DX-COM Compilation Summary Report (`--export_html`) for model inspection and visualization.
 
 #### Changed
 
--   **Reduced Compiled Model Size**: Removed redundant metadata from the compiled `.dxnn` output, reducing model file size.
+-   **Python entry point signature**: `dx_com.compile()` now takes keyword arguments (`**kwargs`); call it with keyword arguments.
+-   **QAT parameters restructured**: the Python arguments `quantization_mode`, `qat_config`, `qat_skip_training`, and `qat_resume_from_checkpoint` are **replaced by a single `qmaster` argument** that accepts a `QMasterConfig` object (import from `dx_com`). The old `qat_*` arguments are no longer honored from Python code. Triggering QAT from a JSON `qmaster` block is unchanged.
+-   Removed DX-TRON support: `--target=dx_tron` is no longer accepted by `install.sh` or `uninstall.sh`, and the `run_dxtron_web.sh` / `run_dxtron_appimage.sh` launcher scripts were deleted. Valid targets are now `dx_com` and `all`.
+-   `compiler.properties` keeps only `COM_VERSION`; the DX-TRON version and download URL properties were removed.
+-   Removing an installed `dxtron` DEB package is now manual: `sudo apt-get remove dxtron`.
+-   Removed the *Model Viewer — DX-TRON* page from this manual and renumbered *Compilation Summary Report* to `04_Compilation_Summary_Report.md`.
+-   **`pre_optimize` pass renaming (breaking)**: `yolo_postprocess` → `yolo_dfl_postprocess` and `yolo26_postprocess` → `yolo_no_dfl_postprocess`. The previous pass names are no longer accepted and raise an error.
+-   **Documented `Resize` supported scale ranges per mode**: `nearest` upsampling supports powers of two only (`2`, `4`, `8`, `16`, …); `linear` upsampling supports integer factors ≥ 2 with primes > `8` (`11`, `13`, `17`, …) not supported. Downsampling is supported only for `linear` at scale `0.5`; `nearest` downsampling is not supported.
 
 #### Fixed
 
--   Minor bug fixes and stability improvements.
+-   `uninstall.sh` cleans up a leftover `dx_tron/` directory or symlink from an earlier release, so upgrading does not orphan it.
+
+#### Added
+
+-   **`--use_gpu {True,False}` (CLI)** and **`use_gpu` (Python)**: toggle quantization between GPU (default, when available) and CPU. On the CLI, select a specific GPU with the `CUDA_VISIBLE_DEVICES` environment variable.
+-   **`--verbose` (CLI)** and **`verbose` (Python)**: expand masked error messages to include the origin type, the original message, and one bounded direct cause.
+-   **`QMasterConfig`** public configuration object for QAT (exported from `dx_com`).
+-   **Segmentation QAT**: Quantization-Aware Training now supports dense segmentation models via an opt-in `task_type` block in the `qmaster` config (`seg_root`, `seg_pairs_train`/`seg_pairs_val`, `seg_ignore_index`, `seg_binary`, `seg_ce`).
+-   Passing `--target=dx_tron` now exits with a specific explanation instead of a generic "invalid target" error, pointing at `--target=dx_com` and the `--export_html` summary report.
+-   **New `pre_optimize` tasks**: the `task` key (`base` / `seg` / `pose`) adds pose (keypoint) and segmentation postprocessing support.
+-   **`rtmdet_postprocess` pass**: RTMDet detection postprocessing.
+-   **`Gather` operator**: 2-D `indices` tensors are now supported (previously 0-D/1-D only). See [Supported ONNX Operators](03_Building_Models.md).
+-   **3D Convolution Support**: `Conv` and `ConvTranspose` with a 5D input (3 spatial dimensions) are now supported on the NPU (previously CPU-only), subject to constraints such as `group=1`, no dilation, and a compile-time constant weight. See [Supported ONNX Operators](03_Building_Models.md) for the full constraints.
 
 ---
 
