@@ -2,7 +2,7 @@
 
 This chapter provides practical, real-world scenarios with ready-to-use examples. Each use case demonstrates the implementation using the `dxcom` command and the `dx_com` Python module where applicable. 
 
-!!! note "Additional Dependencies"
+!!! note "Additional Dependencies"  
     Some examples in this chapter use `torchvision` for image preprocessing. Install it before running these examples:
     ```bash
     pip install torchvision
@@ -69,7 +69,8 @@ class ImageNetDataset(Dataset):
             if f.endswith(('.jpg', '.png', '.jpeg'))
         ])
         self.transform = transforms.Compose([
-            transforms.Resize((img_size, img_size)),
+            transforms.Resize(256),  # same preprocessing as Option A
+            transforms.CenterCrop(img_size),
             transforms.ToTensor(),
             transforms.Normalize(
                 mean=[0.485, 0.456, 0.406],
@@ -113,7 +114,7 @@ python3 compile_resnet50.py
 
 **Scenario**: A stereo camera system requiring two image inputs with different dimensions.  
 
-!!! note "dx_com Python Module Only"
+!!! note "dx_com Python Module Only"  
     Multi-input models are **only supported via the `dx_com` Python module**. The `dxcom` command does not support multiple inputs.
 
 ### `dx_com` Python Module
@@ -204,10 +205,10 @@ print("Stereo model compilation complete!")
 
 ## Use Case 3: Performance Optimization for Edge Devices
 
-!!! warning "Experimental Feature"
+!!! warning "Experimental Feature"  
     `aggressive_partitioning` is currently experimental and may produce unexpected results for some models.
 
-**Scenario**: Deploying on embedded systems with restricted CPU resources. The goal is to maximize NPU offloading while maintaining short compilation times.  
+**Scenario**: Deploying on embedded systems with restricted CPU resources. The goal is to maximize NPU offloading and minimize host CPU load.  
 
 ### Configuration for Aggressive Partitioning
 
@@ -259,8 +260,9 @@ dx_com.compile(
 
 **Optimization Strategy: Aggressive Partitioning**:  
 
--  **Pros**: Maximum NPU offloading, significantly reduced host CPU load and faster compilation cycles.  
-- **Cons**: Potential for slightly higher latency compared to `opt_level 1` and increased output binary size.  
+-  **Pros**: Maximum NPU offloading and significantly reduced host CPU load.  
+- **Cons**: Compilation time and memory usage may increase. On systems with a powerful host CPU, the default partitioning may give better end-to-end performance.  
+- **Note**: `--opt_level 0` in the example above shortens compilation but may result in higher NPU latency than `opt_level 1`.  
 
 ---
 
@@ -268,7 +270,7 @@ dx_com.compile(
 
 **Scenario**: Processing non-visual data such as audio spectrograms, time-series data, or 3D point clouds.  
 
-!!! note "dx_com Python Module Only"
+!!! note "dx_com Python Module Only"  
     Non-image data types are **only supported via the `dx_com` Python module**. The `dxcom` command only supports image data.
 
 ### `dx_com` Python Module
@@ -323,7 +325,7 @@ dx_com.compile(
 
 **Scenario**: Improving quantization accuracy for models where standard quantization causes unacceptable accuracy degradation.  
 
-!!! note "Version Support"
+!!! note "Version Support"  
     DXQ (`enhanced_scheme`) is supported in **DX-COM v2.1.0 and later**.
 
 - **Option A: `dxcom` Command** – Set `enhanced_scheme` in the JSON config file.  
@@ -379,7 +381,7 @@ dx_com.compile(
 )
 ```
 
-!!! note "GPU Device Selection"
+!!! note "GPU Device Selection"  
     By default, DX-COM automatically uses GPU if available. In multi-GPU environments, you can specify a device via `quantization_device` in the JSON config or the `dx_com.compile()` parameter (e.g., `"cuda:1"`). See the **Quantization Device** section in [JSON File Configuration](02_05_JSON_File_Configuration.md) for details.
 
 For all available DXQ schemes (DXQ-P0 to DXQ-P5) and their parameters, see the **Enhanced Quantization Scheme (DXQ)** section in [JSON File Configuration](02_05_JSON_File_Configuration.md).
@@ -388,7 +390,7 @@ For all available DXQ schemes (DXQ-P0 to DXQ-P5) and their parameters, see the *
 
 If you don't want to hand-pick a DXQ scheme, let DX-COM choose for you. Setting `use_q_pro` enables the **automatic Q-PRO pipeline**: the compiler generates DXQ combinations and applies the optimal quantization enhancement stages based on model structure and compile-time metrics — no manual `enhanced_scheme` tuning required.
 
-!!! note "Version Support"
+!!! note "Version Support"  
     Automatic Q-PRO (`use_q_pro`) is available in **DX-COM v2.4.0 and later**. It is **mutually exclusive** with manual `enhanced_scheme`.
 
 **Option A: `dxcom` Command**
@@ -415,7 +417,7 @@ dx_com.compile(
 )
 ```
 
-!!! tip "Automatic vs Manual"
+!!! tip "Automatic vs Manual"  
     Start with `use_q_pro=True` for the easiest path to higher-accuracy quantization. Switch to a manual `enhanced_scheme` (e.g., `{"DXQ-P3": {...}}`) only when you need precise control over a specific DXQ scheme. See the **Automatic Q-PRO (`use_q_pro`)** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md).
 
 ---
@@ -430,7 +432,7 @@ This use case chains three v2.4.0 features into one tuning loop:
 2. **QXNN Resume** — re-runs quantization from that `.qxnn` checkpoint, skipping the earlier compile phases.
 3. **Re-calibration / Q-PRO** — applies a different calibration method or enables Q-PRO during the resume to improve accuracy.
 
-!!! note "Version Support"
+!!! note "Version Support"  
     `quant_diagnosis` and QXNN Resume are available in **DX-COM v2.4.0 and later**. For the full workflow reference, see [Quantization Tuning Workflow](02_07_Quantization_Tuning_Workflow.md).
 
 ### Step 1 — Compile with diagnosis enabled
@@ -497,17 +499,17 @@ dx_com.compile(
 )
 ```
 
-!!! note "Resume-only options"
+!!! note "Resume-only options"  
     `--recalibration_method`, `--enhanced_scheme`, and `--dataset_path` are valid **only** in QXNN resume mode (i.e., with `--checkpoint`). `--checkpoint` and `-m/--model_path` are mutually exclusive. On resume, the calibration DataLoader is auto-built from the config embedded in the `.qxnn` — no `-c/--config_path` is required.
 
-!!! tip "Why this matters"
+!!! tip "Why this matters"  
     Because QXNN Resume skips the compile phases that don't depend on quantization, you can try several calibration methods or Q-PRO settings in quick succession, dramatically shortening the accuracy-tuning loop.
 
 ---
 
 ## Use Case 7: YOLO Post-Processing Optimization (CPU-Constrained Edge)
 
-**Scenario**: Deploying a YOLO-family detection or instance-segmentation model on a CPU-constrained edge host (for example, an ARM Cortex-A53) where CPU-side post-processing (Sigmoid, DFL decoding, dist2bbox over the full anchor grid) becomes the end-to-end throughput bottleneck.
+**Scenario**: Deploying a YOLO-family detection, instance-segmentation, or pose model (or RTMDet) on a CPU-constrained edge host (for example, an ARM Cortex-A53) where CPU-side post-processing (Sigmoid, DFL decoding, dist2bbox over the full anchor grid) becomes the end-to-end throughput bottleneck.
 
 **Approach**: Apply `pre_optimize` before compilation. It rewrites the post-processing graph so that TopK selection happens first, and expensive operations run only on the `K` selected candidates (default 300) instead of the full anchor grid. Choose one of two equivalent entry points.
 
@@ -587,6 +589,9 @@ dx_com.compile(model="yolov8n.onnx", config="config.json", output_dir="./optimiz
 
 For supported model families and tasks (YOLOv8 / v9 / v11 / v12 / v13 detection · segmentation · pose via `yolo_dfl_postprocess`; YOLO26 via `yolo_no_dfl_postprocess`; RTMDet via `rtmdet_postprocess`), output shapes, and the migration recipe from the deprecated `ppu.type = 2`, see [Pre-Optimize API](02_09_Pre_Optimize_API.md).
 
+!!! warning "Do not combine with `ppu`"  
+    `pre_optimize` and `ppu` (Use Case 8) are **mutually exclusive** in one config — both rewrite detection post-processing, so supplying both raises a validation error.
+
 ---
 
 ## Use Case 8: PPU Hardware Acceleration (YOLO)
@@ -598,8 +603,11 @@ For supported model families and tasks (YOLOv8 / v9 / v11 / v12 / v13 detection 
 
 Both paths configure the same hardware; the Python `PPUConfig` is the programmatic equivalent of the JSON `ppu` section. For node-name identification and the full parameter reference, see the **PPU Configuration** section in [JSON File Configuration](02_05_JSON_File_Configuration.md).
 
-!!! warning "NMS still runs on the host CPU"
+!!! warning "NMS still runs on the host CPU"  
     The PPU accelerates filtering and class prediction only. Non-Maximum Suppression (NMS) must still be executed on the host CPU using the filtered outputs.
+
+!!! warning "Do not combine with `pre_optimize`"  
+    `ppu` and `pre_optimize` (Use Case 7) are **mutually exclusive** in one config — supplying both raises a validation error.
 
 ### Option A: `dxcom` Command
 
@@ -637,6 +645,8 @@ dxcom -m yolov8.onnx -c yolov8_config.json -o output/yolov8
 
 ### Option B: `dx_com` Python Module
 
+Here, the PPU is configured through `ppu_config`. Use a config file **without a `ppu` block** (for example, the Option A config with its `ppu` section removed), or pass a `dataloader` instead.
+
 ```python
 import dx_com
 from dx_com import PPUConfig, PPUTypes
@@ -653,7 +663,7 @@ ppu_config.add_layer(bbox="Mul_441", cls_conf="Sigmoid_442")
 dx_com.compile(
     model="yolov8.onnx",
     output_dir="output/yolov8",
-    config="yolov8_config.json",  # or dataloader=...
+    config="yolov8_base_config.json",  # no `ppu` block; or dataloader=...
     ppu_config=ppu_config,
 )
 
@@ -678,13 +688,13 @@ ppu_config = PPUConfig(
 )
 ```
 
-!!! note "Selecting the PPU type"
+!!! note "Selecting the PPU type"  
     Match the `PPUTypes` value to your model architecture:
     
     - Anchor-based (YOLOv3/v4/v5/v7) → `YOLO_BASE`
     - Anchor-free (YOLOX, YOLOv8–v12) → `YOLO_ANCHORFREE`
-    - DFL-based with CPU TopK (YOLOv8/v9/v11/v12) → `YOLOV8`
+    - DFL-based with CPU TopK (YOLOv8/v9/v11/v12) → `YOLOV8` **(deprecated since v2.4.0; use [Use Case 7](#use-case-7-yolo-post-processing-optimization-cpu-constrained-edge) / `pre_optimize()` instead)**
     
-    See the **type/model table** section in [JSON File Configuration](02_05_JSON_File_Configuration.md) and the **PPUConfig API reference** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md).
+    See the **Configuration Parameters** table in the **PPU Configuration** section of [JSON File Configuration](02_05_JSON_File_Configuration.md) and the **`ppu_config`** parameter in [Execution of DX-COM](02_06_Execution_of_DX-COM.md).
 
 ---

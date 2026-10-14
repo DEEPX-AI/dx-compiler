@@ -7,11 +7,11 @@ There are two ways to apply it:
 - **Python API** — call `dx_com.pre_optimize()` on a loaded model, then pass the result to `dx_com.compile()`.
 - **Config JSON** — add a `pre_optimize` block to the compile config, and the passes run automatically inside `dx_com.compile()`.
 
-!!! note "When to use"
+!!! note "When to use"  
 
     Use `pre_optimize()` when CPU post-processing (Sigmoid, DFL decoding, dist2bbox, NMS pre-filtering, etc.) dominates end-to-end latency. It is most effective for YOLO-family **detection / segmentation / pose** models and **RTMDet** on CPU-constrained hosts.
 
-!!! warning "Replaces PPU Type 2"
+!!! warning "Replaces PPU Type 2"  
 
     `pre_optimize()` is the recommended replacement for the deprecated **PPU Type 2** post-processing mode (see [Migration from PPU Type 2](#migration-from-ppu-type-2)). `pre_optimize` and `ppu` are **mutually exclusive** in one config — both rewrite detection post-processing, so supplying both raises a validation error.
 
@@ -44,7 +44,7 @@ Notes:
 - Axis layout differs by family: `yolo_dfl_postprocess` puts channels on axis 1 and `K` on axis 2; `yolo_no_dfl_postprocess` puts `K` on axis 1.
 - `rtmdet_postprocess` rebuilds only the pre-NMS pipeline; the original NMS and all post-NMS logic stay intact.
 
-!!! info "Changed in this release"
+!!! info "Changed in v2.5.0"  
 
     - Passes were **renamed**: `yolo_postprocess` → `yolo_dfl_postprocess`, `yolo26_postprocess` → `yolo_no_dfl_postprocess`. The old names now raise a migration hint.
     - YOLO passes require an explicit **`task`** key (`base` / `seg` / `pose`).
@@ -69,7 +69,7 @@ dx_com.pre_optimize(
 | Parameter | Type | Required | Description |
 |-----------|------|:--------:|-------------|
 | `model` | `onnx.ModelProto` | Yes | Source ONNX model loaded via `onnx.load()`. Must be a **full model** — the network input is used to derive per-scale strides. |
-| `passes` | `dict[str, dict]` | Yes | Mapping from pass name to its configuration. Specify exactly one pass per call. |
+| `passes` | `dict[str, dict]` | Yes | Mapping from pass name to its configuration. Passes are applied in the given order. |
 
 ### Returns
 
@@ -103,7 +103,7 @@ Per-layer roles depend on `task`:
 
 Validation runs before any graph edit and raises a message prefixed with the pass name. For `pose`, `kpt_shape = [num_keypoints, values_per_keypoint]` (e.g. `[17, 3]`) must be identical across scales, and `num_keypoints × values_per_keypoint` must equal the keypoint Conv channel count.
 
-!!! warning "`input_height` / `input_width` removed"
+!!! warning "`input_height` / `input_width` removed"  
 
     These are no longer accepted — the input H/W is always derived from the model input. Supplying them raises `ValueError`.
 
@@ -126,7 +126,7 @@ Detection-only — **no `task` key**. Targets RTMDet models exported from [MMDet
 
 ## Usage — Python API
 
-Load the model, apply exactly one pass, then compile. The tensor names below are the real Conv-head output names from the corresponding modelzoo model (ultralytics export). Find the names for your own model with [Identifying Conv Head Tensor Names](#identifying-conv-head-tensor-names).
+Load the model, apply the pass, then compile. The tensor names below are the real Conv-head output names from the corresponding modelzoo model (ultralytics export). Find the names for your own model with [Identifying Conv Head Tensor Names](#identifying-conv-head-tensor-names).
 
 ### YOLOv8n Detection — `yolo_dfl_postprocess` (`task="base"`)
 
@@ -320,8 +320,7 @@ Add a `pre_optimize` block to the compile config. It is a **list** of single-key
   "default_loader": {
     "dataset_path": "./calibration_images",
     "preprocessings": [
-      {"resize": {"mode": "pad", "width": 640, "height": 640,
-                  "pad_location": "EDGE", "pad_value": [114, 114, 114]}},
+      {"resize": {"width": 640, "height": 640}},
       {"div": {"x": 255.0}},
       {"convertColor": {"form": "BGR2RGB"}},
       {"transpose": {"axis": [2, 0, 1]}},
@@ -354,9 +353,9 @@ For other tasks/models, swap the `pre_optimize` block for the matching pass conf
 dx_com.compile(model="yolov8n.onnx", config="config.json", output_dir="./out")
 ```
 
-!!! note "Output artifact"
+!!! note "Output artifact"  
 
-    The optimized graph keeps the **source file name** — the artifact is `<stem>.dxnn`, the same as a normal compile. No graph rename and no extra ONNX dump happen on either the config-JSON path or the direct `ModelProto` API path.
+    The optimized graph keeps the **source file name** — the artifact is `<stem>.dxnn`, the same as a normal compile. On the file-path entry the graph name is set to the source file stem; a directly-passed `ModelProto` is left unchanged. No extra ONNX dump is written.
 
 ---
 
@@ -395,7 +394,7 @@ for node in model.graph.node:
 | `yolo_no_dfl_postprocess` | YOLO26n | det  | 184.89 | 315.73 | **1.7×** |
 |  | YOLO26n | seg  | 130.82 | 195.05 | **1.5×** |
 |  | YOLO26n | pose | 242.77 | 304.38 | **1.3×** |
-| `rtmdet_postprocess` | RTMDet-S(score_threshold = 0.3) | det | 156.56 | 290.16 | **1.9×** |
+| `rtmdet_postprocess` | RTMDet-S (score_threshold = 0.3) | det | 156.56 | 290.16 | **1.9×** |
 
 Measured with:
 
@@ -460,10 +459,10 @@ If you previously used `ppu.type = 2` in the JSON config, switch to `pre_optimiz
 | | PPU Type 2 (previous) | `pre_optimize` (current) |
 |--|--|--|
 | Configuration location | JSON config file | Python API **or** config-JSON `pre_optimize` block |
-| Segmentation support | ❌ | ✅ |
-| Pose support | ❌ | ✅ |
-| YOLO26 support | ❌ | ✅ (`yolo_no_dfl_postprocess`) |
-| RTMDet support | ❌ | ✅ (`rtmdet_postprocess`) |
+| Segmentation support | No | Yes |
+| Pose support | No | Yes |
+| YOLO26 support | No | Yes (`yolo_no_dfl_postprocess`) |
+| RTMDet support | No | Yes (`rtmdet_postprocess`) |
 | Pass names | (`ppu.type = 2`) | `yolo_dfl_postprocess` / `yolo_no_dfl_postprocess` / `rtmdet_postprocess` |
 | `input_height` / `input_width` | n/a | removed — derived from the model input |
 

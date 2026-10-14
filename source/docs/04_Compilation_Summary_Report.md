@@ -41,7 +41,7 @@ dx_com.compile(
 )
 ```
 
-!!! note "NOTE"
+!!! note "NOTE"  
     `--export_html` / `export_html=True` is also documented as a compilation option in [Execution of DX-COM](02_06_Execution_of_DX-COM.md).
 
 ---
@@ -72,7 +72,7 @@ The report renderer relies on the `jinja2` library, which is included as a built
 
 ## Troubleshooting
 
-!!! note "Compilation is never blocked by the report"
+!!! note "Compilation is never blocked by the report"  
     Generating the HTML report is a best-effort, post-compilation step. If the report cannot be produced, DX-COM emits a warning and the compilation still completes successfully — the `.dxnn` output is unaffected.
 
 - **No HTML file is produced**: Confirm that `--export_html` (or `export_html=True`) was specified, and check the compilation logs for a warning indicating the report was skipped or failed.
