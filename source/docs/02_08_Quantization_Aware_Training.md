@@ -2,7 +2,7 @@ This chapter describes how to compile a model with **Quantization-Aware Training
 
 QAT reuses the **same JSON configuration** as a normal (PTQ) compile. When the configuration file contains a `qmaster` block, `dx_com.compile()` automatically switches to QAT mode and runs the training pipeline using the same dataset and preprocessing settings as PTQ calibration.
 
-!!! note "Version Support"
+!!! note "Version Support"  
     QAT (the `qmaster` block) is supported in **DX-COM v2.4.0 and later**. From
     **v2.5.0**, the Python API drives QAT through the `qmaster=QMasterConfig(...)`
     argument (the earlier `qat_*` arguments were removed).
@@ -26,7 +26,7 @@ QAT is enabled by **adding a `qmaster` block** to the JSON configuration. No sep
 }
 ```
 
-!!! note "Reuses Your Existing Config"
+!!! note "Reuses Your Existing Config"  
     `inputs`, `calibration_*`, and `default_loader` work exactly as described in
     [JSON File Configuration](02_05_JSON_File_Configuration.md). The image
     preprocessing pipeline (`default_loader.preprocessings`) is the single source of
@@ -59,7 +59,7 @@ The `qmaster` block holds **training hyperparameters only**. Every key is option
 | `epochs` | `30` | Maximum number of training epochs. |
 | `lr` | `1e-5` | Learning rate. |
 | `optimizer` | `"adamw"` | Optimizer: `"adamw"` or `"sgd"`. |
-| `criterion` | `mse` | Task loss: `mse` or `cross_entropy`. Applied when use_kd = false, or when use_kd = true and kd_alpha < 1.0 (task loss weight = 1 - kd_alpha). With the default use_kd = true and kd_alpha = 1.0, task loss is disabled and this value has no effect. |
+| `criterion` | `"mse"` | Task loss: `"mse"` or `"cross_entropy"` (`"seg_ce"` by default for segmentation, see [Segmentation QAT](#segmentation-qat-opt-in)). Applied when `use_kd = false`, or when `use_kd = true` and `kd_alpha < 1.0` (task loss weight = `1 - kd_alpha`). With the default `use_kd = true` and `kd_alpha = 1.0`, task loss is disabled and this value has no effect. |
 | `scheduler` | `null` | LR scheduler: `null`, `"cosine"`, or `"step"`. |
 | `scheduler_step_size` | `max(1, (epochs - warmup_epochs) // 3)` | Step interval (in epochs) for the `"step"` scheduler. Only used when `scheduler = "step"`. |
 | `weight_decay` | `1e-4` | Optimizer weight decay. |
@@ -79,7 +79,7 @@ The `qmaster` block holds **training hyperparameters only**. Every key is option
 | `train_cpu_fp` | `false` | Keep the FP teacher on CPU to save GPU memory (slightly slower). |
 | `fast_run` | `false` | Quick smoke test: 1 epoch × 1 batch. Result is **not** accuracy-meaningful. |
 
-!!! note "Batch Size and the Internal Compile Path"
+!!! note "Batch Size and the Internal Compile Path"  
     `batch_size > 1` runs the **staged** path (recommended for most models);
     `batch_size = 1` runs the **single-shot** path. If a batched run is not possible
     for a given model, DX-COM automatically falls back to single-shot at batch size 1.
@@ -126,12 +126,12 @@ KD uses the original floating-point model as a teacher to guide the quantized st
 }
 ```
 
-!!! note "KD Loss Weighting"
+!!! note "KD Loss Weighting"  
     `kd_alpha` weights the KD term; the task loss is weighted by `1 - kd_alpha`.
     With the default `kd_alpha = 1.0` the model trains with **KD only**. Lower it
     (e.g. `0.7`) to blend KD with the task loss.
 
-!!! note "Encoder Mode"
+!!! note "Encoder Mode"  
     For embedding/encoder-style models (e.g. CLIP image encoders), set
     `"encoder_mode": true`. This switches the tracked metric to **cosine similarity**
     (instead of classification accuracy). It does not disable the task loss on its own;
@@ -141,7 +141,7 @@ KD uses the original floating-point model as a teacher to guide the quantized st
 
 ## Segmentation QAT (opt-in)
 
-!!! note "Version Support"
+!!! note "Version Support"  
     Segmentation QAT is supported in **DX-COM v2.5.0 and later**.
 
 By default, QAT expects an ImageNet-style `(image, int_label)` classification
@@ -180,7 +180,7 @@ override it explicitly. Masks are loaded as raw integer class-id maps and are
 
 The following parameters control **training vs. compilation** behavior. They are available through the Python API (`dx_com.compile()`); the `dxcom` CLI runs the full QAT pipeline directly from the `qmaster` block.
 
-!!! warning "Changed in v2.5.0"
+!!! warning "Changed in v2.5.0"  
     The former flat arguments `quantization_mode`, `qat_config`, `qat_skip_training`,
     and `qat_resume_from_checkpoint` have been **replaced by a single `qmaster`
     argument** that takes a `QMasterConfig` object. The old arguments are no longer
@@ -193,9 +193,9 @@ QAT from Python is controlled by one argument, `qmaster`, which takes a
 |-----------------------|------|---------|-------------|
 | `config` | `Optional[dict]` | `None` | QAT training hyperparameters — the same keys as the JSON `qmaster` block (see [The `qmaster` Block](#the-qmaster-block) above). |
 | `skip_training` | `bool` | `False` | Skip the training loop and run compilation only (Stage 2). Use with `resume_from_checkpoint`. |
-| `resume_from_checkpoint` | `Optional[str]` | `None` | Path to a `qat_checkpoint.qxnn`. Loads trained weights, then compiles. |
+| `resume_from_checkpoint` | `Optional[str]` | `None` | Path to a `qat_checkpoint.qxnn`. Loads trained weights, then compiles. Not interchangeable with the QXNN Resume `checkpoint` produced by `quant_diagnosis` (see [Quantization Tuning Workflow](02_07_Quantization_Tuning_Workflow.md)). |
 
-!!! tip "Re-running Compilation Only"
+!!! tip "Re-running Compilation Only"  
     Training can take a long time. After a successful run you can regenerate the
     `.dxnn` without re-training by passing the saved checkpoint through `qmaster`:
 
@@ -206,7 +206,7 @@ QAT from Python is controlled by one argument, `qmaster`, which takes a
     )
     ```
 
-!!! note "`fast_run` Is a Config Key"
+!!! note "`fast_run` Is a Config Key"  
     To run a quick smoke test, set `"fast_run": true` **inside the `qmaster` block**
     of the JSON config (it is not a `compile()` argument).
 
@@ -270,17 +270,17 @@ dx_com.compile(
 
 ## Notes and Recommendations
 
-!!! warning "BatchNorm Freezing"
+!!! warning "BatchNorm Freezing"  
     `freeze_bn_after = 0` freezes BatchNorm from the very first epoch, which can cause
     the loss to diverge (`nan`). Leave it as `null` unless you specifically need BN
     freezing, and in that case start from a later epoch.
 
-!!! warning "Dataset Path"
+!!! warning "Dataset Path"  
     If `default_loader.dataset_path` is missing or invalid, DX-COM falls back to a
     default ImageNet location instead of failing. Verify the dataset path in the log to
     make sure training used the data you intended.
 
-!!! tip "Reducing GPU Memory"
+!!! tip "Reducing GPU Memory"  
     If you hit out-of-memory errors, lower `batch_size` and/or raise
     `gradient_accumulation_steps` to keep the effective batch size constant. Setting
     `"train_cpu_fp": true` moves the FP teacher to CPU to save GPU memory (slightly slower).

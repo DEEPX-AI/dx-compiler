@@ -4,7 +4,7 @@ This section describes how to convert a PyTorch model to the ONNX format using t
 You can export a PyTorch model to ONNX format as follows.  
 
 Example  
-```
+```python
 import torch
 import torch.nn as nn
 
@@ -33,7 +33,7 @@ torch.onnx.export(
   dummy_input,             # Dummy input used for tracing (tuple is possible)
   onnx_file_path,          # Output ONNX file path 
   export_params=True,      # If True, saves model parameter (weight) into the ONNX file 
-  opset_version=11,        # ONNX opset version (11~21 supported)
+  opset_version=17,        # ONNX opset version (11~21 supported, 17 recommended)
   input_names=['input'],   # Name of the ONNX model input tensor 
   output_names=['output']  # Name of the ONNX model output tensor 
 )
@@ -45,12 +45,13 @@ Key Parameter of `torch.onnx.export()`
 - `dummy_input`: Input values to model's `forward()` method  
 - `onnx_file_path`: Output ONNX file path  
 - `export_params`: If True, includes weights in the ONNX file  
-- `opset_version`: ONNX opset version (11~21 supported)  
+- `opset_version`: ONNX opset version (11~21 supported, 17 recommended)  
 - `input_names`: Name of the input tensor(s)  
 - `output_names`: Name of the output tensor(s)  
 
 !!! note "NOTE"  
     - `model.eval()`: Set the model to "eval()" mode before exporting.  
     - `batch size`: Batch size **must** be 1.  
+    - `input shape`: Input shapes must be static. Do not use `dynamic_axes`; dynamic shapes are not supported.  
 
 ---

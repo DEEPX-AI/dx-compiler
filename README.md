@@ -130,7 +130,7 @@ For detailed instructions on running your first NPU model with DX-Compiler, plea
 To install the necessary Python packages, run the following command:
 
 ```bash
-pip install mkdocs mkdocs-material mkdocs-video pymdown-extensions mkdocs-with-pdf weasyprint==65.1 
+pip install "mkdocs<2" mkdocs-material pymdown-extensions mkdocs-with-pdf weasyprint==65.1
 ```
 
 ### Generate Documentation (HTML and PDF)
