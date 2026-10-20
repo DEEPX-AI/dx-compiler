@@ -28,7 +28,7 @@ Gather facts before asking questions. Run silently:
 
 ```bash
 ls *.onnx *.pt *.pth 2>/dev/null                    # Input model format
-dxcom --help >/dev/null 2>&1 && echo "DX-COM: ok"    # Tool available?
+dxcom --version >/dev/null 2>&1 && echo "DX-COM: ok" # Tool available?
 ls dx_com/calibration_dataset/ 2>/dev/null | head -5  # Calibration data?
 ```
 
@@ -63,7 +63,7 @@ opset 13, batch=1, static shapes. Confirm input shape (e.g., 1,3,640,640)?"
 DX-COM always quantizes to INT8. There is NO precision selection parameter
 (no FP16/FP32 option). NEVER ask the user to choose output precision.
 "Do you have calibration images representative of inference data? How many?
-(recommend 50-200). Calibration method: EMA (default) or MinMax?"
+(recommend 50-200). Calibration method: EMA (default), MinMax, or IQR?"
 
 **Q3 — PPU? (detection models only)**
 "Enable PPU post-processing? Type 0 = anchor-based (YOLOv3-v7),
@@ -101,7 +101,7 @@ ALL must pass before execution:
 
 ```bash
 test -f "<model_path>" && echo "PASS: model exists" || echo "FAIL"
-dxcom --help >/dev/null 2>&1 && echo "PASS: DX-COM ok" || echo "FAIL"
+dxcom --version >/dev/null 2>&1 && echo "PASS: DX-COM ok" || echo "FAIL"
 WORK_DIR="dx-agent-dev/$(date +%Y%m%d-%H%M%S)_<model>_<task>"  # local timezone (NOT UTC)
 mkdir -p "${WORK_DIR}" && echo "PASS: output dir ok" || echo "FAIL"
 ls dx_com/calibration_dataset/*.jpg 2>/dev/null | wc -l

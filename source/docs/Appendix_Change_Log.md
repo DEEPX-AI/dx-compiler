@@ -23,6 +23,7 @@ DX-Compiler Version
 #### Fixed
 
 -   `uninstall.sh` cleans up a leftover `dx_tron/` directory or symlink from an earlier release, so upgrading does not orphan it.
+-   Without `--python_version`, `install.sh` now uses the OS default `python3` for the virtual environment instead of the newest `python3.X` on the host (e.g., a deadsnakes `python3.14` on Ubuntu 24.04). Newer interpreters are only considered when the OS default is below the minimum supported version.
 
 #### Added
 

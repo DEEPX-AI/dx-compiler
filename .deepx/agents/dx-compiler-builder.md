@@ -35,8 +35,8 @@ Before classifying or routing any task:
 2. Read `.deepx/memory/common_pitfalls.md` (always)
 3. Read `source/docs/` SDK official guide documents for API and feature reference (MANDATORY):
    - `02_05_JSON_File_Configuration.md` — config.json schema and all options
-   - `02_07_Common_Use_Cases.md` — calibration patterns, DataLoader examples
-   - `02_03_Python_API.md` — dxcom Python API reference
+   - `02_10_Common_Use_Cases.md` — calibration patterns, DataLoader examples
+   - `02_06_Execution_of_DX-COM.md` — dxcom CLI and Python API reference
    - Other files as needed for the specific task
 4. Read `.deepx/toolsets/config-schema.md` (if writing config.json)
 5. Read `.deepx/toolsets/dxcom-cli.md` or `.deepx/toolsets/dxcom-api.md` (if running dxcom)
@@ -167,7 +167,7 @@ fi
 echo "[3/5] Checking dxcom installation..."
 python -c "import dx_com; print('dxcom OK')" 2>/dev/null || {
     echo "Installing dxcom..."
-    pip install dxcom
+    pip install dx-com
 }
 
 # Step 4: Verify dx_engine (needed for verify.py)
@@ -306,50 +306,53 @@ Run onnx-simplifier after export?
 > **INT8 ONLY — NEVER ask about output precision.** DX-COM always quantizes to INT8.
 > There is no FP16/FP32 output option in the CLI, Python API, or JSON config.
 > Do NOT ask "which precision?" or offer INT8/FP16/FP32 as choices. The only
-> user-facing quantization choices are calibration method and enhanced scheme.
+> user-facing quantization choices are calibration method and Q-PRO (automatic
+> `use_q_pro` or manual `enhanced_scheme`).
 
-1. **Calibration method**: `ema` (default, recommended) or `minmax`
+1. **Calibration method**: `ema` (default, recommended), `minmax`, or `iqr`
 2. **Calibration data**: Path to representative dataset images
 
 #### MANDATORY Q3: PPU Compilation Support
 
 **Auto-detect** whether the model supports PPU compilation:
-- Model name matches known detection families (YOLO, SSD, NanoDet, DAMOYOLO, etc.)
+- Model name matches a PPU-supported YOLO family (YOLOv3–v12, YOLOX) — other detection heads are not supported by the PPU
 - ONNX output shape analysis suggests detection head (e.g., `[1, 84, 8400]`)
 - User explicitly mentions "detection" or "PPU"
 
 **PPU-supported model families**:
-| Family | PPU Type | Anchors Required |
+| Family | PPU Type | `layer` config |
 |---|---|---|
-| YOLOv3, YOLOv4, YOLOv5, YOLOv7 | 0 (anchor-based) | Yes — must match training config |
-| YOLOX, YOLOv8-v12, SSD, NanoDet | 1 (anchor-free) | No |
+| YOLOv3, YOLOv4, YOLOv5, YOLOv7 | 0 (anchor-based) | Dict: detection-head Conv node → `{"num_anchors": N}` |
+| YOLOX, YOLOv8-v12 | 1 (anchor-free) | List of `{"bbox", "cls_conf"}` (YOLOX adds `obj_conf`) |
 
 > **YOLO26 does not support PPU.** YOLO26 is a NMS-free native architecture that uses
 > `end2end=True` export with output `[1, 300, 6]`. PPU's confidence filtering and argmax
 > are redundant because the model already performs these operations internally.
+> For faster CPU post-processing, the opt-in `pre_optimize` pass `yolo_no_dfl_postprocess`
+> supports YOLO26 (see `toolsets/config-schema.md`) — mention it only if the user asks.
 > **Skip Q3 for YOLO26 models.**
 
 If the model is PPU-capable, present this explanation:
 
 ```
-PPU (Pre/Post-Process Unit) Compilation:
+PPU (Post-Processing Unit) Compilation:
 
-  The DX-COM compiler can embed post-processing (NMS, score filtering)
-  directly into the compiled .dxnn model using PPU configuration.
+  The DX-COM compiler can run part of the detection post-processing
+  (confidence filtering and class prediction) on the NPU's PPU hardware.
+  NMS is NOT supported by the PPU — it still runs on the host CPU.
 
   With PPU:
-  ✓ Post-processing runs on hardware — lower latency
-  ✓ Simpler deployment — no separate NMS code needed
-  ✓ Output is ready-to-use detections [x1,y1,x2,y2,conf,cls]
+  ✓ Confidence filtering and class argmax run on hardware — lower CPU load and latency
+  ✓ Fewer candidates reach host-side decoding and NMS
 
   Without PPU:
-  ✓ Full control over NMS parameters at inference time
-  ✓ Can adjust thresholds without recompilation
+  ✓ No PPU layer-name mapping needed in config.json
+  ✓ Can adjust thresholds without recompilation (PPU fixes conf_thres at compile time)
   ✓ Standard workflow — postprocessor code handles decoding
 
   Compile with PPU?
     (a) No — compile without PPU (default, standard workflow)
-    (b) Yes — embed PPU post-processing into .dxnn
+    (b) Yes — enable PPU post-processing in the .dxnn
 ```
 
 **MUST present** this question for all detection models **except YOLO26** (which does not
@@ -393,7 +396,7 @@ which dxcom && python3 -c "import dx_com; print('dxcom OK')"
 ```
 
 If dxcom is NOT available:
-1. Try `pip install dxcom` (requires active venv)
+1. Try `pip install dx-com` (requires active venv)
 2. Try `bash dx-compiler/install.sh`
 3. If still missing → STOP and inform user. Do NOT route to dx-dxnn-compiler.
 
@@ -423,10 +426,10 @@ For full pipeline, route sequentially:
 
 | Component | Version | Purpose |
 |---|---|---|
-| DX-COM | v2.2.1 | ONNX → DXNN compiler |
+| DX-COM | v2.5.0 | ONNX → DXNN compiler |
 | Summary report (`--export_html`) | built into DX-COM | .dxnn visual inspection |
 | ONNX | opset 11-21 | Intermediate representation |
-| Python | 3.8-3.12 | Runtime environment |
+| Python | 3.8-3.14 | Runtime environment |
 
 ## Target Hardware
 

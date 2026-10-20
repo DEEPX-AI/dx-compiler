@@ -166,4 +166,4 @@ Validation Report:
 | .dxnn missing | Re-run compilation; check for errors in terminal output |
 | No `*_summary.html` | Confirm `--export_html` was passed; check compiler.log for the report warning |
 | High CPU fallback ratio | Use `--aggressive_partitioning`; check unsupported ops |
-| Quantization warnings | Try `minmax` instead of `ema`; increase `calibration_num` |
+| Quantization warnings | Try `minmax` or `iqr` instead of `ema`; adjust `calibration_num`; for a per-region view, compile with `--quant_diagnosis` and re-quantize from the `.qxnn` checkpoint (`toolsets/dxcom-cli.md`) |

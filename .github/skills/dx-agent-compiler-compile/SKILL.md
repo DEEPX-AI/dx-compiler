@@ -10,7 +10,7 @@ description: ONNX to DXNN compilation workflow for dx-compiler
 # /dx-agent-compiler-compile — ONNX to DXNN Compilation Skill
 
 > Step-by-step workflow for compiling ONNX models to .dxnn format
-> using DEEPX DX-COM (v2.2.1).
+> using DEEPX DX-COM (v2.5.0).
 
 ## MANDATORY OUTPUT REQUIREMENTS — READ FIRST
 
@@ -48,7 +48,7 @@ description: ONNX to DXNN compilation workflow for dx-compiler
 ## Prerequisites Checklist
 
 - [ ] ONNX model validated (opset 11-21, batch=1, static shapes)
-- [ ] DX-COM installed (`dxcom --help` works)
+- [ ] DX-COM installed (`dxcom --version` works)
 - [ ] dx-runtime sanity check passed (`bash dx-runtime/scripts/sanity_check.sh --dx_rt`)
   - If FAIL after install.sh:
     - **Compiler-only task** (compilation without dx_app/dx_stream work): inform user of the
@@ -221,25 +221,25 @@ instructions. The user expects actual compilation output (`.dxnn`), not a recipe
    > is **no PPU**. If PPU was not discussed, do NOT add this section.
 
    **Auto-detect PPU eligibility**:
-   - Model name matches detection families: YOLO*, SSD, NanoDet, DAMOYOLO, EfficientDet
+   - Model name matches a PPU-supported YOLO family: YOLOv3–v12, YOLOX (other detection heads are not supported)
    - ONNX output shape suggests detection head (e.g., `[1, 84, 8400]` or `[1, 300, 6]`)
 
    **PPU type determination**:
-   | Model Family | PPU Type | Anchors |
+   | Model Family | PPU Type | `layer` config |
    |---|---|---|
-   | YOLOv3, YOLOv4, YOLOv5, YOLOv7 | 0 (anchor-based) | Required — must match training config |
-   | YOLOX, YOLOv8-v12, SSD, NanoDet | 1 (anchor-free) | Not required |
-   | YOLO26 | **PPU not supported** | N/A — NMS-free native; use end2end=True |
+   | YOLOv3, YOLOv4, YOLOv5, YOLOv7 | 0 (anchor-based) | Dict: detection-head Conv node → `{"num_anchors": N}` |
+   | YOLOX, YOLOv8-v12 | 1 (anchor-free) | List of `{"bbox", "cls_conf"}` (YOLOX adds `obj_conf`) |
+   | YOLO26 | **PPU not supported** | N/A — NMS-free native; use end2end=True (opt-in `pre_optimize` exists, see `toolsets/config-schema.md`) |
 
    ```python
-   # Anchor-free (YOLOv8+): type 1
-   # Anchor-based (YOLOv3-v7): type 0
+   # Anchor-free (YOLOv8+): type 1. Node names are placeholders — read them from the ONNX graph.
+   # Anchor-based (YOLOv3-v7): type 0 with "activation": "Sigmoid" and a {Conv: {"num_anchors": 3}} dict.
+   # There is no iou_thres / max_det key — NMS runs on the host.
    config["ppu"] = {
        "type": 1,
        "conf_thres": 0.25,
-       "iou_thres": 0.45,
        "num_classes": 80,
-       "max_det": 300
+       "layer": [{"bbox": "Mul_441", "cls_conf": "Sigmoid_442"}],
    }
    ```
 
@@ -282,7 +282,8 @@ dxcom \
   -c config.json \
   -o ./ \
   --opt_level 1 \
-  --gen_log
+  --gen_log \
+  --export_html
 ```
 
 **Python API method**:
@@ -301,10 +302,12 @@ dx_com.compile(
     config=f"{WORK_DIR}/config.json",
     opt_level=1,
     gen_log=True,
+    export_html=True,
 )
 ```
 
-**For enhanced quantization** (higher accuracy, slower):
+**For enhanced quantization** (opt-in only — higher accuracy, slower). For automatic
+Q-PRO pass `use_q_pro=True` instead of `enhanced_scheme` (never both):
 ```python
 dx_com.compile(
     model=f"{WORK_DIR}/model.onnx",
@@ -312,6 +315,7 @@ dx_com.compile(
     config=f"{WORK_DIR}/config.json",
     enhanced_scheme={"DXQ-P3": {"num_samples": 1024}},
     gen_log=True,
+    export_html=True,
 )
 ```
 
@@ -610,7 +614,7 @@ The report should include:
 | Error | Recovery |
 |---|---|
 | Input name mismatch | Inspect ONNX model input name; update config.json |
-| Unsupported operator | Try `--aggressive_partitioning` to offload to CPU |
-| OOM on calibration | Reduce `calibration_num` or use CPU (`quantization_device: null`) |
+| Unsupported operator | Check the op against the supported-operator list (`source/docs/03_Building_Models.md`) and replace or simplify it; `--aggressive_partitioning` maximizes NPU operations, it does not offload to CPU |
+| OOM on calibration | Reduce `calibration_num` or quantize on CPU (`quantization_device: "cpu"` or `--use_gpu False`); `null` means auto-detect (GPU if available) |
 | PPU config error | Verify type matches model architecture (0=anchor, 1=anchor-free) |
 | Compilation timeout | Reduce model complexity or contact DEEPX support |

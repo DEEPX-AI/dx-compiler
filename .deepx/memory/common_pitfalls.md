@@ -65,7 +65,7 @@ domain causes incorrect quantization range estimation.
 - Use images from the same distribution as inference data
 - For COCO models: use COCO val2017 images for calibration
 - For custom models: use a subset of the training/validation set
-- Minimum 100 images (default `calibration_num`)
+- `calibration_num` defaults to 100; the manual suggests trying several values (e.g. 1, 5, 10, 100, 1000)
 - Ensure variety: include different lighting, angles, object sizes
 - Avoid duplicate or near-duplicate images
 - Verify file extensions in config match actual files:
@@ -109,7 +109,7 @@ be compiled.
 **Symptom**: Compilation fails with "unsupported opset" error or
 unexpected operator failures.
 
-**Cause**: DX-COM v2.2.1 supports ONNX opset versions 11 through 21.
+**Cause**: DX-COM v2.5.0 supports ONNX opset versions 11 through 21.
 Models exported with opset < 11 or > 21 are not supported.
 
 **Fix**:
@@ -138,22 +138,25 @@ Models exported with opset < 11 or > 21 are not supported.
 bounding boxes, NaN confidence scores, or zero detections at inference.
 
 **Cause**: Wrong PPU type configured for the detection model architecture.
-Anchor-based models (YOLOv3/v4/v5/v7) use type 0 with anchor definitions.
-Anchor-free models (YOLOX, YOLOv8-v12) use type 1 without anchors.
+Anchor-based models (YOLOv3/v4/v5/v7) use type 0 with a per-head `num_anchors` layer map.
+Anchor-free models (YOLOX, YOLOv8-v12) use type 1 with a `bbox`/`cls_conf` layer list.
 
 **Fix**:
 - Identify model architecture from the model name or documentation
 - Set correct PPU type:
   - **Type 0** (anchor-based): YOLOv3, YOLOv4, YOLOv5, YOLOv7
     ```json
-    {"ppu": {"type": 0, "anchors": [[...], [...], [...]]}}
+    {"ppu": {"type": 0, "conf_thres": 0.25, "activation": "Sigmoid", "num_classes": 80,
+             "layer": {"Conv_245": {"num_anchors": 3}, "Conv_294": {"num_anchors": 3}, "Conv_343": {"num_anchors": 3}}}}
     ```
   - **Type 1** (anchor-free): YOLOX, YOLOv8, YOLOv9, YOLOv10, YOLOv11, YOLOv12
     ```json
-    {"ppu": {"type": 1}}
+    {"ppu": {"type": 1, "conf_thres": 0.25, "num_classes": 80,
+             "layer": [{"bbox": "Mul_441", "cls_conf": "Sigmoid_442"}]}}
     ```
-- For anchor-based models, ensure anchors match the model's training config
-- Common mistake: using YOLOv5 anchors with YOLOv8 (different architecture)
+- Node names are placeholders — read them from the ONNX graph; full schema: `toolsets/config-schema.md` → ppu
+- For anchor-based models, list every detection-head Conv with its `num_anchors`
+- Common mistake: reusing a YOLOv5 type-0 layer map for YOLOv8 (different architecture)
 - When in doubt, check the model's original training configuration
 
 ---
@@ -505,6 +508,8 @@ architecture with output `[1, 300, 6]`).
   class prediction
 - Recommend `end2end=True` export instead, which provides similar benefits
   (ready-to-use detections) without PPU
+- If the user wants faster CPU post-processing, the opt-in `pre_optimize` pass
+  `yolo_no_dfl_postprocess` supports YOLO26 (see `toolsets/config-schema.md` → pre_optimize)
 
 ---
 
@@ -820,43 +825,32 @@ fabricated compiler flags, destroying download URLs and credentials.
 
 **Cause**: The agent encounters a compilation error and, instead of fixing
 `config.json` or dxcom arguments, modifies the system-level
-`compiler.properties` file. This file is sourced by `install.sh` and
-`docker_build.sh` via `source compiler.properties`.
+`compiler.properties` file. This file is sourced by `install.sh` via
+`source "$VERSION_FILE"`.
 
 **Actual `compiler.properties` schema** (key=value format, sourced as bash):
 ```properties
-# DX-COM compiler version and download URLs
-COM_VERSION=2.2.1
-
-COM_DOWNLOAD_LEGACY_URL=https://developer.deepx.ai/download/?id=...
-COM_CP38_DOWNLOAD_URL=https://developer.deepx.ai/download/?id=...
-COM_CP39_DOWNLOAD_URL=https://developer.deepx.ai/download/?id=...
-COM_CP310_DOWNLOAD_URL=https://developer.deepx.ai/download/?id=...
-COM_CP311_DOWNLOAD_URL=https://developer.deepx.ai/download/?id=...
-COM_CP312_DOWNLOAD_URL=https://developer.deepx.ai/download/?id=...
-
-# Optional: auto-login credentials for DEEPX developer portal
-# If set, install.sh uses these instead of prompting for credentials.
-DX_USERNAME=<email>
-DX_PASSWORD=<password>
+COM_VERSION=2.5.0
 ```
+Since v2.5.0 the file holds only `COM_VERSION`: the per-Python download URLs were
+dropped in v2.4.0 (dx-com now installs from PyPI) and the `TRON_*` keys (DX-TRON version
+and download URL) in v2.5.0, when DX-TRON was removed. The
+session above predates this, when the file still held download URLs and credentials.
 
-**Required properties** (validated by `install.sh` `validate_environment()`):
-- `COM_VERSION` — must be set
-- `COM_CP{38,39,310,311,312}_DOWNLOAD_URL` — Python-version-specific wheel URLs
+**Required properties** (checked by `install.sh`):
+- `COM_VERSION` — must be set; `install.sh` pins the installed dx-com to this version
 
 **Why agents must NEVER modify it**:
-1. **Contains credentials**: `DX_USERNAME` and `DX_PASSWORD` are plaintext login
-   credentials for the DEEPX developer portal. Modifying or overwriting the file
-   destroys these credentials, blocking future installs.
+1. **Pins the compiler version**: a wrong or missing `COM_VERSION` makes `install.sh`
+   fail or install a different compiler than the release expects.
 2. **Sourced as bash**: `install.sh` runs `source compiler.properties`. Invalid
    syntax (spaces around `=`, missing quotes, non-bash entries) causes `install.sh`
    to crash or set wrong variables.
 3. **Global impact**: Changes affect ALL installations and Docker builds, not just
    the current compilation session.
 4. **Not a compiler config**: Despite the name, this file does NOT control compiler
-   behavior (optimization, quantization, etc.). It only contains version numbers
-   and download URLs. Compilation settings belong in `config.json`.
+   behavior (optimization, quantization, etc.). It only contains the compiler
+   version. Compilation settings belong in `config.json`.
 
 **Fix**:
 - **NEVER write to, edit, or append to `compiler.properties`**
@@ -870,7 +864,7 @@ DX_PASSWORD=<password>
   ```
 - **This rule has no exceptions** — even if the agent believes adding a
   "compiler flag" to this file will fix a compilation error, it will NOT.
-  This file only contains download metadata and credentials.
+  This file only contains the compiler version.
 
 ---
 

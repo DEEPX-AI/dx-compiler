@@ -76,6 +76,12 @@ is_python_installed() {
     local REQUESTED_PY_VERSION="${3}"
     local MIN_REQUIRED_PY_VERSION="${4}"
     local PYTHON_EXECUTABLES=("python3.14" "python3.13" "python3.12" "python3.11" "python3.10" "python3.9" "python3.8" "python3") # Order matters: higher to lower
+    # No version requested: follow the OS default python3 first, so a newer interpreter
+    # left on the host (e.g. deadsnakes python3.14) is not picked over it. Higher versions
+    # are only considered when the OS default is below the minimum requirement.
+    if [ -z "${REQUESTED_PY_VERSION}" ]; then
+        PYTHON_EXECUTABLES=("python3" "${PYTHON_EXECUTABLES[@]}")
+    fi
 
     local REQ_VER_NUM=0
     if [ -n "${REQUESTED_PY_VERSION}" ]; then
