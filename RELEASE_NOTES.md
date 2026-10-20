@@ -48,6 +48,7 @@ Here are the **DX-Compiler v2.5.0** Release Notes.
 ### 2. Fixed
 
 -   **Leftover `dx_tron/` Cleanup**: `uninstall.sh` removes a leftover `dx_tron/` directory or symlink from an earlier release whenever it uninstalls (`--target=dx_com` or the default `all`), so upgrading does not orphan it.
+-   **Default Python Follows the OS**: When `--python_version` is not given, `install.sh` now creates the virtual environment with the OS default `python3` instead of the newest `python3.X` found on the host (e.g., a deadsnakes `python3.14` on Ubuntu 24.04 whose default is 3.12). Newer interpreters are only considered when the OS default is below the minimum supported version; an explicit `--python_version` is unchanged.
 
 ### 3. Added
 

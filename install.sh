@@ -550,17 +550,21 @@ install_pip_packages() {
 setup_project() {
     echo -e "=== setup_${PROJECT_NAME}() ${TAG_START} ==="
 
-    if check_virtualenv; then
+    # Always install into this project's venv. Reusing whatever venv happens to be
+    # active (e.g. a test-harness venv) put dx_com there and left VENV_PATH empty,
+    # while the completion hint still pointed users at VENV_PATH.
+    if [ -d "$VENV_PATH" ]; then
+        if [ -n "$VIRTUAL_ENV" ] && [ "$(realpath "$VIRTUAL_ENV")" != "$(realpath "$VENV_PATH")" ]; then
+            print_colored_v2 "WARNING" "Another virtual environment is active (${VIRTUAL_ENV}). Installing into ${VENV_PATH} instead."
+        fi
+        activate_venv
+        install_pip_packages
+    elif check_virtualenv; then
         install_pip_packages
     else
-        if [ -d "$VENV_PATH" ]; then
-            activate_venv
-            install_pip_packages
-        else
-            print_colored_v2 "ERROR" "Virtual environment '${VENV_PATH}' is not exist."
-            popd >&2
-            exit 1
-        fi
+        print_colored_v2 "ERROR" "Virtual environment '${VENV_PATH}' does not exist."
+        popd >&2
+        exit 1
     fi
 
     echo -e "=== setup_${PROJECT_NAME}() ${TAG_DONE} ==="

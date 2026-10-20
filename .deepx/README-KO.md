@@ -32,7 +32,10 @@
 ├── toolsets/
 │   ├── dxcom-api.md                   ← Python API 레퍼런스 (dx_com.compile)
 │   ├── dxcom-cli.md                   ← CLI 레퍼런스 (dxcom)
-│   └── config-schema.md              ← JSON config 스키마 레퍼런스
+│   ├── config-schema.md               ← JSON config 스키마 레퍼런스
+│   ├── ultralytics-deepx-export.md    ← Ultralytics YOLO format=deepx export
+│   ├── ultralytics-train-eval.md      ← Ultralytics 재학습 및 평가
+│   └── paddlepaddle-deepx.md          ← DeepX용 PaddleOCR / PaddlePaddle
 ├── memory/
 │   ├── MEMORY.md                      ← 메모리 인덱스 및 업데이트 프로토콜
 │   └── common_pitfalls.md             ← 도메인 태깅된 pitfalls
@@ -55,6 +58,9 @@
 | DX-COM Python API | `toolsets/dxcom-api.md` | `dx_com.compile()` 시그니처, 파라미터, 코드 예제 |
 | DX-COM CLI | `toolsets/dxcom-cli.md` | `dxcom` 커맨드라인 옵션 및 호출 패턴 |
 | Config Schema | `toolsets/config-schema.md` | JSON config 구조, 자동 추론 규칙 |
+| Ultralytics DeepX Export | `toolsets/ultralytics-deepx-export.md` | Ultralytics YOLO detection 모델의 one-shot `format=deepx` export |
+| Ultralytics Train & Eval | `toolsets/ultralytics-train-eval.md` | Ultralytics 모델 재학습, mAP 및 FPS 평가 |
+| PaddlePaddle on DeepX | `toolsets/paddlepaddle-deepx.md` | PaddleOCR / PaddlePaddle 모델 변환 및 앱 |
 
 ## Memory
 
@@ -123,11 +129,11 @@
 - **Inspector**: Compilation Summary Report — `dxcom --export_html`가 self-contained `<model>_summary.html` 파일을 생성
 - **Batch size**: 1이어야 함. Dynamic shapes는 지원하지 않음.
 - **ONNX opset**: 11-21 지원
-- **OS**: Debian Linux (Ubuntu 20.04 / 22.04 / 24.04), x86_64
-- **Python**: 3.8 - 3.12
+- **OS**: Ubuntu 20.04 / 22.04 / 24.04 / 26.04; Fedora 42–45, RHEL 9–10, CentOS Stream 9–10 (x86_64, glibc ≥ 2.31)
+- **Python**: 3.8 - 3.14
 - **Hardware targets**: DX-M1 (`dx_m1`)
-- **Quantization**: EMA 또는 MinMax calibration을 통한 INT8
-- **PPU types**: Type 0 (anchor-based: YOLOv3/v4/v5/v7), Type 1 (anchor-free: YOLOX, YOLOv8-v12)
+- **Quantization**: EMA, MinMax 또는 IQR calibration을 통한 INT8
+- **PPU types**: Type 0 (anchor-based: YOLOv3/v4/v5/v7), Type 1 (anchor-free: YOLOX, YOLOv8-v12); Type 2는 deprecated — `pre_optimize` 사용
 - **Compilation flow**: ONNX + config.json + calibration data → .dxnn
 - **두 가지 인터페이스**: CLI (`dxcom`)와 Python API (`dx_com.compile()`)
 

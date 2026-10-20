@@ -110,8 +110,8 @@ that mentions DX-M1A — DX-M1A is discontinued and no longer supported.
 DX-COM always quantizes to INT8. There is no FP16/FP32 output option in the CLI,
 Python API, or JSON config. Do NOT ask the user to choose output precision.
 The only user-facing quantization choices are:
-- **Calibration method**: `ema` (default) or `minmax`
-- **Enhanced quantization scheme**: `DXQ-P0` through `DXQ-P5` (optional)
+- **Calibration method**: `ema` (default), `minmax`, or `iqr`
+- **Enhanced quantization (Q-PRO, optional, opt-in)**: automatic (`--use_q_pro`) or manual `DXQ-P0` through `DXQ-P5`
 - **Calibration sample count** (default: 100)
 
 ## Critical Rule: Model Acquisition and End-to-End Compilation
@@ -148,7 +148,7 @@ instructions. The user expects a compiled `.dxnn` model, not a recipe.
 ## Interactive Workflow (MUST FOLLOW)
 
 **Always walk through key decisions with the user before compiling.** Ask 2-3 targeted
-questions to confirm model format, target device, and calibration method (EMA or MinMax).
+questions to confirm model format, target device, and calibration method (EMA, MinMax, or IQR).
 This creates a collaborative workflow and catches misunderstandings early. Only skip
 questions if the user explicitly says "just compile it" or "use defaults".
 

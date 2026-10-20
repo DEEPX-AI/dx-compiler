@@ -1,6 +1,6 @@
 # .deepx/ — dx-compiler Agent-Driven Knowledge
 
-> Agent-Driven infrastructure for the DEEPX DXNN Compiler (DX-COM v2.2.1).
+> Agent-Driven infrastructure for the DEEPX DXNN Compiler (DX-COM v2.5.0).
 > Enables AI coding agents to automate ONNX → DXNN model compilation workflows
 > targeting DEEPX NPU hardware (DX-M1).
 
@@ -32,7 +32,10 @@
 ├── toolsets/
 │   ├── dxcom-api.md                   ← Python API reference (dx_com.compile)
 │   ├── dxcom-cli.md                   ← CLI reference (dxcom)
-│   └── config-schema.md              ← JSON config schema reference
+│   ├── config-schema.md               ← JSON config schema reference
+│   ├── ultralytics-deepx-export.md    ← Ultralytics YOLO format=deepx export
+│   ├── ultralytics-train-eval.md      ← Ultralytics retraining and evaluation
+│   └── paddlepaddle-deepx.md          ← PaddleOCR / PaddlePaddle on DeepX
 ├── memory/
 │   ├── MEMORY.md                      ← Memory index & update protocol
 │   └── common_pitfalls.md             ← Domain-tagged pitfalls
@@ -55,6 +58,9 @@
 | DX-COM Python API | `toolsets/dxcom-api.md` | `dx_com.compile()` signature, parameters, code examples |
 | DX-COM CLI | `toolsets/dxcom-cli.md` | `dxcom` command-line options and invocation patterns |
 | Config Schema | `toolsets/config-schema.md` | JSON config structure, auto-inference rules |
+| Ultralytics DeepX Export | `toolsets/ultralytics-deepx-export.md` | One-shot `format=deepx` export for Ultralytics YOLO detection models |
+| Ultralytics Train & Eval | `toolsets/ultralytics-train-eval.md` | Retraining, mAP and FPS evaluation for Ultralytics models |
+| PaddlePaddle on DeepX | `toolsets/paddlepaddle-deepx.md` | PaddleOCR / PaddlePaddle model conversion and apps |
 
 ## Memory
 
@@ -119,15 +125,15 @@
 
 ## Key Facts
 
-- **Compiler**: DX-COM v2.2.1 — compiles ONNX to .dxnn for DEEPX NPU
+- **Compiler**: DX-COM v2.5.0 — compiles ONNX to .dxnn for DEEPX NPU
 - **Inspector**: Compilation Summary Report — `dxcom --export_html` writes a self-contained `<model>_summary.html`
 - **Batch size**: Must be 1. Dynamic shapes not supported.
 - **ONNX opset**: 11-21 supported
-- **OS**: Debian Linux (Ubuntu 20.04 / 22.04 / 24.04), x86_64
-- **Python**: 3.8 - 3.12
+- **OS**: Ubuntu 20.04 / 22.04 / 24.04 / 26.04; Fedora 42–45, RHEL 9–10, CentOS Stream 9–10 (x86_64, glibc ≥ 2.31)
+- **Python**: 3.8 - 3.14
 - **Hardware targets**: DX-M1 (`dx_m1`)
-- **Quantization**: INT8 via EMA or MinMax calibration
-- **PPU types**: Type 0 (anchor-based: YOLOv3/v4/v5/v7), Type 1 (anchor-free: YOLOX, YOLOv8-v12)
+- **Quantization**: INT8 via EMA, MinMax, or IQR calibration
+- **PPU types**: Type 0 (anchor-based: YOLOv3/v4/v5/v7), Type 1 (anchor-free: YOLOX, YOLOv8-v12); Type 2 is deprecated — use `pre_optimize`
 - **Compilation flow**: ONNX + config.json + calibration data → .dxnn
 - **Two interfaces**: CLI (`dxcom`) and Python API (`dx_com.compile()`)
 

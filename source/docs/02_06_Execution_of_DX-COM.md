@@ -700,15 +700,15 @@ qmaster = QMasterConfig(
 )
 ```
 
+!!! note "QAT Details"  
+    For the full QAT workflow, the `qmaster` block, and all training hyperparameters,
+    see [Quantization-Aware Training (QAT)](02_08_Quantization_Aware_Training.md).
+
 **`verbose`** *(New in v2.5.0)*
 
 - **Type**: `bool`
 - **Default**: `False`
 - **Description**: Expand masked error messages to include the origin type, the original message, and one bounded direct cause. The Python equivalent of the CLI `--verbose` flag.
-
-!!! note "QAT Details"  
-    For the full QAT workflow, the `qmaster` block, and all training hyperparameters,
-    see [Quantization-Aware Training (QAT)](02_08_Quantization_Aware_Training.md).
 
 ---
 

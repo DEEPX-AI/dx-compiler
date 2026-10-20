@@ -6,7 +6,7 @@
 ## Python Standards
 
 ### Version & Runtime
-- Python 3.8 - 3.12 (match DX-COM requirements)
+- Python 3.8 - 3.14 (match DX-COM requirements)
 - Use type hints for all function signatures
 - Use `from __future__ import annotations` for forward references (3.8 compat)
 
