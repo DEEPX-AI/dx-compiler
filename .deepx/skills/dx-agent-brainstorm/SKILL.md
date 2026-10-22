@@ -110,6 +110,7 @@ ls dx_com/calibration_dataset/*.jpg 2>/dev/null | wc -l
 1. **PyTorch input** → `/dx-agent-compiler-convert`
 2. **ONNX ready** → `/dx-agent-compiler-compile`
 3. **Always** → `/dx-agent-compiler-validate`
+4. **pre_optimize requested, or PPU type 2 / ppu → pre_optimize migration** → `/dx-agent-compiler-pre-optimize` (before compile)
 
 ## Anti-Patterns (NEVER Do)
 

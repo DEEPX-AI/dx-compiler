@@ -1,0 +1,9 @@
+---
+description: Use when a user asks about pre_optimize or dx_com.pre_optimize(), needs the head Conv tensor names (bbox, cls_conf,
+  mask_coeff, kpt) of a YOLO or RTMDet ONNX, wants a pre_optimize config block or passes dict, says CPU post-processing (TopK,
+  DFL decode, NMS pre-filter) is the bottleneck, migrates a ppu config to pre_optimize, or hits pre_optimize errors such as
+  'Cannot find shapes'
+alwaysApply: false
+---
+
+Read and follow the skill documentation at `.deepx/skills/dx-agent-compiler-pre-optimize/SKILL.md`.

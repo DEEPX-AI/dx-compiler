@@ -20,6 +20,8 @@
 │   │   └── SKILL.md                   ← /dx-agent-compiler-compile skill
 │   ├── dx-agent-compiler-validate/
 │   │   └── SKILL.md                   ← /dx-agent-compiler-validate skill
+│   ├── dx-agent-compiler-pre-optimize/
+│   │   └── SKILL.md                   ← /dx-agent-compiler-pre-optimize skill
 │   ├── dx-agent-brainstorm/
 │   │   └── SKILL.md                   ← Process skill
 │   ├── dx-agent-tdd/
@@ -40,6 +42,7 @@
 │   ├── MEMORY.md                      ← 메모리 인덱스 및 업데이트 프로토콜
 │   └── common_pitfalls.md             ← 도메인 태깅된 pitfalls
 └── scripts/
+    ├── pre_optimize_find_heads.py     ← pre_optimize head 탐색 + 검증 스크립트
     └── validate_framework.py          ← 프레임워크 검증 스크립트
 ```
 
@@ -76,6 +79,7 @@
 | /dx-agent-compiler-convert | `skills/dx-agent-compiler-convert/SKILL.md` | "convert", "export", "PT to ONNX" |
 | /dx-agent-compiler-compile | `skills/dx-agent-compiler-compile/SKILL.md` | "compile", "ONNX to DXNN", "quantize" |
 | /dx-agent-compiler-validate | `skills/dx-agent-compiler-validate/SKILL.md` | "validate", "verify", "check output" |
+| /dx-agent-compiler-pre-optimize | `skills/dx-agent-compiler-pre-optimize/SKILL.md` | "pre_optimize", "head tensor names", "ppu to pre_optimize" |
 | /dx-agent-brainstorm | `skills/dx-agent-brainstorm/SKILL.md` | "brainstorm", "plan", "design" (process skill) |
 | /dx-agent-tdd | `skills/dx-agent-tdd/SKILL.md` | "TDD", "validation", "incremental" (process skill) |
 | /dx-agent-verify | `skills/dx-agent-verify/SKILL.md` | "completion", "verify", "evidence" (process skill) |
@@ -91,6 +95,7 @@
 
 | Script | 목적 |
 |---|---|
+| `scripts/pre_optimize_find_heads.py` | YOLO/RTMDet head Conv 이름을 찾아 검증된 `pre_optimize` 블록 출력 |
 | `scripts/validate_framework.py` | .deepx/ 구조, 상호 참조, 도메인 태그 검증 |
 
 ## Context Routing Table
@@ -103,6 +108,7 @@
 | **config, JSON, schema** | `toolsets/config-schema.md` |
 | **calibration, quantization, INT8** | `instructions/compilation-workflow.md`, `toolsets/config-schema.md` |
 | **PPU, YOLO, detection** | `toolsets/config-schema.md`, `instructions/compilation-workflow.md` |
+| **pre_optimize, head tensor names, ppu to pre_optimize** | `skills/dx-agent-compiler-pre-optimize/SKILL.md`, `toolsets/config-schema.md` |
 | **validate, verify, check** | `skills/dx-agent-compiler-validate/SKILL.md` |
 | **error, fail, bug** | `memory/common_pitfalls.md` |
 | **Brainstorm, plan, design** | `skills/dx-agent-brainstorm/SKILL.md` |
@@ -132,7 +138,7 @@
 - **OS**: Ubuntu 20.04 / 22.04 / 24.04 / 26.04; Fedora 42–45, RHEL 9–10, CentOS Stream 9–10 (x86_64, glibc ≥ 2.31)
 - **Python**: 3.8 - 3.14
 - **Hardware targets**: DX-M1 (`dx_m1`)
-- **Quantization**: EMA, MinMax 또는 IQR calibration을 통한 INT8
+- **Quantization**: EMA, MinMax 또는 IQR calibration을 통한 INT8 (opt-in: Q-PRO, `qmaster` 기반 QAT — `toolsets/qat.md` 참고)
 - **PPU types**: Type 0 (anchor-based: YOLOv3/v4/v5/v7), Type 1 (anchor-free: YOLOX, YOLOv8-v12); Type 2는 deprecated — `pre_optimize` 사용
 - **Compilation flow**: ONNX + config.json + calibration data → .dxnn
 - **두 가지 인터페이스**: CLI (`dxcom`)와 Python API (`dx_com.compile()`)

@@ -45,6 +45,7 @@ python3 -c "import dx_com; print(dx_com.__version__)"
 ```python
 import dx_com
 from dx_com import PPUConfig, PPUTypes  # optional PPU config objects
+from dx_com import QMasterConfig         # only for QAT (Q-Master); see qat.md
 ```
 
 > **Note**: There is NO `dx_com.DataLoader` class. For custom dataloaders, use
@@ -63,8 +64,7 @@ def compile(
     dataloader: Optional[DataLoader] = None,  # torch.utils.data.DataLoader; mutually exclusive with config
     calibration_method: str = "ema",
     calibration_num: int = 100,
-    quantization_device: Optional[str] = None,
-    use_gpu: Optional[bool] = None,           # v2.5.0
+    use_gpu: bool = True,                     # v2.5.0
     opt_level: int = 1,
     aggressive_partitioning: bool = False,
     input_nodes: Optional[List[str]] = None,
@@ -72,6 +72,7 @@ def compile(
     use_q_pro: bool = False,
     enhanced_scheme: Optional[Dict] = None,
     ppu_config: Optional[PPUConfig] = None,
+    qmaster: Optional[QMasterConfig] = None,  # opt-in QAT (Q-Master), v2.5.0
     gen_log: bool = False,
     float64_calibration: bool = False,
     export_html: bool = False,
@@ -92,8 +93,8 @@ def compile(
 | `dataloader` | `DataLoader` | `None` | PyTorch `torch.utils.data.DataLoader` (mutually exclusive with `config`). `batch_size` must be 1. Required for multi-input models |
 | `calibration_method` | `str` | `"ema"` | `"ema"`, `"minmax"`, or `"iqr"` |
 | `calibration_num` | `int` | `100` | Number of calibration samples |
-| `quantization_device` | `str` | `None` | Device for quantization. `None`=auto-detect (GPU if available), `"cpu"`, `"cuda"`, `"cuda:0"` |
-| `use_gpu` | `bool` | `None` | **(v2.5.0)** `None`=auto-detect (GPU when available, otherwise CPU — same effect as the CLI default `True`), `True`=GPU when available, `False`=force CPU. Set only one of `use_gpu` / `quantization_device` |
+| `quantization_device` | — | — | **Deprecated in v2.5.0 — ignored** with a `UserWarning`. Do not pass it; use `use_gpu` and `CUDA_VISIBLE_DEVICES` |
+| `use_gpu` | `bool` | `True` | **(v2.5.0)** `True`=GPU when available (otherwise CPU), `False`=force CPU. Select a specific GPU with `CUDA_VISIBLE_DEVICES`. Pass only `True`/`False` — `None` or a string makes `compile()` fall back to its legacy path, which skips a JSON `pre_optimize` block and ignores `verbose` |
 | `opt_level` | `int` | `1` | Optimization level: 0 (minimal) or 1 (full) |
 | `aggressive_partitioning` | `bool` | `False` | **(Experimental)** Maximize NPU operations |
 | `input_nodes` | `List[str]` | `None` | Partial compilation: input node names (ONNX operator node names) |
@@ -101,6 +102,7 @@ def compile(
 | `use_q_pro` | `bool` | `False` | Automatic Q-PRO pipeline (ONNX compile path; also allowed with `checkpoint`). Mutually exclusive with `enhanced_scheme` |
 | `enhanced_scheme` | `Dict` | `None` | Manual Q-PRO scheme (`"DXQ-P0"`–`"DXQ-P5"`). Not supported for multi-input models. Also usable with `checkpoint` (the CLI flag `--enhanced_scheme` is resume-only; normal CLI compiles set it in the JSON) |
 | `ppu_config` | `PPUConfig` | `None` | PPU configuration object — Python equivalent of the JSON `ppu` section. `None` = PPU disabled |
+| `qmaster` | `QMasterConfig` | `None` | Opt-in Quantization-Aware Training (Q-Master, v2.5.0). Use ONLY when the user explicitly requests QAT. Mutually exclusive with `use_q_pro`/`enhanced_scheme`. See `qat.md` |
 | `gen_log` | `bool` | `False` | Generate compiler.log |
 | `float64_calibration` | `bool` | `False` | float64 calibration for cross-CPU determinism |
 | `export_html` | `bool` | `False` | Generate the Compilation Summary Report `<model_name>_summary.html` in `output_dir` |
@@ -138,7 +140,7 @@ Other pairs that must not be combined:
 | Pair | Rule |
 |---|---|
 | `use_q_pro` ↔ `enhanced_scheme` | Automatic vs manual Q-PRO — set only one |
-| `use_gpu` ↔ `quantization_device` | Set only one; use `quantization_device` for an explicit device string |
+| `qmaster` ↔ `use_q_pro`/`enhanced_scheme` | QAT and Q-PRO re-quantization are mutually exclusive (`EnhancementSchemeError`) |
 | `checkpoint` ↔ `model` | Resume mode re-quantizes an existing `.qxnn` |
 | JSON `ppu` ↔ JSON `pre_optimize` | Both rewrite detection post-processing — see `config-schema.md` |
 
@@ -167,7 +169,6 @@ dx_com.compile(
     config="config.json",
     calibration_method="ema",
     calibration_num=200,
-    quantization_device="cuda:0",
     opt_level=1,
     gen_log=True,
     export_html=True,
@@ -240,7 +241,7 @@ ppu = (
     .set_num_classes(80)
     .set_conf_thres(0.25)
 )
-ppu.add_layer(bbox="Mul_441", cls_conf="Sigmoid_442")
+ppu.add_layer(bbox="Mul_441", cls_conf="Sigmoid_442")  # YOLOv8–v12: the nodes that feed the final output Concat; read the names from your ONNX graph
 
 dx_com.compile(
     model="yolov8n.onnx",
@@ -254,7 +255,7 @@ dx_com.compile(
 | `PPUTypes` | Value | Models |
 |---|---|---|
 | `PPUTypes.YOLO_BASE` | 0 | Anchor-based: YOLOv3/v4/v5/v7 — `add_layer("Conv_245", num_anchors=3)` per head, plus `set_activation("Sigmoid")` |
-| `PPUTypes.YOLO_ANCHORFREE` | 1 | Anchor-free: YOLOX, YOLOv8–v12 — `add_layer(bbox=..., cls_conf=...)` (optional `obj_conf=`) once per detection scale; YOLOv8–v12 heads use a single entry, as in `config-schema.md` |
+| `PPUTypes.YOLO_ANCHORFREE` | 1 | Anchor-free: YOLOX, YOLOv8–v12. YOLOX: one `add_layer(bbox=..., obj_conf=..., cls_conf=...)` per detection scale. YOLOv8–v12: a single `add_layer(bbox=..., cls_conf=...)` naming the two nodes that feed the final output `Concat` — `bbox` (decoded boxes, usually a `Mul`, shape `[1, 4, N]`) and `cls_conf` (a `Sigmoid`, shape `[1, num_classes, N]`). These already cover every detection scale, so do not add one entry per scale. Node names are model-specific; read them from the ONNX graph (e.g. Netron), as in `config-schema.md` |
 | `PPUTypes.YOLOV8` | 2 | **Deprecated since v2.4.0** — the DFL-based CPU TopK path for YOLOv8/v9/v11/v12. Do not use it in new configs even though the name matches YOLOv8: use `YOLO_ANCHORFREE` (PPU) or its replacement `dx_com.pre_optimize()` |
 
 `compile()` calls `ppu_config.validate()` and raises if required fields are missing.

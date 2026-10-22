@@ -627,19 +627,42 @@ See `dx-dxnn-compiler.md` Phase 5.7 and `dx-agent-compiler-validate.md` Phase 3.
 
 ## 18. [DX_COMPILER] NHWC/NCHW DataLoader Mismatch in CLI Compilation
 
-**Symptom**: `dxcom -m model.onnx -c config.json` fails with:
+**Symptom**: `dxcom -m model.onnx -c config.json` (or `dx_com.compile(config=...)`) fails
+before compilation with:
 ```
-DataLoaderError: Input shape mismatch for input 'input':
-dataloader provides torch.Size([1, 360, 640, 3]), but model expects (1, 3, 360, 640).
+DataLoaderError: Invalid JSON Configuration for input 'images': The config specifies
+(1, 640, 640, 3), but model requires (1, 3, 640, 640). Please check the preprocessing configuration.
 ```
+Older releases word it `DataLoaderError: Input shape mismatch for input 'input':
+dataloader provides torch.Size([1, 360, 640, 3]), but model expects (1, 3, 360, 640).`
 
-**Cause**: The dxcom CLI's built-in default dataloader loads calibration images
-in NHWC format `[1, H, W, C]`. However, many ONNX models (especially those
-exported from PyTorch) expect NCHW input `[1, C, H, W]`. The CLI dataloader
-does NOT auto-transpose, causing a shape mismatch.
+**Cause**: `default_loader` (the config JSON loader the CLI uses) reads each image with
+`cv2.imread` — HWC, BGR, uint8 — and applies only the listed `preprocessings`; it never
+transposes on its own. Many ONNX models (especially those exported from PyTorch) expect
+NCHW input `[1, C, H, W]`, so a `preprocessings` list without a `transpose` step fails.
 
-**Fix**: Use the **Python API with a custom torch DataLoader** that produces
-NCHW tensors:
+**Fix**: End `preprocessings` with a transpose (HWC → CHW) and then `expandDim`:
+```json
+"preprocessings": [
+  {"resize": {"width": 640, "height": 640}},
+  {"div": {"x": 255}},
+  {"convertColor": {"form": "BGR2RGB"}},
+  {"transpose": {"axis": [2, 0, 1]}},
+  {"expandDim": {"axis": 0}}
+]
+```
+With this chain, NCHW models such as YOLOv8n `[1,3,640,640]` compile through the CLI; the
+same config without `transpose` fails with the error above.
+`compiler.log` then shows an INPUT PREPROCESSING GUIDANCE block, e.g.
+`Fused ops: Transpose(HWC→CHW) → Div(x=255)` and `NPU input : uint8 NHWC [1, 640, 640, 3]`;
+follow it when preparing inference input.
+
+**Alternative** — the **Python API with a custom torch DataLoader** that produces NCHW
+tensors. Needed for multi-input models, non-image data, or preprocessing the JSON ops
+cannot express. With preprocessing done by hand in `__getitem__` as below, `compiler.log`
+reports `Fused ops: (none)`; a Dataset that keeps torchvision transforms in a `transform`
+attribute may get them extracted and fused instead, so always check the INPUT
+PREPROCESSING GUIDANCE block:
 ```python
 import dx_com
 from torch.utils.data import Dataset, DataLoader
@@ -683,8 +706,8 @@ dx_com.compile(model="model.onnx", output_dir=".", dataloader=dataloader,
   instead of the expected `[1,C,H,W]`, causing `DataLoaderError: Input shape mismatch`.
   Return CHW tensor `[C,H,W]` from `__getitem__`; DataLoader produces `[N,C,H,W]`.
 
-**Prevention**: Before running `dxcom` CLI, check if the ONNX model input is
-NCHW. If yes, prefer the Python API with a custom DataLoader to avoid this issue.
+**Prevention**: Before compiling, check whether the ONNX model input is NCHW. If yes,
+make sure `preprocessings` ends with `{"transpose": {"axis": [2, 0, 1]}}`.
 
 ---
 
@@ -969,3 +992,21 @@ session above predates this, when the file still held download URLs and credenti
     `source/docs/Appendix_Change_Log.md` — they must stay in sync.
   - Verify with `grep -n "^## v" source/docs/Appendix_Change_Log.md` and
     `grep -n "^## DX-Compiler" RELEASE_NOTES.md` — each version must appear exactly once.
+
+---
+
+## 27. [QUANTIZATION] Adding `qmaster` (QAT) Without Request, or Combining It with Q-PRO
+
+- **Symptom**: Compile raises `EnhancementSchemeError: use_q_pro/enhanced_scheme (Q-PRO
+  re-quantization) and qmaster (QAT) are mutually exclusive. Set only one.`; or a PTQ
+  request unexpectedly needs a GPU and runs for hours; or `quantization_mode` /
+  `qat_skip_training` raises `InvalidValueError` (removed in v2.5.0).
+- **Root Cause**: `qmaster` is opt-in QAT and is auto-activated by the mere presence of the
+  JSON block. It cannot be combined with `use_q_pro`/`enhanced_scheme` in v2.5.0, and the
+  old flat `qat_*`/`quantization_mode` arguments no longer exist. Also, unknown `qmaster`
+  keys (e.g. `learning_rate`) are silently ignored, and a missing `dataset_path` silently
+  falls back to a built-in ImageNet location.
+- **Fix**: Add `qmaster` **only** when the user explicitly requests QAT, never together with
+  Q-PRO. Pass it as `qmaster=QMasterConfig(...)` or the JSON block. Run `fast_run` first,
+  verify the **Q-MASTER CONFIG** box in `compiler.log`, and compare accuracy against PTQ.
+  See `.deepx/toolsets/qat.md`.

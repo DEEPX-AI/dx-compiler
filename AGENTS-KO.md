@@ -108,6 +108,7 @@ FP16/FP32 출력 옵션이 없습니다. 사용자에게 출력 정밀도를 선
 사용자가 선택할 수 있는 양자화 옵션은:
 - **교정 방법**: `ema` (기본값), `minmax` 또는 `iqr`
 - **향상된 양자화 스킴 (Q-PRO, 선택사항, opt-in)**: 자동(`--use_q_pro`) 또는 수동 `DXQ-P0`부터 `DXQ-P5`
+- **QAT (Q-Master)**: opt-in `qmaster` 블록 (v2.5.0) — 사용자가 명시적으로 QAT를 요청할 때만 추가; Q-PRO와 동시 사용 불가. `.deepx/toolsets/qat.md` 참고
 - **교정 샘플 수** (기본값: 100)
 
 ## 핵심 규칙: 모델 획득 및 엔드투엔드 컴파일
@@ -173,6 +174,7 @@ dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
 | `/dx-agent-compiler-convert` | PyTorch 모델을 ONNX로 변환 |
 | `/dx-agent-compiler-compile` | ONNX 모델을 DXNN으로 컴파일 |
 | `/dx-agent-compiler-validate` | 컴파일 출력 검증 |
+| `/dx-agent-compiler-pre-optimize` | 검증된 pre_optimize config 생성 (YOLO/RTMDet head tensor 이름) |
 | `/dx-agent-brainstorm` | 모델 레지스트리 확인과 서브프로젝트 라우팅을 포함한 DEEPX 빌드 브레인스토밍 |
 | `/dx-agent-tdd` | DEEPX 빌드 검증 순서 — factory, pipeline, integration 체크 |
 | `/dx-agent-verify` | DEEPX 빌드 검증 체크리스트 — dx_app, dx_stream, cross-project |
@@ -220,7 +222,7 @@ dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
 17. **이전 세션 결과물 재사용 금지**: `dx-agent-dev/`의 이전 세션에서 결과물을 확인, 나열, 탐색, 또는 재사용하지 절대 마세요. 각 컴파일 실행은 새로운 타임스탬프로 새 세션 디렉토리를 생성해야 합니다. 이전 세션이 동일한 모델을 컴파일한 경우에도 항상 처음부터 다시 다운로드, 다시 export, 다시 컴파일하세요. `ls dx-agent-dev/`를 실행하거나 이전 실행의 기존 `.onnx`/`.dxnn` 파일을 확인하지 마세요.
 18. **setup.sh에서 venv는 필수**: 생성된 `setup.sh`는 `pip install` 전에 가상 환경을 생성하고 활성화해야 합니다. Ubuntu 24.04+에서는 PEP 668이 시스템 전체 pip 설치를 차단합니다. `${VIRTUAL_ENV:-}` 확인과 함께 `python3 -m venv`를 사용하세요. 생성된 `run.sh`는 venv 활성화를 확인하고 누락 시 자동 활성화하거나 에러를 출력해야 합니다.
 19. **사전 컴파일된 참조 모델과의 교차 검증**: 동일한 모델에 대해 사전 컴파일된 DXNN이 `dx-runtime/dx_app/assets/models/`에 존재하는 경우, 사전 컴파일된 모델과 생성된 모델 모두에 대해 verify.py를 실행하세요 (Phase 5.7). 둘 다 실패 → verify.py 버그. 사전 컴파일된 것은 통과하고 생성된 것은 실패 → 컴파일 문제. `.deepx/agents/dx-dxnn-compiler.md` Phase 5.7 참조.
-20. **NHWC/NCHW DataLoader 불일치**: dxcom CLI의 기본 dataloader는 NHWC `[1,H,W,C]`로 이미지를 로드합니다. ONNX 모델이 NCHW `[1,C,H,W]`를 기대하는 경우 (대부분의 PyTorch export 모델), CLI 컴파일은 `DataLoaderError: Input shape mismatch`로 실패합니다. **수정**: NCHW 텐서를 생성하는 커스텀 torch DataLoader와 함께 Python API (`dx_com.compile()`)를 사용하세요. `.deepx/memory/common_pitfalls.md` pitfall #18 참조.
+20. **NHWC/NCHW DataLoader 불일치**: `default_loader`(JSON config, dxcom CLI가 사용)는 이미지를 HWC(BGR, uint8)로 읽고 transpose하지 않습니다. ONNX 모델이 NCHW `[1,C,H,W]`를 기대하는 경우 (대부분의 PyTorch export 모델), `preprocessings` 끝에 `{"transpose": {"axis": [2, 0, 1]}}`와 `{"expandDim": {"axis": 0}}`를 이 순서로 반드시 넣어야 하며, transpose가 없으면 calibration이 `DataLoaderError`(config `(1,H,W,C)` vs model `(1,C,H,W)`)로 실패합니다. 커스텀 torch DataLoader와 Python API (`dx_com.compile()`)는 multi-input 모델, 이미지가 아닌 데이터, JSON으로 표현할 수 없는 전처리에만 사용하세요. `.deepx/memory/common_pitfalls.md` pitfall #18 참조.
 
 ## 교차 검증 진단 테이블
 
@@ -239,11 +241,13 @@ dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
 | **CLI, command line** | `.deepx/toolsets/dxcom-cli.md` |
 | **Python API, dx_com.compile** | `.deepx/toolsets/dxcom-api.md` |
 | **config, JSON, schema** | `.deepx/toolsets/config-schema.md` |
+| **QAT, qmaster, QMasterConfig, Q-Master** | `.deepx/toolsets/qat.md` |
 | **Ultralytics, YOLO, .pt, format=deepx, export to deepx** | `.deepx/toolsets/ultralytics-deepx-export.md` |
 | **Ultralytics retrain/train, fine-tune, mAP, FPS, domain dataset, evaluate** | `.deepx/toolsets/ultralytics-train-eval.md` |
 | **PaddleOCR, RapidDoc, PaddlePaddle, OCR app, video/webcam OCR, PDF to markdown, document parsing** | `.deepx/toolsets/paddlepaddle-deepx.md` |
 | **calibration, quantization, INT8** | `.deepx/instructions/compilation-workflow.md` |
 | **PPU, YOLO, detection** | `.deepx/toolsets/config-schema.md`, `.deepx/instructions/compilation-workflow.md` |
+| **pre_optimize, head tensor names, ppu to pre_optimize, post-processing bottleneck** | `.deepx/skills/dx-agent-compiler-pre-optimize/SKILL.md`, `.deepx/toolsets/config-schema.md` |
 | **validate, verify, check** | `.deepx/skills/dx-agent-compiler-validate/SKILL.md` |
 | **error, fail, bug** | `.deepx/memory/common_pitfalls.md` |
 | **sample, example, test compile** | `.deepx/instructions/compilation-workflow.md` (샘플 모델 워크플로우 섹션) |

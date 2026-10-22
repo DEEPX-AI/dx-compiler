@@ -101,7 +101,6 @@ Preprocessings are applied in array order. Standard order:
 ```
 
 ### Optional Fields
-- `quantization_device` — GPU for calibration (e.g., `"cuda:0"`)
 - `enhanced_scheme` — Advanced quantization (e.g., `{"DXQ-P3": {...}}`)
 - `ppu` — Post-processing unit config for detection models
 

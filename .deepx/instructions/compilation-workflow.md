@@ -173,17 +173,24 @@ required). It comes in two mutually exclusive forms: automatic (`--use_q_pro` /
 `use_q_pro=True` — DX-COM picks the DXQ combination) and manual (`enhanced_scheme`,
 DXQ-P0–P5). **Do NOT use by default.** Only apply when:
 1. End-user explicitly requests Q-PRO/DXQ-P/enhanced quantization
-2. A GPU is preferred (`quantization_device: "cuda:0"`) to keep the compile time manageable
+2. A GPU is available (quantization uses it by default) to keep the compile time manageable
 3. User confirms they accept the additional calibration time
 
+### Accuracy Improvement Order
+
+When INT8 accuracy is below the user's target, escalate **one step at a time** and re-measure after each:
+
+1. Calibration method: `ema` → `minmax` → `iqr`
+2. Q-PRO (`use_q_pro` / `enhanced_scheme`) — only if the user accepts the extra time
+3. `quant_diagnosis` / resume to localize and fix the offending layers
+4. **QAT (Q-Master)** — `qmaster` block; requires GPU + training images, takes minutes to hours.
+   Add ONLY when the user explicitly requests it. **Mutually exclusive with Q-PRO** in v2.5.0.
+   Full reference: `.deepx/toolsets/qat.md`
+
 ### GPU Calibration
-Use GPU for faster calibration:
-```json
-{"quantization_device": "cuda:0"}
-```
-Falls back to CPU if GPU unavailable. Since v2.5.0 the CLI `--use_gpu True|False` flag
-(Python: `use_gpu`) toggles GPU/CPU without editing the JSON — set only one of the two. If
-both are set, `quantization_device` takes precedence.
+Calibration runs on GPU by default when one is available and falls back to CPU otherwise.
+Force CPU with `--use_gpu False` (Python: `use_gpu=False`); select a specific GPU with the
+`CUDA_VISIBLE_DEVICES` environment variable.
 
 ## Phase 5: Compilation Options
 

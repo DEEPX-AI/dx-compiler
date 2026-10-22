@@ -9,11 +9,11 @@
 | Key | Required | Description |
 |---|---|---|
 | `inputs` | Yes | Model input name and shape: `{"name": [1, C, H, W]}` |
-| `calibration_method` | Yes | `"ema"`, `"minmax"`, or `"iqr"` |
-| `calibration_num` | Yes | Number of calibration samples (e.g., 100) |
+| `calibration_method` | No (default `"ema"`) | `"ema"`, `"minmax"`, or `"iqr"` — set it explicitly |
+| `calibration_num` | No (default `100`) | Number of calibration samples — set it explicitly |
 | `default_loader` | Yes | Dataset location, file types, and preprocessing chain |
-| `quantization_device` | No | Device for quantization; GPU auto-selected if available |
 | `enhanced_scheme` | No | Manual Q-PRO (DXQ-P0~P5) — opt-in |
+| `qmaster` | No | QAT (Q-Master) hyperparameters — its presence enables QAT; opt-in, mutually exclusive with `enhanced_scheme`/`use_q_pro` |
 | `ppu` | No | YOLO detection post-processing — opt-in. Mutually exclusive with `pre_optimize` |
 | `pre_optimize` | No | ONNX-level post-processing optimization for YOLO/RTMDet — opt-in. Mutually exclusive with `ppu` |
 
@@ -29,11 +29,19 @@
     "file_extensions": ["jpeg", "png", "jpg"],
     "preprocessings": [
       {"resize": {"width": 640, "height": 640}},
-      {"normalize": {"mean": [0.0, 0.0, 0.0], "std": [1.0, 1.0, 1.0]}}
+      {"div": {"x": 255}},
+      {"convertColor": {"form": "BGR2RGB"}},
+      {"transpose": {"axis": [2, 0, 1]}},
+      {"expandDim": {"axis": 0}}
     ]
   }
 }
 ```
+
+This is an Ultralytics YOLO-style NCHW input (`[1, 3, H, W]`): the chain scales the
+BGR/HWC/uint8 image to `[0, 1]`, converts it to RGB, and transposes it to CHW. Adapt the
+color and scale steps to the model (see preprocessings below); for an NHWC input, drop
+`transpose` but keep `expandDim` (see the R24 note).
 
 ## Full Config (Reference)
 
@@ -47,10 +55,12 @@
     "file_extensions": ["jpeg", "png", "jpg"],
     "preprocessings": [
       {"resize": {"width": 640, "height": 640}},
-      {"normalize": {"mean": [0.0, 0.0, 0.0], "std": [1.0, 1.0, 1.0]}}
+      {"div": {"x": 255}},
+      {"convertColor": {"form": "BGR2RGB"}},
+      {"transpose": {"axis": [2, 0, 1]}},
+      {"expandDim": {"axis": 0}}
     ]
   },
-  "quantization_device": "cuda:0",
   "enhanced_scheme": {"DXQ-P3": {"num_samples": 1024}},
   "ppu": {
     "type": 1,
@@ -63,9 +73,10 @@
 }
 ```
 
-Reference only: `quantization_device`, `enhanced_scheme`, and `ppu` are opt-in — omit them
-unless the user asks. Not shown: `pre_optimize` (mutually exclusive with `ppu`) — see its
-section below.
+Reference only: `enhanced_scheme` and `ppu` are opt-in — omit them
+unless the user asks. Not shown: `qmaster` (opt-in QAT; mutually exclusive with
+`enhanced_scheme`/`use_q_pro`) and `pre_optimize` (mutually exclusive with `ppu`) — see
+their sections below.
 
 ## Field Reference
 
@@ -93,7 +104,9 @@ for inp in model.graph.input:
     print(f'"{name}": {shape}')
 ```
 
-### calibration_method (required)
+### calibration_method (optional, default `ema`)
+
+Lowercase only (`"EMA"` is rejected).
 
 | Value | Description |
 |---|---|
@@ -101,30 +114,49 @@ for inp in model.graph.input:
 | `"minmax"` | Min/Max range — use when EMA produces poor accuracy |
 | `"iqr"` | Interquartile Range (25th–75th percentile) — more robust to outliers than `minmax`; useful when calibration data contains extreme values |
 
-### calibration_num (required)
+### calibration_num (optional, default `100`)
 
 Number of calibration samples (the manual also calls them calibration steps). Default: `100`.
+A positive integer; if the dataset has fewer images, all of them are used without a warning.
 A higher number may estimate activation ranges better but increases compile time.
 The user manual recommends trying several values (e.g., 1, 5, 10, 100, 1000) and keeping
 the one that yields the best accuracy for the model.
 
 ### default_loader (required unless using Python API dataloader)
 
-> ⚠️ **WARNING — NCHW Models (R24)**: `default_loader` produces **HWC (height, width,
-> channels)** tensors. All NCHW models (e.g., **all YOLO variants** — yolo26n, yolov8,
-> yolov9, yolov10, yolov11, yolov12, yolov3, yolov5, yolov7, YOLOX) will **always**
-> fail calibration with a shape mismatch error when using `default_loader`.
+> ⚠️ **NCHW models — `transpose` before the final `expandDim` (R24)**: `default_loader`
+> reads images as **HWC** (`cv2.imread`: BGR, uint8) and never transposes them. End
+> `preprocessings` with:
 >
-> **NEVER use `default_loader` for NCHW models.** Use a PyTorch DataLoader with
-> `transforms.ToTensor()` (produces NCHW float32) instead. See the "Custom DataLoader"
-> example in `dxcom-api.md`.
+> | Model input (`inputs`) | Last steps of `preprocessings` |
+> |---|---|
+> | NCHW `[1, C, H, W]` — e.g. all PyTorch / Ultralytics YOLO exports | `{"transpose": {"axis": [2, 0, 1]}}`, then `{"expandDim": {"axis": 0}}` |
+> | NHWC `[1, H, W, C]` | `{"expandDim": {"axis": 0}}` |
 >
-> Symptom: `DataLoaderError: shape mismatch` or `expected [1,3,H,W] got [1,H,W,3]`
-> Fix: Replace `default_loader` in config.json with a Python DataLoader using
-> `transforms.ToTensor()`. When calling `dx_com.compile(..., dataloader=custom_loader)`,
-> do not pass `config=` at all — `config` and `dataloader` are mutually exclusive.
+> Always keep the final `expandDim`, as the manual's examples do: an NHWC model whose
+> graph starts with `Transpose(perm=[0,3,1,2])` (e.g. tf2onnx exports) fails without it
+> with `Unknown error occurred during compilation. Please contact DEEPX.` (`--verbose`
+> shows `ValueError: axes don't match array`). Without the transpose, calibration of an
+> NCHW model fails before compilation:
 >
-> `default_loader` is only appropriate for models expecting HWC input (rare).
+> ```
+> DataLoaderError: Invalid JSON Configuration for input 'images': The config specifies
+> (1, 640, 640, 3), but model requires (1, 3, 640, 640). Please check the preprocessing configuration.
+> ```
+>
+> With `default_loader`, check `compiler.log` before writing host-side preprocessing: the
+> `Added nodes` line (manual `02_05`, "Automatic Preprocessing Optimization") and the
+> INPUT PREPROCESSING GUIDANCE block list the steps to skip at inference (e.g.
+> `Fused ops: Transpose(HWC→CHW) → Div(x=255)`) and the `NPU input` format.
+>
+> Use a Python `dataloader=` instead only when the JSON ops cannot express the input:
+> multi-input models, non-image data, or custom preprocessing (see "Custom DataLoader" in
+> `dxcom-api.md`). Then pass no `config=` at all — `config` and `dataloader` are mutually
+> exclusive. If the Dataset keeps torchvision transforms in a `transform` attribute (as the
+> `dxcom-api.md` example does), DX-COM may extract and fuse them (e.g.
+> `Fused ops: Transpose(HWC→CHW) → Div(x=255)`); preprocessing done by hand in
+> `__getitem__` gives `Fused ops: (none)`. Either way, follow the INPUT PREPROCESSING
+> GUIDANCE block for the inference input.
 
 `default_loader` reads each image with `cv2.imread` (**BGR, HWC, uint8**) and then applies
 `preprocessings` in order.
@@ -146,18 +178,19 @@ Absolute or relative path to directory containing calibration images.
 > from `${WORK_DIR}/`).
 
 #### file_extensions
-Array of file extensions to include (without dot):
+Required array of file extensions to include (without dot), matched case-sensitively — list
+`"JPG"` too when files use uppercase extensions. Subfolders are searched:
 ```json
 ["jpeg", "png", "jpg", "bmp"]
 ```
 
 #### preprocessings
-Array of preprocessing operations applied in order:
+Array of preprocessing operations applied in order (one operation key per item):
 
 | Operation | Example | Notes |
 |---|---|---|
-| `convertColor` | `{"convertColor": {"form": "BGR2RGB"}}` | `form`: `RGB2BGR`, `BGR2RGB`, `RGB2GRAY`, `BGR2GRAY`, `RGB2YCrCb`, `BGR2YCrCb`, `RGB2YUV`, `BGR2YUV`, `RGB2HSV`, `BGR2HSV`, `RGB2LAB`, `BGR2LAB` |
-| `resize` | `{"resize": {"width": 640, "height": 640}}` | Optional `mode` + `interpolation`: `default` (OpenCV: `LINEAR`, `NEAREST`, `CUBIC`, `AREA`, `LANCZOS4`) or `torchvision` (PIL: `BILINEAR`, `NEAREST`, `BICUBIC`, `LANCZOS`). `size` may replace `width`/`height` |
+| `convertColor` | `{"convertColor": {"form": "BGR2RGB"}}` | Case-sensitive; never fused onto the NPU; `*2GRAY` outputs `(H, W, 1)`. `form`: `RGB2BGR`, `BGR2RGB`, `RGB2GRAY`, `BGR2GRAY`, `RGB2YCrCb`, `BGR2YCrCb`, `RGB2YUV`, `BGR2YUV`, `RGB2HSV`, `BGR2HSV`, `RGB2LAB`, `BGR2LAB` |
+| `resize` | `{"resize": {"width": 640, "height": 640}}` | Optional `mode` + `interpolation`: `default` (OpenCV: `LINEAR`, `NEAREST`, `CUBIC`, `AREA`, `LANCZOS4`) or `torchvision` (PIL: `BILINEAR`, `NEAREST`, `BICUBIC`, `LANCZOS`) — uppercase names from the same `mode` only. `size` may replace `width`/`height` |
 | `centercrop` | `{"centercrop": {"width": 224, "height": 224}}` | Crop the central region |
 | `transpose` | `{"transpose": {"axis": [2, 0, 1]}}` | Rearrange tensor dimensions |
 | `expandDim` | `{"expandDim": {"axis": 0}}` | Add a dimension at `axis` |
@@ -182,7 +215,8 @@ Operations run in list order. `default_loader` yields BGR uint8 values (0–255)
 models whose mean/std are in `[0, 1]` scale (e.g. ImageNet), put
 `{"convertColor": {"form": "BGR2RGB"}}` and `{"div": {"x": 255}}` **before** `normalize`.
 The "Raw" row (`std` 255) and `div` 255 both scale to `[0, 1]` — use one, not both; the
-manual's YOLO examples use `div` 255.
+manual's YOLO examples use `div` 255. For NCHW inputs, finish the chain with `transpose`
+(HWC → CHW) — see the R24 note above.
 
 > **Preprocessing may move onto the NPU**: the compiler may integrate some preprocessing
 > operations (e.g. `normalize`, `subtract`, `div`) into the NPU graph. Whether it happens
@@ -191,20 +225,13 @@ manual's YOLO examples use `div` 255.
 > NPU and MUST be removed from host-side runtime preprocessing; otherwise it is applied twice
 > (wrong input values, degraded results).
 
-### quantization_device (optional)
+### quantization_device (deprecated)
 
-Device for quantization computation. Auto-detects GPU by default:
-- Not specified or `null` — Auto-detect (GPU if available, otherwise CPU)
-- `"cpu"` — Force CPU quantization
-- `"cuda"` — Use default CUDA GPU
-- `"cuda:0"` — Use first GPU
-- `"cuda:1"` — Use second GPU
-
-GPU quantization requires an NVIDIA GPU with CUDA and a CUDA-enabled PyTorch
-(`torch.cuda.is_available()` is `True`). Since v2.5.0 the CLI `--use_gpu {True,False}`
-flag and the Python `use_gpu` argument toggle GPU/CPU without editing the JSON; use only
-one mechanism. `quantization_device` is the one to use for an explicit device string, and
-it takes precedence.
+Deprecated in v2.5.0 and ignored with a `UserWarning` — never generate it. GPU/CPU is
+selected with the CLI `--use_gpu {True,False}` flag or the Python `use_gpu` argument
+(default `True`: GPU when available, otherwise CPU), and a specific GPU with
+`CUDA_VISIBLE_DEVICES`. GPU quantization requires an NVIDIA GPU with CUDA and a
+CUDA-enabled PyTorch (`torch.cuda.is_available()` is `True`).
 
 ### enhanced_scheme (optional)
 
@@ -222,12 +249,20 @@ Manual Q-PRO quantization enhancement (DX-COM v2.1.0+). Opt-in only — see
 
 - DXQ-P3 and DXQ-P4 generally give the best accuracy — try them first. `num_samples` is
   optional for P3–P5 (recommended: 1024).
-- P1–P5 are compute-heavy; GPU quantization (`quantization_device: "cuda"`) can cut
+- P1–P5 are compute-heavy; GPU quantization (the default when a GPU is available) can cut
   compile time by 2–5x versus CPU.
 - Accuracy improvement is **not guaranteed** and varies by model and dataset.
 - Mutually exclusive with automatic Q-PRO (`--use_q_pro` / `use_q_pro=True`), which lets
   DX-COM choose the DXQ combination.
 - Not supported for multi-input models.
+
+### qmaster (optional — opt-in QAT)
+
+Quantization-Aware Training (Q-Master). Adding this block switches the compile from PTQ to QAT
+with the same `dxcom` command. Requires a CUDA GPU. All keys are optional
+(defaults: `batch_size=1`, `train_limit=500`, `val_limit=50`, `epochs=30`, `lr=1e-5`).
+Mutually exclusive with `enhanced_scheme`/`use_q_pro`. `default_loader.preprocessings` is shared
+with calibration — do not redefine it here. Full reference: `.deepx/toolsets/qat.md`.
 
 ### ppu (optional — detection models only)
 
@@ -388,7 +423,14 @@ YOLO pass fields:
   `ppu.layer` for types 0/1, which takes operator node names (e.g. `Mul_441`).
 - **Opt-in only** (like PPU): the pass changes the model's output tensor layout, so the
   downstream post-processing must match. Do not add it unless the user asks.
-- RTMDet fields, seg/pose examples, and migration from PPU type 2:
+- RTMDet (`rtmdet_postprocess`, detection only) uses `cls_layers`, `reg_layers`,
+  `use_exp`, `nms_boxes_tensor`, `nms_scores_tensor`, `nms_score_tensor`, and optional
+  `num_classes` / `topk` instead of `task` + `layers`.
+- Head names are Conv output tensors **before Sigmoid** (logits). Do not hand-write
+  them: once the user opts in, run `.deepx/scripts/pre_optimize_find_heads.py model.onnx
+  --verify` (skill `/dx-agent-compiler-pre-optimize`). dx_com silently ignores misspelled
+  keys, so only `--verify` catches a wrong block.
+- Full RTMDet example, seg/pose examples, and migration from PPU type 2:
   `source/docs/02_09_Pre_Optimize_API.md`.
 
 ## Auto-Inference Rules for Agents
@@ -398,7 +440,10 @@ Agents should auto-generate config.json when possible using these rules:
 1. **Input name**: `onnx_model.graph.input[0].name`
 2. **Input shape**: Extract from ONNX input tensor type
 3. **Resize dims**: `width = shape[3]`, `height = shape[2]`
-4. **Normalize params**: Infer from model family name
+4. **Normalize params**: Infer from model family name. `default_loader` reads BGR, HWC,
+   uint8 images (see `default_loader` above), so for RGB models scaled to `[0, 1]` put `div`
+   255 and `convertColor` BGR2RGB before `normalize`; end `preprocessings` with
+   `{"transpose": {"axis": [2, 0, 1]}}` (NCHW `inputs` only) and `{"expandDim": {"axis": 0}}` (R24)
 5. **PPU type** (only after the user opted in to PPU): Infer from model name (the `layer` names still need rule 9):
    - Contains "yolov3", "yolov4", "yolov5", "yolov7" → type 0
    - Contains "yolox", "yolov8", "yolov9", "yolov10", "yolov11", "yolov12" → type 1
@@ -407,4 +452,7 @@ Agents should auto-generate config.json when possible using these rules:
 7. **calibration_method**: Default "ema" unless user specifies otherwise ("minmax" and "iqr" are the alternatives)
 8. **calibration_num**: Default 100 unless user specifies otherwise
 9. **PPU layer names**: CANNOT be auto-inferred — user must inspect ONNX graph in Netron to find correct Conv/output node names
-10. **enhanced_scheme / pre_optimize**: Never add automatically — only on explicit user request
+10. **enhanced_scheme / pre_optimize**: Never add automatically — only on explicit user request.
+    Once `pre_optimize` is requested for YOLOv8+ / YOLO26 / RTMDet, generate the block with
+    `python .deepx/scripts/pre_optimize_find_heads.py model.onnx --verify`
+    (`--config config.json` merges it and removes `ppu`). See `/dx-agent-compiler-pre-optimize`.

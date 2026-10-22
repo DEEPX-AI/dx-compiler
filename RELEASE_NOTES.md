@@ -1,6 +1,6 @@
 # RELEASE_NOTES
 
-## DX-Compiler v2.5.0 / 2026-10-16
+## DX-Compiler v2.5.0 / 2026-10-23
 
 -   DX-COM: v2.5.0
 -   DX-TRON: Removed
@@ -18,6 +18,7 @@ Here are the **DX-Compiler v2.5.0** Release Notes.
 ### 1. Changed
 
 -   **Python Entry Point Signature**: `dx_com.compile()` now accepts keyword arguments (`**kwargs`). Invoke it with keyword arguments as documented in [Execution of DX-COM](source/docs/02_06_Execution_of_DX-COM.md).
+-   **`quantization_device` Deprecated**: The JSON `quantization_device` field and the Python `quantization_device` argument are deprecated and ignored — DX-COM prints a `UserWarning` and selects the quantization device with `--use_gpu` / `use_gpu` (default `True`) and the `CUDA_VISIBLE_DEVICES` environment variable. Remove the field from existing configs.
 -   **QAT Parameters Restructured**: The Python arguments `quantization_mode`, `qat_config`, `qat_skip_training`, and `qat_resume_from_checkpoint` are **replaced by a single `qmaster` argument** that takes a `QMasterConfig` object (import it from `dx_com`). The former `qat_*` arguments are no longer honored from Python code. Triggering QAT from a JSON `qmaster` block is unchanged — QAT is still auto-selected.
 -   **`pre_optimize` Pass Renaming (Breaking)**: `yolo_postprocess` → `yolo_dfl_postprocess` and `yolo26_postprocess` → `yolo_no_dfl_postprocess`. The previous pass names are no longer accepted and raise an error.
 -   **`pre_optimize` Configuration Changes (Breaking)**: The YOLO passes (`yolo_dfl_postprocess`, `yolo_no_dfl_postprocess`) now require an explicit `task` key (`base` / `seg` / `pose`). The `input_height` / `input_width` keys are removed — the input size is derived from the model input, and supplying them raises `ValueError`.
@@ -52,8 +53,8 @@ Here are the **DX-Compiler v2.5.0** Release Notes.
 
 ### 3. Added
 
--   **Explicit Message for the Removed Target**: passing `--target=dx_tron` now exits non-zero with a specific explanation instead of the generic "invalid target" error — `install.sh` points at `--target=dx_com` and the `--export_html` summary report, and `uninstall.sh` points at `sudo apt-get remove dxtron`. Existing scripts and CI jobs fail with the reason rather than a misleading message.
--   **One-Line Installation**: new `oneline-install.sh` installs DX-COM from PyPI without cloning the repository: `curl -fsSL https://raw.githubusercontent.com/DEEPX-AI/dx-compiler/main/oneline-install.sh | sh`.
+-   **Explicit Message for the Removed Target**: Passing `--target=dx_tron` now exits non-zero with a specific explanation instead of the generic "invalid target" error — `install.sh` points at `--target=dx_com` and the `--export_html` summary report, and `uninstall.sh` points at `sudo apt-get remove dxtron`. Existing scripts and CI jobs fail with the reason rather than a misleading message.
+-   **One-Line Installation**: New `oneline-install.sh` installs DX-COM from PyPI without cloning the repository: `curl -fsSL https://raw.githubusercontent.com/DEEPX-AI/dx-compiler/main/oneline-install.sh | sh`.
     -   Creates a dedicated virtualenv (default `~/deepx/venv-dx-compiler`) and links the `dxcom` launcher onto `PATH` (default `~/.local/bin`).
     -   Environment overrides: `DX_VERSION`, `DX_INSTALL_DIR`, `DX_BIN_DIR`, `DX_NO_UV`, `UV_PIN`.
     -   `oneline-uninstall.sh` removes the virtualenv and the launcher; `uninstall.sh` also removes a one-line install.
@@ -61,7 +62,6 @@ Here are the **DX-Compiler v2.5.0** Release Notes.
     -   New `--uv=<true|false>` option: `--uv=true` bootstraps a pinned uv release as a standalone binary if it is missing, `--uv=false` forces pip.
     -   The virtual environment is created with `uv venv --seed` (falling back to `python -m venv`).
     -   Archive mode keeps using pip, since uv has no `pip download` equivalent.
-
 
 ### Documentation
 
@@ -103,11 +103,11 @@ Here are the **DX-Compiler v2.4.1** Release Notes. This is a documentation-only 
 
 ----------
 
-> **⚠️ Deprecation Notice — DX-TRON**
+> **Deprecation Notice — DX-TRON**
 >
 > Starting with DX-Compiler **v2.4.0**, **DX-TRON is deprecated** and will be removed in a future release. No further feature updates or bug fixes are planned for DX-TRON. We recommend migrating to the new **HTML graph viewer** bundled with DX-COM (see *Interactive HTML Graph Viewer* below) for model inspection and visualization.
 
-> **⚠️ Deprecation Notice — PPU Type 2**
+> **Deprecation Notice — PPU Type 2**
 >
 > Starting with DX-Compiler **v2.4.0**, the legacy **PPU type 2** post-processing mode (used for YOLOv8-family DFL post-processing) is **deprecated** and will be removed in a future release. Compiling a model that uses PPU type 2 now emits a deprecation warning. Please migrate to the new **`dx_com.pre_optimize()` API** with the built-in YOLO post-processing passes (see *Added* below).
 

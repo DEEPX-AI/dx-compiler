@@ -310,6 +310,7 @@ Run onnx-simplifier after export?
 > `use_q_pro` or manual `enhanced_scheme`).
 
 1. **Calibration method**: `ema` (default, recommended), `minmax`, or `iqr`
+   (If the user reports accuracy loss after trying calibration methods/Q-PRO, you may *propose* QAT (Q-Master, `qmaster` block) as an opt-in — see `.deepx/toolsets/qat.md`. Never add it without explicit user agreement.)
 2. **Calibration data**: Path to representative dataset images
 
 #### MANDATORY Q3: PPU Compilation Support
