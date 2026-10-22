@@ -94,7 +94,7 @@ Enabling `--aggressive_partitioning` maximizes operations executed on the NPU. T
 - **Consideration**: In systems with powerful host CPUs, the compiler's default partitioning strategy might yield better end-to-end performance. Note that using this option may increase compilation time and memory usage.  
 
 **GPU / CPU Selection (`--use_gpu`) — New in v2.5.0**  
-Quantization runs on GPU by default when a CUDA-capable GPU is available, and falls back to CPU otherwise. Pass `--use_gpu False` to force CPU. To pin a specific GPU on the command line, set the `CUDA_VISIBLE_DEVICES` environment variable (e.g. `CUDA_VISIBLE_DEVICES=1 dxcom ...`). For an explicit device string, use the `-c/--config` JSON `quantization_device` field instead; set only one of the two.  
+Quantization runs on GPU by default when a CUDA-capable GPU is available, and falls back to CPU otherwise. Pass `--use_gpu False` to force CPU. To pin a specific GPU on the command line, set the `CUDA_VISIBLE_DEVICES` environment variable (e.g. `CUDA_VISIBLE_DEVICES=1 dxcom ...`).  
 
 ---
 
@@ -251,8 +251,7 @@ def compile(
     dataloader: Optional[DataLoader] = None,
     calibration_method: str = "ema",
     calibration_num: int = 100,
-    quantization_device: Optional[str] = None,
-    use_gpu: Optional[bool] = None,  # New in v2.5.0
+    use_gpu: bool = True,  # New in v2.5.0
     opt_level: int = 1,
     aggressive_partitioning: bool = False,
     input_nodes: Optional[List[str]] = None,
@@ -278,7 +277,7 @@ def compile(
       `QMasterConfig` object (import it from the top-level `dx_com` package). The old
       `qat_*` arguments are **no longer honored** when compiling from Python code.
       Compiling from a JSON config that contains a `qmaster` block is **unchanged** —
-      QAT is still auto-selected (see [Quantization-Aware Training (QAT)](02_08_Quantization_Aware_Training.md)).
+      QAT is still auto-selected (see [Q-Master (QAT)](02_08_Quantization_Aware_Training.md)).
     - New arguments: `use_gpu` (GPU/CPU quantization toggle) and `verbose`
       (expanded error messages).
 
@@ -413,7 +412,7 @@ The `default_loader` reads each image with `cv2.imread` (**BGR**, `HWC`, `uint8`
 | JSON operation | Arguments | DataLoader equivalent |
 |----------------|-----------|-----------------------|
 | `resize` | `width`, `height` (or `size`, `mode`) | `cv2.resize(...)` / `transforms.Resize(...)` |
-| `resize2` / `resize3` / `resize_tv` | resize variants (`mlcommons` / `scale` / `torchvision` mode) | matching resize logic |
+| `resize2` / `resize3` / `resize_tv` | resize variants (`mlcommons` / `scale` / `torchvision` mode). `resize2` and `resize3` also require `scale`; with `width`/`height` only they fail. Prefer `resize` | matching resize logic |
 | `centercrop` / `centercrop2` | `width`, `height` | `img[top:top+h, left:left+w]` / `transforms.CenterCrop(...)` |
 | `convertColor` | `form` (e.g. `BGR2RGB`) | `cv2.cvtColor(...)` / `Image.convert("RGB")` |
 | `div` | `x` (scalar or per-channel list) | `img / x` (`div:{x:255}` ≈ `transforms.ToTensor()`) |
@@ -451,23 +450,15 @@ The `default_loader` reads each image with `cv2.imread` (**BGR**, `HWC`, `uint8`
 - **Default**: `100`
 - **Description**: Number of calibration samples to use for quantization
 
-**`quantization_device`**
+**`quantization_device`** *(Deprecated in v2.5.0)*
 
-- **Type**: `Optional[str]`
-- **Default**: `None` (auto-detect: uses GPU if available, otherwise CPU)
-- **Description**: Device for quantization computation
-- **Supported Values**: `None` (auto-detect), `"cpu"`, `"cuda"`, `"cuda:0"`, `"cuda:1"`, etc.
-
-```python
-quantization_device="cuda"  # Use GPU
-quantization_device="cuda:1"  # Use specific GPU
-```
+- Ignored with a `UserWarning`. Select the device with `use_gpu` and the `CUDA_VISIBLE_DEVICES` environment variable instead.
 
 **`use_gpu`** *(New in v2.5.0)*
 
-- **Type**: `Optional[bool]`
-- **Default**: `None` — auto-detect (GPU when available, otherwise CPU). This is the same effective behavior as the CLI `--use_gpu` default of `True`.
-- **Description**: Convenience toggle for GPU vs. CPU quantization. `True` runs on GPU when available, `False` forces CPU. To select a **specific** device string, use `quantization_device` instead; set only one of the two.
+- **Type**: `bool`
+- **Default**: `True` — GPU when available, otherwise CPU (same as the CLI `--use_gpu` default).
+- **Description**: `True` runs quantization on GPU when available, `False` forces CPU. To use a specific GPU, set the `CUDA_VISIBLE_DEVICES` environment variable (e.g., `CUDA_VISIBLE_DEVICES=1 python compile.py`). Pass only `True` or `False`: any other value, including `None`, makes DX-COM fall back to its legacy compile path, which skips a JSON `pre_optimize` block and ignores `verbose`.
 
 ```python
 use_gpu=True   # run quantization on GPU
@@ -626,7 +617,10 @@ cfg.add_layer(bbox="bbox_head_p5", cls_conf="cls_head_p5")
 
 !!! note "`add_layer` signature by type"  
     - **Type 0**: `add_layer("Conv_245", num_anchors=3)` — `layer` is a dict.
-    - **Type 1 / 2**: `add_layer(bbox="...", cls_conf="...")` (optional `obj_conf=`) — `layer` is a list. Call once per detection scale.
+    - **Type 1 / 2**: `add_layer(bbox="...", cls_conf="...")` (optional `obj_conf=`) — `layer` is a list.
+        - **Type 1, YOLOX**: call once per detection scale, with `obj_conf=`.
+        - **Type 1, YOLOv8–v12**: call once, naming the two nodes that feed the final output `Concat` — `bbox` (decoded boxes, usually a `Mul`) and `cls_conf` (a `Sigmoid`). They already cover every detection scale. Read the node names from the ONNX graph.
+        - **Type 2**: call once per detection scale.
 
 See the **Use Case 8: PPU Hardware Acceleration** section in [Common Use Cases](02_10_Common_Use_Cases.md) for a complete script.
 
@@ -683,7 +677,7 @@ dx_com.compile(
 - **Description**: Quantization-Aware Training (QAT) configuration object. When omitted, `dx_com.compile()` runs normal PTQ (unless the JSON config supplies a `qmaster` block, which still auto-selects QAT). Import `QMasterConfig` from the top-level `dx_com` package.
 - **Fields**:
 
-    - `config` (`Optional[dict]`): QAT training hyperparameters — the same keys as the JSON `qmaster` block (see [Quantization-Aware Training (QAT)](02_08_Quantization_Aware_Training.md)).
+    - `config` (`Optional[dict]`): QAT training hyperparameters — the same keys as the JSON `qmaster` block (see [Q-Master (QAT)](02_08_Quantization_Aware_Training.md)).
     - `skip_training` (`bool`, default `False`): Skip the training loop and run compilation only. Use with `resume_from_checkpoint`.
     - `resume_from_checkpoint` (`Optional[str]`): Path to a saved `qat_checkpoint.qxnn` to load trained weights before compilation.
 
@@ -702,7 +696,7 @@ qmaster = QMasterConfig(
 
 !!! note "QAT Details"  
     For the full QAT workflow, the `qmaster` block, and all training hyperparameters,
-    see [Quantization-Aware Training (QAT)](02_08_Quantization_Aware_Training.md).
+    see [Q-Master (QAT)](02_08_Quantization_Aware_Training.md).
 
 **`verbose`** *(New in v2.5.0)*
 
@@ -747,7 +741,7 @@ For more detailed examples — including DataLoader usage, multi-input models, e
     When constructing a DataLoader for compilation, the **batch_size must be set to 1.**
 
 !!! note "Hardware Acceleration (CUDA)"  
-    To enable GPU-accelerated quantization (quantization_device="cuda"), ensure the following requirements are met:
+    To run quantization on GPU (`use_gpu=True`, the default), ensure the following requirements are met:
 
     - **System:** NVIDIA CUDA drivers and toolkit are installed.
     - **Framework:** PyTorch is built with CUDA support (torch.cuda.is_available() is True).

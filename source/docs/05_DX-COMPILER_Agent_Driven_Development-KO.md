@@ -90,6 +90,7 @@ PyTorch (.pt)          ONNX (.onnx)                    DXNN (.dxnn)
 | `/dx-agent-compiler-compile` | ONNX → DXNN 컴파일 단계별 워크플로우 |
 | `/dx-agent-compiler-convert` | PyTorch → ONNX 변환 단계별 워크플로우 |
 | `/dx-agent-compiler-validate` | 컴파일된 .dxnn 모델 출력 검증 |
+| `/dx-agent-compiler-pre-optimize` | 검증된 pre_optimize config 생성 (YOLO/RTMDet head tensor 이름) |
 
 ## 지원하는 AI 도구
 
@@ -180,6 +181,7 @@ cursor dx-all-suite/dx-compiler
 | `/dx-swe-debugging` | `.deepx/skills/dx-swe-debugging/SKILL.md` |
 | `/dx-swe-tdd` | `.deepx/skills/dx-swe-tdd/SKILL.md` |
 | `/dx-agent-compiler-validate` | `.deepx/skills/dx-agent-compiler-validate/SKILL.md` |
+| `/dx-agent-compiler-pre-optimize` | `.deepx/skills/dx-agent-compiler-pre-optimize/SKILL.md` |
 | `/dx-swe-verify` | `.deepx/skills/dx-swe-verify/SKILL.md` |
 | `/dx-swe-writing-plans` | `.deepx/skills/dx-swe-writing-plans/SKILL.md` |
 

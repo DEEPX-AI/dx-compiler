@@ -155,6 +155,15 @@ Validation Report:
   Report:     model_summary.html (generated)
 ```
 
+## QAT (Q-Master) Outputs
+
+If the compile used a `qmaster` block, also check:
+- `output/qat_checkpoint/qat_checkpoint.qxnn` exists (best checkpoint, enables `stage1_mode` resume/skip)
+- `compiler.log` begins with a **Q-MASTER CONFIG** box matching the intended settings (unknown keys are silently ignored)
+- Report accuracy against the PTQ baseline on the same eval set; `verify.py` PASS alone does not prove QAT helped
+
+See `.deepx/toolsets/qat.md`.
+
 ## Error Recovery
 
 | Issue | Action |

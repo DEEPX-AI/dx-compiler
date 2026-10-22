@@ -20,6 +20,8 @@
 │   │   └── SKILL.md                   ← /dx-agent-compiler-compile skill
 │   ├── dx-agent-compiler-validate/
 │   │   └── SKILL.md                   ← /dx-agent-compiler-validate skill
+│   ├── dx-agent-compiler-pre-optimize/
+│   │   └── SKILL.md                   ← /dx-agent-compiler-pre-optimize skill
 │   ├── dx-agent-brainstorm/
 │   │   └── SKILL.md                   ← Process skill
 │   ├── dx-agent-tdd/
@@ -40,6 +42,7 @@
 │   ├── MEMORY.md                      ← Memory index & update protocol
 │   └── common_pitfalls.md             ← Domain-tagged pitfalls
 └── scripts/
+    ├── pre_optimize_find_heads.py     ← pre_optimize head finder + verifier
     └── validate_framework.py          ← Framework validation script
 ```
 
@@ -76,6 +79,7 @@
 | /dx-agent-compiler-convert | `skills/dx-agent-compiler-convert/SKILL.md` | "convert", "export", "PT to ONNX" |
 | /dx-agent-compiler-compile | `skills/dx-agent-compiler-compile/SKILL.md` | "compile", "ONNX to DXNN", "quantize" |
 | /dx-agent-compiler-validate | `skills/dx-agent-compiler-validate/SKILL.md` | "validate", "verify", "check output" |
+| /dx-agent-compiler-pre-optimize | `skills/dx-agent-compiler-pre-optimize/SKILL.md` | "pre_optimize", "head tensor names", "ppu to pre_optimize" |
 | /dx-agent-brainstorm | `skills/dx-agent-brainstorm/SKILL.md` | "brainstorm", "plan", "design" (process skill) |
 | /dx-agent-tdd | `skills/dx-agent-tdd/SKILL.md` | "TDD", "validation", "incremental" (process skill) |
 | /dx-agent-verify | `skills/dx-agent-verify/SKILL.md` | "completion", "verify", "evidence" (process skill) |
@@ -91,6 +95,7 @@
 
 | Script | Purpose |
 |---|---|
+| `scripts/pre_optimize_find_heads.py` | Finds YOLO/RTMDet head Conv names and prints a verified `pre_optimize` block |
 | `scripts/validate_framework.py` | Validates .deepx/ structure, cross-references, domain tags |
 
 ## Context Routing Table
@@ -103,6 +108,7 @@
 | **config, JSON, schema** | `toolsets/config-schema.md` |
 | **calibration, quantization, INT8** | `instructions/compilation-workflow.md`, `toolsets/config-schema.md` |
 | **PPU, YOLO, detection** | `toolsets/config-schema.md`, `instructions/compilation-workflow.md` |
+| **pre_optimize, head tensor names, ppu to pre_optimize** | `skills/dx-agent-compiler-pre-optimize/SKILL.md`, `toolsets/config-schema.md` |
 | **validate, verify, check** | `skills/dx-agent-compiler-validate/SKILL.md` |
 | **error, fail, bug** | `memory/common_pitfalls.md` |
 | **Brainstorm, plan, design** | `skills/dx-agent-brainstorm/SKILL.md` |
@@ -132,7 +138,7 @@
 - **OS**: Ubuntu 20.04 / 22.04 / 24.04 / 26.04; Fedora 42–45, RHEL 9–10, CentOS Stream 9–10 (x86_64, glibc ≥ 2.31)
 - **Python**: 3.8 - 3.14
 - **Hardware targets**: DX-M1 (`dx_m1`)
-- **Quantization**: INT8 via EMA, MinMax, or IQR calibration
+- **Quantization**: INT8 via EMA, MinMax, or IQR calibration (opt-in: Q-PRO, and QAT via `qmaster` — see `toolsets/qat.md`)
 - **PPU types**: Type 0 (anchor-based: YOLOv3/v4/v5/v7), Type 1 (anchor-free: YOLOX, YOLOv8-v12); Type 2 is deprecated — use `pre_optimize`
 - **Compilation flow**: ONNX + config.json + calibration data → .dxnn
 - **Two interfaces**: CLI (`dxcom`) and Python API (`dx_com.compile()`)

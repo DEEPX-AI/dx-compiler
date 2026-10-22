@@ -70,7 +70,11 @@ dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
     "file_extensions": ["jpeg", "png", "jpg"],
     "preprocessings": [
       {"resize": {"width": W, "height": H}},
-      {"normalize": {"mean": [...], "std": [...]}}
+      {"div": {"x": 255}},
+      {"convertColor": {"form": "BGR2RGB"}},
+      {"normalize": {"mean": [...], "std": [...]}},
+      {"transpose": {"axis": [2, 0, 1]}},
+      {"expandDim": {"axis": 0}}
     ]
   }
 }

@@ -46,6 +46,7 @@ The following ONNX operators are supported by the compiler.
 | Gemm | No restrictions |
 | GlobalAveragePool | No restrictions |
 | Identity | No restrictions |
+| LayerNormalization | Only supported when normalizing over the last dimension: <br> - `axis` = -1 (or the index of the last dimension) <br> - `Scale` and `B` have shape [D], where D is the size of the last dimension (`B` is optional) <br> - D < 4080; otherwise runs on CPU <br> Not supported: <br> - Normalizing over multiple dimensions (e.g., PyTorch `nn.LayerNorm([C, H, W])`) <br> LayerNorm built from `ReduceMean`, `Sub`, `Pow`, `Sqrt`, `Div`, `Mul`, and `Add` is also supported when the mean and variance are computed over a single dimension (the last dimension, or the channel dimension of an NCHW tensor such as ConvNeXt `LayerNorm2d`). If they are computed over multiple dimensions, it runs on CPU. |
 | MatMul | No restrictions |
 | MaxPool | - `kernel_shape` < 16 <br> - `strides` < 16 |
 | Mul | Supported as: <br> - Element-wise multiplication <br> - Constant scalar multiplication <br> - Input normalization |
@@ -56,7 +57,7 @@ The following ONNX operators are supported by the compiler.
 | Resize | Only supported with the following attributes: <br> - `coordinate_transformation_mode` = `pytorch_half_pixel` <br> - `mode` ∈ {`nearest`, `linear`} <br> **Upsampling** <br> &nbsp;&nbsp;- scale > 1 <br> &nbsp;&nbsp;- `linear` <br> &nbsp;&nbsp;&nbsp;&nbsp;- `s ∈ ℤ, s ≥ 2, s ∉ {p : p is prime, p > 8}` <br> &nbsp;&nbsp;&nbsp;&nbsp;- i.e. integer factors ≥ 2; primes > `8` (`11`, `13`, `17`, …) are not supported, while non-prime factors such as `9`, `10` are supported <br> &nbsp;&nbsp;- `nearest` <br> &nbsp;&nbsp;&nbsp;&nbsp;- `s ∈ {2^k : k ≥ 1}` <br> &nbsp;&nbsp;&nbsp;&nbsp;- powers of two only (`2`, `4`, `8`, `16`, …) <br> **Downsampling** <br> &nbsp;&nbsp;- scale < 1 <br> &nbsp;&nbsp;- `linear` <br> &nbsp;&nbsp;&nbsp;&nbsp;- `s = 0.5` <br> &nbsp;&nbsp;&nbsp;&nbsp;- only a scale factor of `0.5` is supported <br> &nbsp;&nbsp;- `nearest` <br> &nbsp;&nbsp;&nbsp;&nbsp;- not supported |
 | Shape | Cannot be used as a model output |
 | Slice | No restrictions |
-| Softmax | Only supported if the size of the input along the specified `axis` is ≤ 4080 |
+| Softmax | Only supported if the size of the input along the specified `axis` is < 4080 |
 | Split | No restrictions |
 | Squeeze | No restrictions |
 | Sub | Supported as: <br> - Element-wise subtraction <br> - Constant scalar subtraction <br> - Input normalization |

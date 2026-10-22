@@ -108,6 +108,7 @@ Python API, or JSON config. Do NOT ask the user to choose output precision.
 The only user-facing quantization choices are:
 - **Calibration method**: `ema` (default), `minmax`, or `iqr`
 - **Enhanced quantization (Q-PRO, optional, opt-in)**: automatic (`--use_q_pro`) or manual `DXQ-P0` through `DXQ-P5`
+- **QAT (Q-Master)**: opt-in `qmaster` block (v2.5.0) — add ONLY when the user explicitly requests QAT; mutually exclusive with Q-PRO. See `.deepx/toolsets/qat.md`
 - **Calibration sample count** (default: 100)
 
 ## Critical Rule: Model Acquisition and End-to-End Compilation
@@ -202,6 +203,7 @@ config.json for new models — read a sample JSON of a similar model type.
 | `/dx-agent-compiler-convert` | Convert PyTorch model to ONNX |
 | `/dx-agent-compiler-compile` | Compile ONNX model to DXNN |
 | `/dx-agent-compiler-validate` | Validate compilation output |
+| `/dx-agent-compiler-pre-optimize` | Build a verified pre_optimize config (YOLO/RTMDet head tensor names) |
 | `/dx-agent-brainstorm` | DEEPX build brainstorming with model registry check and sub-project routing |
 | `/dx-agent-tdd` | DEEPX build validation order — factory, pipeline, and integration checks |
 | `/dx-agent-verify` | DEEPX build verification checklists — dx_app, dx_stream, and cross-project |
@@ -225,11 +227,13 @@ config.json for new models — read a sample JSON of a similar model type.
 | **CLI, command line** | `.deepx/toolsets/dxcom-cli.md` |
 | **Python API, dx_com.compile** | `.deepx/toolsets/dxcom-api.md` |
 | **config, JSON, schema** | `.deepx/toolsets/config-schema.md` |
+| **QAT, qmaster, QMasterConfig, Q-Master** | `.deepx/toolsets/qat.md` |
 | **Ultralytics, YOLO, .pt, format=deepx, export to deepx** | `.deepx/toolsets/ultralytics-deepx-export.md` |
 | **Ultralytics retrain/train, fine-tune, mAP, FPS, domain dataset, evaluate** | `.deepx/toolsets/ultralytics-train-eval.md` |
 | **PaddleOCR, RapidDoc, PaddlePaddle, OCR app, video/webcam OCR, PDF to markdown, document parsing** | `.deepx/toolsets/paddlepaddle-deepx.md` |
 | **calibration, quantization, INT8** | `.deepx/instructions/compilation-workflow.md` |
 | **PPU, YOLO, detection** | `.deepx/toolsets/config-schema.md`, `.deepx/instructions/compilation-workflow.md` |
+| **pre_optimize, head tensor names, ppu to pre_optimize, post-processing bottleneck** | `.deepx/skills/dx-agent-compiler-pre-optimize/SKILL.md`, `.deepx/toolsets/config-schema.md` |
 | **validate, verify, check** | `.deepx/skills/dx-agent-compiler-validate/SKILL.md` |
 | **error, fail, bug** | `.deepx/memory/common_pitfalls.md` |
 | **sample, example, test compile** | `.deepx/instructions/compilation-workflow.md` (Sample Model Workflow section) |
@@ -297,7 +301,7 @@ Always use relative paths (`./calibration_dataset`) in config.json, never absolu
 15. **Never reuse previous session artifacts**: NEVER check, list, browse, or reuse artifacts from previous sessions in `dx-agent-dev/`. Each compilation run MUST create a new session directory with a fresh timestamp. Even if a previous session compiled the same model, always re-download, re-export, and re-compile from scratch. Do NOT run `ls dx-agent-dev/` or check for existing `.onnx`/`.dxnn` files from past runs.
 16. **venv is MANDATORY in setup.sh**: Generated `setup.sh` MUST create and activate a virtual environment before any `pip install`. On Ubuntu 24.04+, PEP 668 blocks system-wide pip installs. Use `python3 -m venv` with `${VIRTUAL_ENV:-}` check. Generated `run.sh` MUST check venv activation and auto-activate or error if missing.
 17. **Cross-validation with precompiled reference model**: When a precompiled DXNN for the same model exists in `dx-runtime/dx_app/assets/models/`, run verify.py with BOTH the precompiled and generated models (Phase 5.7). Both fail → verify.py bug. Precompiled passes, generated fails → compilation problem. See `.deepx/agents/dx-dxnn-compiler.md` Phase 5.7.
-18. **NHWC/NCHW DataLoader mismatch**: The dxcom CLI's default dataloader loads images in NHWC `[1,H,W,C]`. If the ONNX model expects NCHW `[1,C,H,W]` (most PyTorch-exported models), CLI compilation will fail with `DataLoaderError: Input shape mismatch`. **Fix**: Use the Python API (`dx_com.compile()`) with a custom torch DataLoader that produces NCHW tensors. See `.deepx/memory/common_pitfalls.md` pitfall #18.
+18. **NHWC/NCHW DataLoader mismatch**: The `default_loader` (JSON config, used by the dxcom CLI) reads images as HWC (BGR, uint8) and never transposes them. If the ONNX model expects NCHW `[1,C,H,W]` (most PyTorch-exported models), `preprocessings` MUST end with `{"transpose": {"axis": [2, 0, 1]}}` and then `{"expandDim": {"axis": 0}}`; without the transpose, calibration fails with `DataLoaderError` (config `(1,H,W,C)` vs model `(1,C,H,W)`). Use the Python API (`dx_com.compile()`) with a custom torch DataLoader only for multi-input models, non-image data, or preprocessing the JSON ops cannot express. See `.deepx/memory/common_pitfalls.md` pitfall #18.
 
 ## Cross-Validation with Precompiled Reference Model
 
@@ -314,12 +318,16 @@ See `.deepx/agents/dx-dxnn-compiler.md` Phase 5.7 for full implementation.
 
 ## NHWC/NCHW DataLoader Mismatch
 
-The dxcom CLI's default dataloader loads images in NHWC `[1,H,W,C]`. If the ONNX
-model expects NCHW `[1,C,H,W]` (most PyTorch-exported models), CLI compilation
-will fail with `DataLoaderError: Input shape mismatch`.
+The `default_loader` (JSON config, used by the dxcom CLI) reads images as HWC (BGR,
+uint8) and never transposes them. If the ONNX model expects NCHW `[1,C,H,W]` (most
+PyTorch-exported models), calibration fails with `DataLoaderError` unless
+`preprocessings` includes `{"transpose": {"axis": [2, 0, 1]}}`.
 
-**Fix**: Use the Python API (`dx_com.compile()`) with a custom torch DataLoader
-that produces NCHW tensors. See `.deepx/memory/common_pitfalls.md` pitfall #18.
+**Fix**: Add the transpose step before the final `{"expandDim": {"axis": 0}}` (see
+`.deepx/toolsets/config-schema.md`). Use the
+Python API (`dx_com.compile()`) with a custom torch DataLoader only for multi-input
+models, non-image data, or preprocessing the JSON ops cannot express. See
+`.deepx/memory/common_pitfalls.md` pitfall #18.
 
 ## Ultralytics → DeepX Export (One-Shot Path)
 

@@ -82,6 +82,7 @@ PyTorch (.pt)          ONNX (.onnx)                    DXNN (.dxnn)
 | `/dx-agent-compiler-compile` | Step-by-step ONNX to DXNN compilation workflow |
 | `/dx-agent-compiler-convert` | Step-by-step PyTorch to ONNX conversion workflow |
 | `/dx-agent-compiler-validate` | Validate compiled .dxnn model output |
+| `/dx-agent-compiler-pre-optimize` | Build a verified pre_optimize config (YOLO/RTMDet head tensor names) |
 | `/dx-agent-brainstorm` | DEEPX build brainstorming with model registry check and sub-project routing |
 | `/dx-agent-tdd` | DEEPX build validation order — factory, pipeline, and integration checks |
 | `/dx-agent-verify` | DEEPX build verification checklists — dx_app, dx_stream, and cross-project |
@@ -180,6 +181,7 @@ Skills exist across all platforms:
 | `/dx-swe-debugging` | `.deepx/skills/dx-swe-debugging/SKILL.md` |
 | `/dx-agent-tdd` | `.deepx/skills/dx-agent-tdd/SKILL.md` |
 | `/dx-agent-compiler-validate` | `.deepx/skills/dx-agent-compiler-validate/SKILL.md` |
+| `/dx-agent-compiler-pre-optimize` | `.deepx/skills/dx-agent-compiler-pre-optimize/SKILL.md` |
 | `/dx-agent-verify` | `.deepx/skills/dx-agent-verify/SKILL.md` |
 | `/dx-swe-writing-plans` | `.deepx/skills/dx-swe-writing-plans/SKILL.md` |
 | `/dx-harness-writing-skills` | `.deepx/skills/dx-harness-writing-skills/SKILL.md` |

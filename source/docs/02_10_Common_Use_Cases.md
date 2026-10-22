@@ -28,14 +28,16 @@ This chapter provides practical, real-world scenarios with ready-to-use examples
   "calibration_method": "ema",
   "calibration_num": 100,
   "default_loader": {
-    "dataset_path": "./calibration_images",
+    "dataset_path": "./calibration_dataset",
     "file_extensions": ["jpeg", "jpg", "png"],
     "preprocessings": [
       {"resize": {"mode": "torchvision", "size": 256, "interpolation": "BILINEAR"}},
       {"centercrop": {"width": 224, "height": 224}},
       {"convertColor": {"form": "BGR2RGB"}},
       {"div": {"x": 255}},
-      {"normalize": {"mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]}}
+      {"normalize": {"mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]}},
+      {"transpose": {"axis": [2, 0, 1]}},
+      {"expandDim": {"axis": 0}}
     ]
   }
 }
@@ -87,7 +89,7 @@ class ImageNetDataset(Dataset):
         return self.transform(image)
 
 # Setup
-dataset = ImageNetDataset('./calibration_images', img_size=224)
+dataset = ImageNetDataset('./calibration_dataset', img_size=224)
 dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
 
 # Compile
@@ -220,11 +222,15 @@ print("Stereo model compilation complete!")
   "calibration_method": "ema",
   "calibration_num": 50,
   "default_loader": {
-    "dataset_path": "./calibration_images",
+    "dataset_path": "./calibration_dataset",
     "file_extensions": ["jpeg", "jpg", "png"],
     "preprocessings": [
       {"resize": {"width": 224, "height": 224}},
-      {"normalize": {"mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]}}
+      {"convertColor": {"form": "BGR2RGB"}},
+      {"div": {"x": 255}},
+      {"normalize": {"mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]}},
+      {"transpose": {"axis": [2, 0, 1]}},
+      {"expandDim": {"axis": 0}}
     ]
   }
 }
@@ -345,11 +351,15 @@ dx_com.compile(
     "DXQ-P3": {"num_samples": 1024}
   },
   "default_loader": {
-    "dataset_path": "./calibration_images",
+    "dataset_path": "./calibration_dataset",
     "file_extensions": ["jpeg", "jpg", "png"],
     "preprocessings": [
       {"resize": {"width": 224, "height": 224}},
-      {"normalize": {"mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]}}
+      {"convertColor": {"form": "BGR2RGB"}},
+      {"div": {"x": 255}},
+      {"normalize": {"mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]}},
+      {"transpose": {"axis": [2, 0, 1]}},
+      {"expandDim": {"axis": 0}}
     ]
   }
 }
@@ -382,7 +392,7 @@ dx_com.compile(
 ```
 
 !!! note "GPU Device Selection"  
-    By default, DX-COM automatically uses GPU if available. In multi-GPU environments, you can specify a device via `quantization_device` in the JSON config or the `dx_com.compile()` parameter (e.g., `"cuda:1"`). See the **Quantization Device** section in [JSON File Configuration](02_05_JSON_File_Configuration.md) for details.
+    By default, DX-COM automatically uses GPU if available. In multi-GPU environments, select the GPU with the `CUDA_VISIBLE_DEVICES` environment variable (e.g., `CUDA_VISIBLE_DEVICES=1 dxcom ...`); `--use_gpu False` (Python: `use_gpu=False`) forces CPU. See the **Quantization Device** section in [JSON File Configuration](02_05_JSON_File_Configuration.md) for details.
 
 For all available DXQ schemes (DXQ-P0 to DXQ-P5) and their parameters, see the **Enhanced Quantization Scheme (DXQ)** section in [JSON File Configuration](02_05_JSON_File_Configuration.md).
 
@@ -511,7 +521,7 @@ dx_com.compile(
 
 **Scenario**: Deploying a YOLO-family detection, instance-segmentation, or pose model (or RTMDet) on a CPU-constrained edge host (for example, an ARM Cortex-A53) where CPU-side post-processing (Sigmoid, DFL decoding, dist2bbox over the full anchor grid) becomes the end-to-end throughput bottleneck.
 
-**Approach**: Apply `pre_optimize` before compilation. It rewrites the post-processing graph so that TopK selection happens first, and expensive operations run only on the `K` selected candidates (default 300) instead of the full anchor grid. Choose one of two equivalent entry points.
+**Approach**: Apply `pre_optimize` before compilation. It rewrites the post-processing graph so that TopK selection happens first, and expensive operations run only on the `K` selected candidates (default 300; 512 for RTMDet) instead of the full anchor grid. Choose one of two equivalent entry points.
 
 ### Option A — Python API
 
@@ -526,12 +536,12 @@ optimized = dx_com.pre_optimize(model, passes={
     "yolo_dfl_postprocess": {
         "task": "base",
         "layers": [
-            {"bbox": "/model.22/cv2.0/cv2.0.2/Conv_output_0",
-             "cls_conf": "/model.22/cv3.0/cv3.0.2/Conv_output_0"},
-            {"bbox": "/model.22/cv2.1/cv2.1.2/Conv_output_0",
-             "cls_conf": "/model.22/cv3.1/cv3.1.2/Conv_output_0"},
-            {"bbox": "/model.22/cv2.2/cv2.2.2/Conv_output_0",
-             "cls_conf": "/model.22/cv3.2/cv3.2.2/Conv_output_0"},
+            {"bbox": "onnx::Concat_328",
+             "cls_conf": "onnx::Concat_335"},
+            {"bbox": "onnx::Concat_343",
+             "cls_conf": "onnx::Concat_350"},
+            {"bbox": "onnx::Concat_358",
+             "cls_conf": "onnx::Concat_365"},
         ],
         "num_classes": 80,
         "topk": 300,
@@ -555,12 +565,14 @@ Add a `pre_optimize` block to the compile config; the pass runs automatically in
   "calibration_method": "ema",
   "calibration_num": 100,
   "default_loader": {
-    "dataset_path": "./calibration_images",
+    "dataset_path": "./calibration_dataset",
     "file_extensions": ["jpeg", "jpg", "png"],
     "preprocessings": [
       {"convertColor": {"form": "BGR2RGB"}},
       {"resize": {"width": 640, "height": 640}},
-      {"div": {"x": 255}}
+      {"div": {"x": 255}},
+      {"transpose": {"axis": [2, 0, 1]}},
+      {"expandDim": {"axis": 0}}
     ]
   },
   "pre_optimize": [
@@ -568,12 +580,12 @@ Add a `pre_optimize` block to the compile config; the pass runs automatically in
       "yolo_dfl_postprocess": {
         "task": "base",
         "layers": [
-          {"bbox": "/model.22/cv2.0/cv2.0.2/Conv_output_0",
-           "cls_conf": "/model.22/cv3.0/cv3.0.2/Conv_output_0"},
-          {"bbox": "/model.22/cv2.1/cv2.1.2/Conv_output_0",
-           "cls_conf": "/model.22/cv3.1/cv3.1.2/Conv_output_0"},
-          {"bbox": "/model.22/cv2.2/cv2.2.2/Conv_output_0",
-           "cls_conf": "/model.22/cv3.2/cv3.2.2/Conv_output_0"}
+          {"bbox": "onnx::Concat_328",
+           "cls_conf": "onnx::Concat_335"},
+          {"bbox": "onnx::Concat_343",
+           "cls_conf": "onnx::Concat_350"},
+          {"bbox": "onnx::Concat_358",
+           "cls_conf": "onnx::Concat_365"}
         ],
         "num_classes": 80,
         "topk": 300
@@ -590,7 +602,7 @@ dx_com.compile(model="yolov8n.onnx", config="config.json", output_dir="./optimiz
 For supported model families and tasks (YOLOv8 / v9 / v11 / v12 / v13 detection · segmentation · pose via `yolo_dfl_postprocess`; YOLO26 via `yolo_no_dfl_postprocess`; RTMDet via `rtmdet_postprocess`), output shapes, and the migration recipe from the deprecated `ppu.type = 2`, see [Pre-Optimize API](02_09_Pre_Optimize_API.md).
 
 !!! warning "Do not combine with `ppu`"  
-    `pre_optimize` and `ppu` (Use Case 8) are **mutually exclusive** in one config — both rewrite detection post-processing, so supplying both raises a validation error.
+    `pre_optimize` and `ppu` (Use Case 8) are **mutually exclusive** in one config — both rewrite detection post-processing, so supply only one. DX-COM 2.5.0 does not reject a config that has both: it compiles with `ppu` and drops `pre_optimize`, or fails later with an unrelated error. The only sign is a console line `falling back to legacy: ValueError: config 'pre_optimize' and 'ppu' are mutually exclusive`.
 
 ---
 
@@ -607,7 +619,7 @@ Both paths configure the same hardware; the Python `PPUConfig` is the programmat
     The PPU accelerates filtering and class prediction only. Non-Maximum Suppression (NMS) must still be executed on the host CPU using the filtered outputs.
 
 !!! warning "Do not combine with `pre_optimize`"  
-    `ppu` and `pre_optimize` (Use Case 7) are **mutually exclusive** in one config — supplying both raises a validation error.
+    `ppu` and `pre_optimize` (Use Case 7) are **mutually exclusive** in one config — supply only one. DX-COM 2.5.0 does not reject a config that has both: it compiles with `ppu` and drops `pre_optimize`, or fails later with an unrelated error. The only sign is a console line `falling back to legacy: ValueError: config 'pre_optimize' and 'ppu' are mutually exclusive`.
 
 ### Option A: `dxcom` Command
 
@@ -620,12 +632,14 @@ Both paths configure the same hardware; the Python `PPUConfig` is the programmat
   "calibration_method": "ema",
   "calibration_num": 100,
   "default_loader": {
-    "dataset_path": "./calibration_images",
+    "dataset_path": "./calibration_dataset",
     "file_extensions": ["jpeg", "jpg", "png"],
     "preprocessings": [
       {"convertColor": {"form": "BGR2RGB"}},
       {"resize": {"width": 640, "height": 640}},
-      {"div": {"x": 255}}
+      {"div": {"x": 255}},
+      {"transpose": {"axis": [2, 0, 1]}},
+      {"expandDim": {"axis": 0}}
     ]
   },
   "ppu": {

@@ -48,7 +48,7 @@ In QXNN resume mode (`--checkpoint`), `-m` and `-c` are not required — only `-
 |---|---|---|---|
 | | `--opt_level` | `1` | Optimization level: 0 (fast compile, higher NPU latency) or 1 (full optimization, lowest NPU latency) |
 | | `--aggressive_partitioning` | off | **(Experimental)** Maximize NPU operations; may increase compile time and memory usage |
-| | `--use_gpu` | `True` | **(v2.5.0)** `True` = quantize on GPU when available, otherwise CPU (same effect as Python `use_gpu=None`); `False` = force CPU. Select the GPU with `CUDA_VISIBLE_DEVICES`. A JSON `quantization_device` takes precedence |
+| | `--use_gpu` | `True` | **(v2.5.0)** `True` = quantize on GPU when available, otherwise CPU (same as the Python default `use_gpu=True`); `False` = force CPU. Select the GPU with `CUDA_VISIBLE_DEVICES` |
 | | `--float64_calibration` | off | Use float64 precision in calibration and offset calculations for cross-CPU determinism |
 
 ### Quantization Quality and Tuning (v2.4.0+)
@@ -207,34 +207,37 @@ output/
 - Add `--verbose` when an error is reported in masked/summarized form
 - Use `--opt_level 0` for quick iteration, then `--opt_level 1` for final build
 - Combine `--aggressive_partitioning` with `--gen_log` to see what was moved to NPU
-- Choose GPU/CPU with either `--use_gpu` or the JSON `quantization_device` field — not both
+- Choose GPU/CPU with `--use_gpu`; select a specific GPU with `CUDA_VISIBLE_DEVICES`
 - Paths can be relative or absolute
 - Output directory is created automatically if it does not exist
 
 ## ⚠️ WARNING — default_loader and NCHW Models (R24)
 
-When using the CLI (`-c config.json`), if `config.json` contains `default_loader`,
-**all NCHW models will fail** with a calibration shape mismatch:
+The CLI calibrates through the config's `default_loader`, which reads images as **HWC**
+(BGR, uint8) and never transposes them. All YOLO variants (yolo26n, yolov8, yolov9, v10,
+v11, v12, v3, v5, v7, YOLOX) and most PyTorch exports expect **NCHW** input, so their
+`preprocessings` MUST end with a transpose followed by `expandDim`. Without the transpose,
+calibration fails before compilation:
 
 ```
-DataLoaderError: shape mismatch — expected [1,3,H,W] got [1,H,W,3]
+DataLoaderError: Invalid JSON Configuration for input 'images': The config specifies (1, 640, 640, 3), but model requires (1, 3, 640, 640). Please check the preprocessing configuration.
 ```
 
-`default_loader` produces **HWC** tensors. All YOLO variants (yolo26n, yolov8,
-yolov9, v10, v11, v12, v3, v5, v7, YOLOX) expect **NCHW** input.
+**Fix**: end `preprocessings` with `{"transpose": {"axis": [2, 0, 1]}}` and then
+`{"expandDim": {"axis": 0}}` (always keep the final `expandDim` — see the R24 note in
+`config-schema.md`). Ultralytics YOLO (RGB input scaled to `[0, 1]`):
 
-**Fix**: Do NOT use the CLI `dxcom` command for NCHW models with a file-based
-`default_loader` config. Use the Python API instead with a custom DataLoader:
-
-```python
-import dx_com
-from torch.utils.data import DataLoader
-# custom_loader produces NCHW tensors via transforms.ToTensor()
-dx_com.compile(model="model.onnx", output_dir="./", dataloader=custom_loader,
-               calibration_method="ema", calibration_num=100,
-               opt_level=1, gen_log=True, export_html=True)
+```json
+"preprocessings": [
+  {"resize": {"width": 640, "height": 640}},
+  {"div": {"x": 255}},
+  {"convertColor": {"form": "BGR2RGB"}},
+  {"transpose": {"axis": [2, 0, 1]}},
+  {"expandDim": {"axis": 0}}
+]
 ```
 
-Do NOT pass `config=` together with `dataloader=` — they are mutually exclusive.
-Pass calibration settings as keyword arguments and PPU settings as `ppu_config=`
-(see `dxcom-api.md`).
+Use the Python API with a custom DataLoader only for multi-input models, non-image data,
+or preprocessing the JSON ops cannot express (see "Custom DataLoader" in `dxcom-api.md`).
+Do NOT pass `config=` together with `dataloader=` — they are mutually exclusive. Pass
+calibration settings as keyword arguments and PPU settings as `ppu_config=`.

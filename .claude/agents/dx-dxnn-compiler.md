@@ -213,8 +213,9 @@ if it fails. If the sanity check **still fails after install.sh**:
 Before any compilation, set up the session working directory and calibration data.
 
 > **Calibration Data**: Use the 100 JPEG images in `dx_com/calibration_dataset/` (symlinked
-> as `./calibration_dataset` in the session directory). Standard `calibration_num=100` with
-> a custom PyTorch DataLoader. The compilation time (15–40 min) is dominated by the dxcom
+> as `./calibration_dataset` in the session directory). Standard: `default_loader` in
+> config.json with `calibration_num=100` (use a custom PyTorch DataLoader only for the cases
+> in Phase 2). The compilation time (15–40 min) is dominated by the dxcom
 > graph optimization, not by how many distinct calibration images are loaded.
 
 > **NEVER reuse previous session artifacts.** Do NOT check, list, browse, or
@@ -285,12 +286,14 @@ Record the input name and shape — these are required for config.json.
 
 ### Phase 2: Generate config.json
 
-> **Note — default_loader vs custom DataLoader**: When using `default_loader` in
-> config.json for NCHW models (e.g., YOLO variants), ensure the `preprocessings`
-> list includes a `transpose` step to convert from HWC to CHW format if needed.
-> Alternatively, use a custom PyTorch DataLoader with `transforms.ToTensor()` (which
-> outputs CHW directly). When passing a Python `dataloader=` argument to
-> `dx_com.compile()`, do not pass `config=` at all — `config` and `dataloader` are mutually exclusive.
+> **Note — default_loader vs custom DataLoader**: `default_loader` reads images as HWC
+> (BGR, uint8) and never transposes them. For NCHW models (e.g., YOLO variants) the
+> `preprocessings` list MUST end with `{"transpose": {"axis": [2, 0, 1]}}` and then
+> `{"expandDim": {"axis": 0}}` — see `toolsets/config-schema.md` (R24). Use a custom
+> PyTorch DataLoader only for multi-input models, non-image data, or preprocessing the
+> JSON ops cannot express.
+> When passing a Python `dataloader=` argument to `dx_com.compile()`, do not pass
+> `config=` at all — `config` and `dataloader` are mutually exclusive.
 
 > **⚠ Calibration input range by model family** (SDK requirement):
 > - **YOLO models**: Input range MUST be `[0, 1]`. Use `transforms.ToTensor()` which
@@ -303,13 +306,25 @@ Record the input name and shape — these are required for config.json.
 > - **General rule**: Match the preprocessing used during training.
 
 Create a config.json matching the model's requirements. For NCHW models (all YOLO
-variants), omit `default_loader` and use the Python DataLoader approach below:
+variants), end `preprocessings` with `transpose` and then `expandDim`. This `default_loader` config works
+with both the `dxcom` CLI and `dx_com.compile(config=...)`, and QAT reuses it:
 
 ```json
 {
   "inputs": {"images": [1, 3, 640, 640]},
   "calibration_method": "ema",
-  "calibration_num": 100
+  "calibration_num": 100,
+  "default_loader": {
+    "dataset_path": "./calibration_dataset",
+    "file_extensions": ["jpeg", "png", "jpg"],
+    "preprocessings": [
+      {"resize": {"width": 640, "height": 640}},
+      {"div": {"x": 255}},
+      {"convertColor": {"form": "BGR2RGB"}},
+      {"transpose": {"axis": [2, 0, 1]}},
+      {"expandDim": {"axis": 0}}
+    ]
+  }
 }
 ```
 
@@ -321,7 +336,8 @@ is ambiguous, prefer absolute paths (e.g., `os.path.abspath("...")`).
 
 #### Custom PyTorch DataLoader
 
-When the default loader is insufficient, provide a custom `torch.utils.data.DataLoader`.
+When `default_loader` cannot express the input (multi-input models, non-image data, or
+custom preprocessing), provide a custom `torch.utils.data.DataLoader` instead.
 Follow the SDK pattern from `source/docs/02_10_Common_Use_Cases.md`:
 
 ```python
@@ -1179,20 +1195,27 @@ two mutually exclusive forms: automatic (`--use_q_pro` / `use_q_pro=True`) and m
 
 **Use Q-PRO ONLY when ALL of the following conditions are met:**
 1. The end-user explicitly requests enhanced quantization or mentions DXQ-P/Q-PRO
-2. A GPU is preferred (`quantization_device: "cuda:0"`) to keep the compile time manageable
+2. A GPU is available (quantization uses it by default) to keep the compile time manageable
 3. The user confirms they accept the additional calibration time
 
 **Example config (only when explicitly requested by user):**
 ```json
 {
-  "enhanced_scheme": {"DXQ-P3": {"num_samples": 1024}},
-  "quantization_device": "cuda:0"
+  "enhanced_scheme": {"DXQ-P3": {"num_samples": 1024}}
 }
 ```
 
 Automatic form: add `--use_q_pro` (CLI) or `use_q_pro=True` (Python) instead of `enhanced_scheme` — never both.
 
 If the user does not mention Q-PRO/DXQ-P/enhanced_scheme, always use EMA (default).
+
+### QAT (Q-Master) — NOT Default
+
+When calibration tuning and Q-PRO are still insufficient, QAT is the next escalation.
+Add a `qmaster` block **ONLY** when the user explicitly requests QAT. Requires a CUDA GPU
+and representative training images; **mutually exclusive with Q-PRO** in v2.5.0.
+Run a `fast_run` smoke test first and compare accuracy against PTQ afterwards.
+Full reference: `.deepx/toolsets/qat.md`.
 
 ## Common Compilation Errors
 
@@ -1201,7 +1224,7 @@ If the user does not mention Q-PRO/DXQ-P/enhanced_scheme, always use EMA (defaul
 | Input name mismatch | config.json key != ONNX input name | Inspect ONNX and fix config |
 | Shape mismatch | config.json shape != ONNX shape | Match exactly |
 | Unsupported op | Operator not in DX-COM op set | Simplify model or replace op |
-| OOM during calibration | GPU memory exceeded | Reduce `calibration_num` or quantize on CPU (`--use_gpu False` or `quantization_device: "cpu"`) |
+| OOM during calibration | GPU memory exceeded | Reduce `calibration_num` or quantize on CPU (`--use_gpu False`) |
 | PPU type error | Wrong PPU type for model arch | Check anchor-based vs anchor-free |
 
 ## Output Report
