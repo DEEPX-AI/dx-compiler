@@ -4,8 +4,14 @@
 
 **DX-AS (DEEPX All-Suite)** is an integrated environment of frameworks and tools that enables inference and compilation of AI models using DEEPX devices. Users can build the integrated environment by installing individual tools, but DX-AS maintains optimal compatibility by aligning the versions of the individual tools.
 
-![](./source/img/dxnn_sdk_illustration.png)
-![](./source/img/dxnn_sdk_illustration_simple.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./source/img/dxnn_sdk_illustration-dark.png">
+  <img src="./source/img/dxnn_sdk_illustration.png" alt="DXNN SDK Full Architecture">
+</picture>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="./source/img/dxnn_sdk_illustration_simple-dark.png">
+  <img src="./source/img/dxnn_sdk_illustration_simple.png" alt="DXNN SDK Simple Architecture">
+</picture>
 
 ---
 
