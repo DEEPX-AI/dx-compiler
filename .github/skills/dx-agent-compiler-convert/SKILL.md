@@ -30,7 +30,7 @@ Ultralytics exporter applies:
 > ```
 > This avoids the most common manual-pipeline errors (multi-output ONNX graph,
 > NHWC/NCHW mismatch, calibration setup). See
-> `.github/toolsets/ultralytics-deepx-export.md` for the full reference, args,
+> `.deepx/toolsets/ultralytics-deepx-export.md` for the full reference, args,
 > constraints (x86-64 Linux only, detection only, INT8 enforced), and deployment.
 
 **Fall back to the manual PT→ONNX→`dxcom` pipeline below** only when the one-shot

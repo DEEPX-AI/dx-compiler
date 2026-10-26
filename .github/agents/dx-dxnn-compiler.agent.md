@@ -1,7 +1,7 @@
 ---
 name: dx-dxnn-compiler
-description: 'Compiles ONNX models to .dxnn format using DEEPX DX-COM (v2.2.1). Handles config.json generation, calibration
-  data preparation, PPU configuration for YOLO models, and output validation with DX-TRON.
+description: 'Compiles ONNX models to .dxnn format using DEEPX DX-COM (v2.5.0). Handles config.json generation, calibration
+  data preparation, PPU configuration for YOLO models, and output validation via the HTML summary report.
 
   '
 tools:
@@ -129,7 +129,7 @@ dxcom installation, which leads to fabricated API calls and wasted time.
 **Step 1 — Verify dxcom availability** (MUST run both checks):
 ```bash
 # CLI check
-which dxcom && dxcom --help | head -1
+which dxcom && dxcom --version
 
 # Python API check
 python3 -c "import dx_com; print(f'dx_com version: {dx_com.__version__}')"
@@ -138,7 +138,7 @@ python3 -c "import dx_com; print(f'dx_com version: {dx_com.__version__}')"
 **Step 2 — If not found, attempt installation** (3-step fallback):
 ```bash
 # Fallback 1: pip install (if in a venv)
-pip install dxcom
+pip install dx-com
 
 # Fallback 2: dx-compiler/install.sh (if available)
 COMPILER_DIR="$(git rev-parse --show-toplevel)/dx-compiler"
@@ -157,7 +157,7 @@ fi
 ```bash
 which dxcom && python3 -c "import dx_com; print('dxcom OK')"
 # If STILL not found → STOP. Inform user:
-#   "dxcom is not installed. Install manually: pip install dxcom
+#   "dxcom is not installed. Install manually: pip install dx-com
 #    or run: bash dx-compiler/install.sh"
 # Do NOT proceed to Phase 0 without a working dxcom installation.
 ```
@@ -194,12 +194,12 @@ if it fails. If the sanity check **still fails after install.sh**:
 - **NEVER call dxcom functions without verifying installation first.** If dxcom
   is not installed, the agent must install it — NOT fabricate API calls.
 - **NEVER guess dxcom API signatures.** Always reference the toolset files:
-  - CLI usage: `.github/toolsets/dxcom-cli.md`
-  - Python API: `.github/toolsets/dxcom-api.md`
-  - Config schema: `.github/toolsets/config-schema.md`
+  - CLI usage: `.deepx/toolsets/dxcom-cli.md`
+  - Python API: `.deepx/toolsets/dxcom-api.md`
+  - Config schema: `.deepx/toolsets/config-schema.md`
 - **NEVER generate config.json from memory.** Always read a sample config first:
   - Sample configs: `dx_com/sample_models/json/*.json`
-  - Schema reference: `.github/toolsets/config-schema.md`
+  - Schema reference: `.deepx/toolsets/config-schema.md`
 - **NEVER modify `compiler.properties`** — this is a system configuration file
   managed by the DX-COM installer. Writing to it can break the compiler for all
   users. If compilation fails, the fix is in `config.json` or `dxcom` arguments,
@@ -210,7 +210,7 @@ if it fails. If the sanity check **still fails after install.sh**:
 |---|---|
 | `from dxcom import dxcom; dxcom.compile(...)` | Correct: `import dx_com; dx_com.compile(...)` |
 | `config.json` with `"model_path"` key | No such key — use `"inputs"` (see config-schema.md) |
-| `config.json` with `"target_device"` key | No such key — device is set via dxcom CLI `--target` or defaults to dx_m1 |
+| `config.json` with `"target_device"` key | No such key — DX-COM targets DX-M1 only; there is no device option (no `--target` flag) |
 | `dxcom.quantize()` or `dxcom.calibrate()` | No such functions — `dx_com.compile()` handles everything |
 | Modifying `compiler.properties` | NEVER — this file is read-only for agents |
 
@@ -219,8 +219,9 @@ if it fails. If the sanity check **still fails after install.sh**:
 Before any compilation, set up the session working directory and calibration data.
 
 > **Calibration Data**: Use the 100 JPEG images in `dx_com/calibration_dataset/` (symlinked
-> as `./calibration_dataset` in the session directory). Standard `calibration_num=100` with
-> a custom PyTorch DataLoader. The compilation time (15–40 min) is dominated by the dxcom
+> as `./calibration_dataset` in the session directory). Standard: `default_loader` in
+> config.json with `calibration_num=100` (use a custom PyTorch DataLoader only for the cases
+> in Phase 2). The compilation time (15–40 min) is dominated by the dxcom
 > graph optimization, not by how many distinct calibration images are loaded.
 
 > **NEVER reuse previous session artifacts.** Do NOT check, list, browse, or
@@ -291,30 +292,45 @@ Record the input name and shape — these are required for config.json.
 
 ### Phase 2: Generate config.json
 
-> **Note — default_loader vs custom DataLoader**: When using `default_loader` in
-> config.json for NCHW models (e.g., YOLO variants), ensure the `preprocessings`
-> list includes a `transpose` step to convert from HWC to CHW format if needed.
-> Alternatively, use a custom PyTorch DataLoader with `transforms.ToTensor()` (which
-> outputs CHW directly). When passing a Python `dataloader=` argument to
-> `dx_com.compile()`, omit `default_loader` from config.json.
+> **Note — default_loader vs custom DataLoader**: `default_loader` reads images as HWC
+> (BGR, uint8) and never transposes them. For NCHW models (e.g., YOLO variants) the
+> `preprocessings` list MUST end with `{"transpose": {"axis": [2, 0, 1]}}` and then
+> `{"expandDim": {"axis": 0}}` — see `toolsets/config-schema.md` (R24). Use a custom
+> PyTorch DataLoader only for multi-input models, non-image data, or preprocessing the
+> JSON ops cannot express.
+> When passing a Python `dataloader=` argument to `dx_com.compile()`, do not pass
+> `config=` at all — `config` and `dataloader` are mutually exclusive.
 
 > **⚠ Calibration input range by model family** (SDK requirement):
 > - **YOLO models**: Input range MUST be `[0, 1]`. Use `transforms.ToTensor()` which
 >   automatically converts `[0, 255]` uint8 → `[0, 1]` float32. If using `default_loader`,
->   add `{"div": 255}` to `preprocessings`. Feeding raw `[0, 255]` values causes
+>   add `{"convertColor": {"form": "BGR2RGB"}}` and `{"div": {"x": 255}}` to `preprocessings`
+>   (before any `normalize`). Feeding raw `[0, 255]` values causes
 >   calibration mismatch and incorrect quantization.
 > - **ImageNet classification models**: Use `normalize(mean=[0.485,0.456,0.406], std=[0.229,0.224,0.225])`
 >   after `ToTensor()`.
 > - **General rule**: Match the preprocessing used during training.
 
 Create a config.json matching the model's requirements. For NCHW models (all YOLO
-variants), omit `default_loader` and use the Python DataLoader approach below:
+variants), end `preprocessings` with `transpose` and then `expandDim`. This `default_loader` config works
+with both the `dxcom` CLI and `dx_com.compile(config=...)`, and QAT reuses it:
 
 ```json
 {
   "inputs": {"images": [1, 3, 640, 640]},
   "calibration_method": "ema",
-  "calibration_num": 100
+  "calibration_num": 100,
+  "default_loader": {
+    "dataset_path": "./calibration_dataset",
+    "file_extensions": ["jpeg", "png", "jpg"],
+    "preprocessings": [
+      {"resize": {"width": 640, "height": 640}},
+      {"div": {"x": 255}},
+      {"convertColor": {"form": "BGR2RGB"}},
+      {"transpose": {"axis": [2, 0, 1]}},
+      {"expandDim": {"axis": 0}}
+    ]
+  }
 }
 ```
 
@@ -326,8 +342,9 @@ is ambiguous, prefer absolute paths (e.g., `os.path.abspath("...")`).
 
 #### Custom PyTorch DataLoader
 
-When the default loader is insufficient, provide a custom `torch.utils.data.DataLoader`.
-Follow the SDK pattern from `source/docs/02_07_Common_Use_Cases.md`:
+When `default_loader` cannot express the input (multi-input models, non-image data, or
+custom preprocessing), provide a custom `torch.utils.data.DataLoader` instead.
+Follow the SDK pattern from `source/docs/02_10_Common_Use_Cases.md`:
 
 ```python
 # compile.py — custom DataLoader following SDK pattern
@@ -367,14 +384,18 @@ import dx_com
 dx_com.compile(
     model=f"{WORK_DIR}/model.onnx",
     output_dir=f"{WORK_DIR}/",
-    config=f"{WORK_DIR}/config.json",
-    dataloader=calib_loader,
+    dataloader=calib_loader,  # no config= — config and dataloader are mutually exclusive
+    calibration_method="ema",
+    calibration_num=100,
     opt_level=1,
     gen_log=True,
+    export_html=True,
 )
 ```
 
-When using a custom DataLoader, **omit** `default_loader` from config.json:
+When using a custom DataLoader, keep `config.json` as the session record of these settings
+(without `default_loader`), but do **not** pass it to `dx_com.compile()` together with
+`dataloader=`. Pass PPU settings as `ppu_config=PPUConfig(...)` (see `toolsets/dxcom-api.md`):
 ```json
 {
   "inputs": {"images": [1, 3, 640, 640]},
@@ -388,14 +409,14 @@ When using a custom DataLoader, **omit** `default_loader` from config.json:
 - `inputs` shape must exactly match ONNX input shape
 - Resize width/height should match spatial dims from input shape
 - For ImageNet models: `mean=[0.485, 0.456, 0.406]`, `std=[0.229, 0.224, 0.225]`
-- For YOLO models: `mean=[0.0, 0.0, 0.0]`, `std=[1.0, 1.0, 1.0]` (0-1 range)
+- For YOLO models: `mean=[0.0, 0.0, 0.0]`, `std=[1.0, 1.0, 1.0]` (input already scaled to 0-1 by `ToTensor()` or `div` 255)
 
 ### Phase 3: Compile with DX-COM
 
 **CLI method** (preferred for scripting):
 ```bash
 cd "${WORK_DIR}"
-dxcom -m model.onnx -c config.json -o ./ --opt_level 1 --gen_log
+dxcom -m model.onnx -c config.json -o ./ --opt_level 1 --gen_log --export_html
 ```
 
 **Python API method** (preferred for programmatic use):
@@ -408,6 +429,7 @@ dx_com.compile(
     config="${WORK_DIR}/config.json",
     opt_level=1,
     gen_log=True,
+    export_html=True,
 )
 ```
 
@@ -463,6 +485,7 @@ dx_com.compile(
     config=str(WORK_DIR / 'config.json'),
     opt_level=1,
     gen_log=True,
+    export_html=True,
 )
 """.replace("WORK_DIR_PLACEHOLDER", str(WORK_DIR))],
     stdout=open(WORK_DIR / "compile_out.log", "w"),
@@ -510,17 +533,23 @@ For YOLO detection models, add PPU configuration to config.json:
   "ppu": {
     "type": 1,
     "conf_thres": 0.25,
-    "iou_thres": 0.45,
     "num_classes": 80,
-    "max_det": 300
+    "layer": [
+      {"bbox": "Mul_441", "cls_conf": "Sigmoid_442"}
+    ]
   }
 }
 ```
+
+Node names are placeholders — read them from the ONNX graph (Netron). There is no
+`iou_thres` or `max_det` key; NMS runs on the host CPU. Full schema (type 0 layer map,
+YOLOX `obj_conf`, deprecated type 2): `toolsets/config-schema.md` → ppu.
 
 **PPU type selection**:
 - Type 0: Anchor-based models (YOLOv3, YOLOv4, YOLOv5, YOLOv7)
 - Type 1: Anchor-free models (YOLOX, YOLOv8, YOLOv9, YOLOv10, YOLOv11, YOLOv12)
 - YOLO26: PPU not supported — NMS-free native architecture, use end2end=True export instead
+  (for faster CPU post-processing, the opt-in `pre_optimize` pass `yolo_no_dfl_postprocess` supports YOLO26)
 
 ### Phase 5: Validate Output
 
@@ -534,14 +563,21 @@ ls -la "${WORK_DIR}/"
 # Expected: model.dxnn, config.json, calibration_dataset (symlink), compiler.log
 ```
 
-Validate with DX-TRON (visual inspection):
-```bash
-# AppImage mode
-./DX-TRON-v2.0.1.AppImage "${WORK_DIR}/model.dxnn"
+Validate via the Compilation Summary Report (compile with `--export_html`):
 
-# Web server mode
-dx-tron --web --port 8080 "${WORK_DIR}/model.dxnn"
+```bash
+REPORT=$(ls "${WORK_DIR}"/*_summary.html 2>/dev/null | head -1)
+[ -n "${REPORT}" ] && [ -s "${REPORT}" ] \
+    && echo "PASS: summary report ${REPORT}" \
+    || echo "FAIL: no *_summary.html — recompile with --export_html"
+
+# Machine-checkable partition evidence (the report itself is not parseable)
+grep -iE "npu|cpu|partition|fallback" "${WORK_DIR}/compiler.log" 2>/dev/null | head -20
 ```
+
+The report is for human review — open it in any browser to inspect the graph,
+NPU-vs-CPU partition, CPU-fallback reasons, and I/O shapes. The `compiler.log`
+lines above are the automated evidence to record in the session report.
 
 ### Phase 5.5: Generate Mandatory Artifacts
 
@@ -591,7 +627,7 @@ in the session working directory. **Never skip this phase.**
    fi
 
    # ── Step 2: Verify/activate dxcom (DX-COM compiler) ──
-   # dx-com is a PRIVATE package (not on PyPI). Use the compiler venv.
+   # dx-com is on PyPI (since v2.4.0); prefer the compiler venv created by install.sh.
    if ! python3 -c "import dx_com" 2>/dev/null; then
        echo "dxcom not found in current env. Searching for compiler venv..."
        COMPILER_VENV=""
@@ -716,7 +752,7 @@ in the session working directory. **Never skip this phase.**
    ## Notes
 
    - Quantization: EMA, 100 calibration images
-   - PPU config: <type>, conf=<n>, iou=<n>
+   - PPU config: <type>, conf=<n>
    ```
 
 **Validation gate**: `setup.sh`, `run.sh`, and `README.md` all exist in `${WORK_DIR}/`.
@@ -923,7 +959,7 @@ fi
 | FAIL | PASS | Unexpected — reference model may be outdated or for a different architecture |
 
 **Recovery actions**:
-- **Compilation problem**: Re-check config.json, try `minmax` instead of `ema`, adjust PPU settings, lower opt_level
+- **Compilation problem**: Re-check config.json, try `minmax` or `iqr` instead of `ema` (or diagnose with `--quant_diagnosis` and re-quantize from the `.qxnn` checkpoint), adjust PPU settings, lower opt_level
 - **verify.py problem**: Debug postprocessing in verify.py — check bbox format (xyxy vs xywh), class index offset, confidence threshold, output tensor shape
 
 **Append cross-validation result to session.log**:
@@ -1145,7 +1181,7 @@ session working directory:
 
 ### Next Steps
 - Run the app: `bash setup.sh && bash run.sh`
-- Validate with DX-TRON: `dx-tron --web --port 8080 <session_dir>/model.dxnn`
+- Validate via the summary report: compile with `--export_html`, then open `<session_dir>/*_summary.html`
 - Deploy to dx_app: copy .dxnn to `dx-runtime/dx_app/resources/models/`
 ```
 
@@ -1155,26 +1191,37 @@ session working directory:
 |---|---|---|
 | EMA | `"calibration_method": "ema"` | General purpose (default, recommended) |
 | MinMax | `"calibration_method": "minmax"` | When EMA produces outlier ranges |
+| IQR | `"calibration_method": "iqr"` | Calibration data with extreme values (robust to outliers) |
 
 ### Q-PRO Options (DXQ-P0 ~ DXQ-P5) — NOT Default
 
-Q-PRO enhanced quantization (`enhanced_scheme`) is an **advanced option** that is
-NOT used by default. It requires GPU for practical execution (3-5x longer calibration).
+Q-PRO enhanced quantization is an **advanced option** that is NOT used by default. It has
+two mutually exclusive forms: automatic (`--use_q_pro` / `use_q_pro=True`) and manual
+(`enhanced_scheme`, DXQ-P0–P5). DXQ-P1–P5 are very slow; GPU quantization cuts the time by 2–5x.
 
 **Use Q-PRO ONLY when ALL of the following conditions are met:**
 1. The end-user explicitly requests enhanced quantization or mentions DXQ-P/Q-PRO
-2. GPU is available (`quantization_device: "cuda:0"` verified working)
-3. The user confirms they accept the additional calibration time (3-5x)
+2. A GPU is available (quantization uses it by default) to keep the compile time manageable
+3. The user confirms they accept the additional calibration time
 
 **Example config (only when explicitly requested by user):**
 ```json
 {
-  "enhanced_scheme": {"DXQ-P3": {"num_samples": 1024}},
-  "quantization_device": "cuda:0"
+  "enhanced_scheme": {"DXQ-P3": {"num_samples": 1024}}
 }
 ```
 
+Automatic form: add `--use_q_pro` (CLI) or `use_q_pro=True` (Python) instead of `enhanced_scheme` — never both.
+
 If the user does not mention Q-PRO/DXQ-P/enhanced_scheme, always use EMA (default).
+
+### QAT (Q-Master) — NOT Default
+
+When calibration tuning and Q-PRO are still insufficient, QAT is the next escalation.
+Add a `qmaster` block **ONLY** when the user explicitly requests QAT. Requires a CUDA GPU
+and representative training images; **mutually exclusive with Q-PRO** in v2.5.0.
+Run a `fast_run` smoke test first and compare accuracy against PTQ afterwards.
+Full reference: `.deepx/toolsets/qat.md`.
 
 ## Common Compilation Errors
 
@@ -1183,7 +1230,7 @@ If the user does not mention Q-PRO/DXQ-P/enhanced_scheme, always use EMA (defaul
 | Input name mismatch | config.json key != ONNX input name | Inspect ONNX and fix config |
 | Shape mismatch | config.json shape != ONNX shape | Match exactly |
 | Unsupported op | Operator not in DX-COM op set | Simplify model or replace op |
-| OOM during calibration | GPU memory exceeded | Reduce `calibration_num` or use CPU |
+| OOM during calibration | GPU memory exceeded | Reduce `calibration_num` or quantize on CPU (`--use_gpu False`) |
 | PPU type error | Wrong PPU type for model arch | Check anchor-based vs anchor-free |
 
 ## Output Report

@@ -1,6 +1,6 @@
 # Compilation Workflow — End-to-End Reference
 
-> Complete PT → ONNX → DXNN pipeline reference for DEEPX DX-COM v2.2.1.
+> Complete PT → ONNX → DXNN pipeline reference for DEEPX DX-COM v2.5.0.
 > Covers calibration best practices, quantization strategies, and PPU configuration.
 
 ## Pipeline Overview
@@ -38,7 +38,7 @@ Simplified ONNX (.onnx)
 DXNN Model (.dxnn)
     │
     ▼
-[Phase 6: Validate with DX-TRON]
+[Phase 6: Validate via HTML summary report]
     │  Visual inspection, graph review
     ▼
 [Phase 6.5: Generate Mandatory Artifacts]
@@ -119,10 +119,14 @@ Agents should auto-infer config values when possible:
 4. **Normalize params**: Infer from model family:
    - YOLO: `mean=[0,0,0]`, `std=[1,1,1]`
    - ImageNet: `mean=[0.485,0.456,0.406]`, `std=[0.229,0.224,0.225]`
+   - With `default_loader` (BGR uint8, 0–255), put `convertColor` BGR2RGB and `div` 255
+     before `normalize` — see `toolsets/config-schema.md` → preprocessings
 5. **PPU type**: Infer from model name:
    - "yolov3", "yolov4", "yolov5", "yolov7" → type 0
    - "yolox", "yolov8", "yolov9", "yolov10", "yolov11", "yolov12" → type 1
-   - "yolo26" → PPU not supported (NMS-free native architecture; use end2end=True instead)
+   - "yolo26" → PPU not supported (NMS-free native architecture; use end2end=True instead).
+     For faster CPU post-processing, the opt-in `pre_optimize` pass `yolo_no_dfl_postprocess`
+     supports YOLO26 (see `toolsets/config-schema.md` → pre_optimize)
 
 ## Phase 4: Calibration Best Practices
 
@@ -149,8 +153,8 @@ dx-agent-dev/<session_id>/calibration_dataset  (symlink)
 
 ### Dataset Requirements
 - Images must be representative of real inference data
-- Minimum: 100 images (default `calibration_num`)
-- More images = better quantization accuracy (diminishing returns after ~500)
+- Default `calibration_num`: 100 (the bundled dataset has 100 images)
+- The manual suggests trying several values (e.g. 1, 5, 10, 100, 1000) and keeping the most accurate
 - Avoid synthetic or augmented data for calibration
 
 ### Calibration Methods
@@ -159,42 +163,58 @@ dx-agent-dev/<session_id>/calibration_dataset  (symlink)
 |---|---|---|
 | EMA | `"ema"` | Default. Best for most models |
 | MinMax | `"minmax"` | When EMA produces poor accuracy |
+| IQR | `"iqr"` | Calibration data with extreme values (25th–75th percentile range; more robust to outliers than MinMax) |
 
 ### Q-PRO (DXQ-P0 ~ DXQ-P5) — Advanced, NOT Default
 
-Q-PRO enhanced quantization (`enhanced_scheme`) provides higher accuracy but is
-3-5x slower and requires GPU. **Do NOT use by default.** Only apply when:
+Q-PRO enhanced quantization can raise accuracy but makes compilation much slower
+(DXQ-P1–P5 are "very slow"; GPU quantization cuts the time by 2–5x, but a GPU is not
+required). It comes in two mutually exclusive forms: automatic (`--use_q_pro` /
+`use_q_pro=True` — DX-COM picks the DXQ combination) and manual (`enhanced_scheme`,
+DXQ-P0–P5). **Do NOT use by default.** Only apply when:
 1. End-user explicitly requests Q-PRO/DXQ-P/enhanced quantization
-2. GPU is available and verified (`quantization_device: "cuda:0"`)
+2. A GPU is available (quantization uses it by default) to keep the compile time manageable
 3. User confirms they accept the additional calibration time
 
+### Accuracy Improvement Order
+
+When INT8 accuracy is below the user's target, escalate **one step at a time** and re-measure after each:
+
+1. Calibration method: `ema` → `minmax` → `iqr`
+2. Q-PRO (`use_q_pro` / `enhanced_scheme`) — only if the user accepts the extra time
+3. `quant_diagnosis` / resume to localize and fix the offending layers
+4. **QAT (Q-Master)** — `qmaster` block; requires GPU + training images, takes minutes to hours.
+   Add ONLY when the user explicitly requests it. **Mutually exclusive with Q-PRO** in v2.5.0.
+   Full reference: `.deepx/toolsets/qat.md`
+
 ### GPU Calibration
-Use GPU for faster calibration:
-```json
-{"quantization_device": "cuda:0"}
-```
-Falls back to CPU if GPU unavailable.
+Calibration runs on GPU by default when one is available and falls back to CPU otherwise.
+Force CPU with `--use_gpu False` (Python: `use_gpu=False`); select a specific GPU with the
+`CUDA_VISIBLE_DEVICES` environment variable.
 
 ## Phase 5: Compilation Options
 
 ### Optimization Levels
 | Level | Description |
 |---|---|
-| 0 | Minimal optimization — faster compilation, larger model |
-| 1 | Full optimization (default) — slower compilation, smaller model |
+| 0 | Basic optimization — faster compilation, higher NPU latency |
+| 1 | Full optimization (default) — slower compilation, lowest NPU latency |
 
 ### Aggressive Partitioning
-Use `--aggressive_partitioning` to maximize operations on NPU:
-- May increase NPU coverage at cost of slight accuracy loss
-- Recommended when CPU fallback ratio is high
+Use `--aggressive_partitioning` (experimental) to maximize operations on NPU:
+- May produce unexpected results for some models, and may increase compile time and memory
+- Consider it when the CPU fallback ratio is high, especially on hosts with limited CPU
+  performance; on powerful hosts the default partitioning can be faster end to end
 
 ### Partial Compilation
 Compile only a subgraph of the model:
 ```bash
 dxcom -m model.onnx -c config.json -o output/ \
-  --compile_input_nodes node_a node_b \
-  --compile_output_nodes node_x node_y
+  --compile_input_nodes node_a,node_b \
+  --compile_output_nodes node_x,node_y
 ```
+Use comma-separated ONNX operator node names (not tensor names). All other CLI flags
+(`--export_html`, `--use_gpu`, `--verbose`, `--quant_diagnosis`, ...): `toolsets/dxcom-cli.md`.
 
 ## Phase 6: PPU Configuration Guide
 
@@ -206,27 +226,37 @@ For YOLOv3, YOLOv4, YOLOv5, YOLOv7:
   "ppu": {
     "type": 0,
     "conf_thres": 0.25,
-    "iou_thres": 0.45,
+    "activation": "Sigmoid",
     "num_classes": 80,
-    "anchors": [[10,13,16,30,33,23],[30,61,62,45,59,119],[116,90,156,198,373,326]]
+    "layer": {
+      "Conv_245": {"num_anchors": 3},
+      "Conv_294": {"num_anchors": 3},
+      "Conv_343": {"num_anchors": 3}
+    }
   }
 }
 ```
 
 ### PPU Type 1 — Anchor-Free
 
-For YOLOX, YOLOv8, YOLOv9, YOLOv10, YOLOv11, YOLOv12:
+For YOLOX, YOLOv8, YOLOv9, YOLOv10, YOLOv11, YOLOv12 (YOLOv8-style head shown):
 ```json
 {
   "ppu": {
     "type": 1,
     "conf_thres": 0.25,
-    "iou_thres": 0.45,
     "num_classes": 80,
-    "max_det": 300
+    "layer": [
+      {"bbox": "Mul_441", "cls_conf": "Sigmoid_442"}
+    ]
   }
 }
 ```
+
+Node names above are placeholders — read them from the ONNX graph (Netron). The PPU has
+no `iou_thres`, `max_det`, or `anchors` key; NMS runs on the host CPU. YOLOX uses
+`bbox`/`obj_conf`/`cls_conf` per scale, and PPU type 2 is deprecated in favor of
+`pre_optimize` — see `toolsets/config-schema.md` → ppu.
 
 ## Phase 6.5: Generate Mandatory Artifacts
 

@@ -9,13 +9,14 @@ These parameters are defined in a JSON file, which serves as a blueprint for how
 | Parameter | Required | Description |
 |-----------|----------|-------------|
 | `inputs` | Yes | Model input name and shape: `{"name": [1,C,H,W]}` |
-| `calibration_method` | Yes | Calibration method: `"ema"` or `"minmax"` |
-| `calibration_num` | Yes | Number of calibration samples (e.g., 100) |
+| `calibration_method` | No | Calibration method: `"ema"` (default), `"minmax"`, or `"iqr"` |
+| `calibration_num` | No | Number of calibration samples (default: 100) |
 | `default_loader` | Yes | Preprocessing configuration with dataset loading |
-| `quantization_device` | No | Target device for quantization computation. GPU auto-selected if available |
+| `quantization_device` | No | **Deprecated in v2.5.0 — ignored.** Select the device with `--use_gpu` / `use_gpu` and `CUDA_VISIBLE_DEVICES` (see **Quantization Device** below) |
 | `enhanced_scheme` | No | DXQ-P0~P5 quantization enhancement for accuracy improvement (DX-COM v2.1.0+) |
-| `qmaster` | No | Quantization-Aware Training (QAT) hyperparameters. Presence of this block enables QAT (DX-COM v2.4.0+). See [Quantization-Aware Training (QAT)](02_08_Quantization_Aware_Training.md) |
+| `qmaster` | No | Q-Master (QAT) hyperparameters. Presence of this block enables Q-Master (DX-COM v2.4.0+). See [Q-Master (QAT)](02_08_Quantization_Aware_Training.md) |
 | `ppu` | No | Object detection post-processing (YOLO models) |
+| `pre_optimize` | No | ONNX-level post-processing optimization for YOLO/RTMDet models, written as a list `[{pass_name: config}]`. Mutually exclusive with `ppu`. See [Pre-Optimize API](02_09_Pre_Optimize_API.md) |
 
 For complete examples, see [Common Use Cases](02_10_Common_Use_Cases.md).  
 
@@ -27,7 +28,7 @@ For complete examples, see [Common Use Cases](02_10_Common_Use_Cases.md).
 
 Defines the input name and shape of the ONNX model.  
 
-!!! warning "Model Input Restrictions"
+!!! warning "Model Input Restrictions"  
     - The batch size **must** be fixed to 1.  
     - **Only** a single input is supported when compiling from a JSON configuration with the `dxcom` command. For multi-input models, use the `dx_com` Python module with DataLoader (see the **Python Wheel Package Usage** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md)).  
     - Input name **must** exactly match ONNX model definition.
@@ -66,6 +67,8 @@ Available Methods
   Uses interquartile range (IQR) based on the 25th and 75th percentiles of activation values.  
   More robust to outliers than `minmax`, particularly useful when calibration data contains extreme values.
 
+Values are lowercase (`"EMA"` is rejected). Default: `"ema"`.
+
 Example
 ```json
 {
@@ -80,6 +83,8 @@ Example
 Defines the number of steps used during calibration. A higher number may improve quantization accuracy by better estimating activation ranges, but may also increase compile time.  
 
 To minimize the accuracy degradation, it is recommended to try different values, such as 1, 5, 10, 100, or 1000, and determine the value that yields the best accuracy for your model.
+
+Default: `100`. Use a positive integer. If the dataset has fewer images than `calibration_num`, all of them are used without a warning.
 
 Example
 ```json
@@ -101,11 +106,22 @@ You must provide calibration data using the `default_loader` parameter, which sp
     "file_extensions": ["jpeg", "png", "jpg", "JPEG"],
     "preprocessings": [
       {"resize": {"width": 224, "height": 224}},
-      {"normalize": {"mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]}}
+      {"convertColor": {"form": "BGR2RGB"}},
+      {"div": {"x": 255}},
+      {"normalize": {"mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]}},
+      {"transpose": {"axis": [2, 0, 1]}},
+      {"expandDim": {"axis": 0}}
     ]
   }
 }
 ```
+
+`default_loader` reads each image with OpenCV as **BGR, HWC, uint8 (0–255)** and applies only the listed `preprocessings`, in order. It never rescales, converts color, or transposes on its own:
+
+- For an NCHW model (most PyTorch exports), end the list with `transpose` `[2, 0, 1]` and then `expandDim` `0`. Without the transpose, calibration fails with `DataLoaderError: … The config specifies (1, H, W, C), but model requires (1, C, H, W)`.
+- For a model trained on RGB input in [0, 1], put `convertColor` `BGR2RGB` and `div` `255` before `normalize`. `normalize` alone does not rescale 0–255 values, and the compile still succeeds with wrongly scaled calibration data.
+- `dataset_path`: a relative path is resolved from the current working directory, not from the config file. Prefer an absolute path.
+- `file_extensions`: required. A list of extensions without the dot, matched case-sensitively (list `"JPG"` as well as `"jpg"` when both exist). Subfolders are searched too.
 
 For all available preprocessing operations, see [Appendix: Preprocessing Operations Reference](#appendix-preprocessing-operations-reference).
 
@@ -117,23 +133,16 @@ If you need to compile multi-input models or provide non-image data, use the `dx
 
 ## Optional Parameters: Quantization Device
 
-Specifies the device used for quantization during compilation. By default, DX-COM automatically detects available hardware and uses GPU if a CUDA-compatible GPU is available, otherwise falls back to CPU. You can override this behavior by explicitly setting the device.
+Quantization runs on GPU by default when a CUDA-capable GPU is available, and falls back to CPU otherwise. The device is selected outside the JSON file:
 
-Available Values
+- `dxcom` CLI: `--use_gpu True` (default) or `--use_gpu False` to force CPU.
+- Python: `dx_com.compile(..., use_gpu=True)` (default) or `use_gpu=False` to force CPU.
+- A specific GPU: set the `CUDA_VISIBLE_DEVICES` environment variable (e.g., `CUDA_VISIBLE_DEVICES=1 dxcom ...`).
 
-- Not specified (Default): Auto-detect. Uses GPU if available, otherwise CPU.
-- `"cpu"`: Force CPU quantization.
-- `"cuda"`: Use the default CUDA GPU.
-- `"cuda:N"`: Use a specific GPU (e.g., `"cuda:0"`, `"cuda:1"`).
+!!! warning "`quantization_device` is deprecated (v2.5.0)"  
+    From **DX-COM v2.5.0** the JSON `quantization_device` field and the Python `quantization_device` argument are **ignored**. DX-COM prints `UserWarning: quantization_device (JSON config) is deprecated and ignored` and selects the device as described above. Remove the field from existing configs.
 
-Example
-```json
-{
-  "quantization_device": "cuda:0"
-}
-```
-
-!!! warning "Hardware Requirements"
+!!! warning "Hardware Requirements"  
     - **GPU**: NVIDIA GPU with CUDA support.
     - **Framework**: PyTorch built with CUDA support (`torch.cuda.is_available()` must return `True`).
 
@@ -143,12 +152,12 @@ For practical examples, see the **Use Case 5: Enhanced Quantization (DXQ)** sect
 
 ## Optional Parameters: Enhanced Quantization Scheme (DXQ)
 
-!!! note "Version Support"
+!!! note "Version Support"  
     DXQ (`enhanced_scheme`) is supported in **DX-COM v2.1.0 and later**.
 
 When quantizing a model, accuracy degradation may occur compared to the original model. To mitigate this, **Q-PRO options** (DXQ-P0 to DXQ-P5) can be used to enhance quantization performance.  
 
-!!! tip "Prefer automatic selection?"
+!!! tip "Prefer automatic selection?"  
     The DXQ schemes below are the **manual** Q-PRO interface. To let DX-COM pick the DXQ combination for you, use the compile-time `--use_q_pro` flag instead — see the **Automatic Q-PRO (`use_q_pro`)** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md). Automatic Q-PRO and a manual `enhanced_scheme` are mutually exclusive.
 
 | Name | Compilation Speed | Accuracy Improvement |
@@ -160,13 +169,13 @@ When quantizing a model, accuracy degradation may occur compared to the original
 | DXQ-P4 | Very Slow | High |
 | DXQ-P5 | Very Slow | High |
 
-!!! note "Recommendation"
+!!! note "Recommendation"  
     **Best Accuracy**: DXQ-P3 and DXQ-P4 generally offer better accuracy, so try them first.  
     
-    **GPU Acceleration**: DXQ schemes (especially P1~P5) are computationally intensive. Using `quantization_device="cuda"` can reduce compilation time by **2-5x** compared to CPU. 
+    **GPU Acceleration**: DXQ schemes (especially P1~P5) are computationally intensive. Running quantization on GPU (the default when a GPU is available) can reduce compilation time by **2-5x** compared to CPU. 
     See the **Use Case 5: Enhanced Quantization (DXQ)** section in [Common Use Cases](02_10_Common_Use_Cases.md) for examples.  
 
-!!! warning "Limitations"
+!!! warning "Limitations"  
     Results are **not guaranteed** to improve accuracy. Results may vary depending on the model and dataset.
 
 
@@ -279,7 +288,7 @@ The performance effect depends on the selected PPU type. `type = 0` and `type = 
 | 1 | Anchor-Free | YOLOX, YOLOv8, YOLOv9, YOLOv10, YOLOv11, YOLOv12 |
 | 2 | DFL-Based (CPU TopK) | YOLOv8, YOLOv9, YOLOv11, YOLOv12 |
 
-!!! warning "Type 2 is deprecated"
+!!! warning "Type 2 is deprecated"  
     **PPU type 2** is deprecated as of DX-Compiler v2.4.0 and will be removed in a future release. Use the [`dx_com.pre_optimize()` API](02_09_Pre_Optimize_API.md) instead for the same TopK-first optimization with additional features.
 
 ---
@@ -358,9 +367,8 @@ Parameters:
 
 ### Type 2: DFL-Based Anchor-Free Models (CPU-Side TopK Optimization)
 
-!!! warning "Deprecated in v2.4.0"
-
-    `ppu.type = 2` is **deprecated** as of DX-Compiler v2.4.0 and will be removed in a future release. New projects should use the [`dx_com.pre_optimize()` API](02_09_Pre_Optimize_API.md), which provides the same TopK-first optimization (and adds support for instance segmentation and YOLO26). Compiling a model with PPU type 2 still works in v2.4.0 but emits a deprecation warning. See the **Migration from PPU Type 2** section in [Pre-Optimize API](02_09_Pre_Optimize_API.md) for the replacement recipe.
+!!! warning "Deprecated in v2.4.0"  
+    `ppu.type = 2` is **deprecated** as of DX-Compiler v2.4.0 and will be removed in a future release. New projects should use the [`dx_com.pre_optimize()` API](02_09_Pre_Optimize_API.md), which provides the same TopK-first optimization (and adds support for instance segmentation, pose, YOLO26, and RTMDet). Compiling a model with PPU type 2 still works but emits a deprecation warning. See the **Migration from PPU Type 2** section in [Pre-Optimize API](02_09_Pre_Optimize_API.md) for the replacement recipe.
 
 `ppu.type = 2` is an optional CPU-side TopK optimization path for compatible DFL-based anchor-free YOLO models. It does **not** use the PPU hardware. Post-processing still runs on the CPU, and TopK is also performed on the CPU. By reducing the number of candidate boxes that continue into later CPU-side DFL-based decoding and filtering stages, this option reduces post-processing complexity and improves runtime efficiency.
 
@@ -440,7 +448,7 @@ To configure PPU, you need to identify specific node names in your ONNX model:
 
 The following preprocessing operations can be applied to input data when using `default_loader`. These operations help standardize input formats and ensure consistency between calibration and deployment.
 
-!!! warning "Automatic Preprocessing Optimization"
+!!! warning "Automatic Preprocessing Optimization"  
     To maximize performance, the compiler may automatically integrate specific preprocessing operations directly into the NPU execution graph. This hardware-level integration reduces host CPU load and minimizes data transfer latency.  
 
     Optimization depends on input data types and model architecture; therefore, integration **is not guaranteed** for all operations.  
@@ -486,6 +494,8 @@ Changes the color channel order of input images.
 
 Supported values: `RGB2BGR`, `BGR2RGB`, `RGB2GRAY`, `BGR2GRAY`, `RGB2YCrCb`, `BGR2YCrCb`, `RGB2YUV`, `BGR2YUV`, `RGB2HSV`, `BGR2HSV`, `RGB2LAB`, `BGR2LAB`
 
+`form` is case-sensitive. The `*2GRAY` forms output `(H, W, 1)`, so a 1-channel NCHW model still needs `transpose` `[2, 0, 1]`. `convertColor` is not integrated into the NPU graph (it is listed under `Skipped nodes` in `compiler.log`), so the inference code must apply the same conversion.
+
 **resize**  
 
 Resizes input image to a specified target size.  
@@ -498,6 +508,14 @@ Resizes input image to a specified target size.
 |------|--------------------------------|
 | `default` (OpenCV) | `LINEAR`, `NEAREST`, `CUBIC`, `AREA`, `LANCZOS4` |
 | `torchvision` (PIL) | `BILINEAR`, `NEAREST`, `BICUBIC`, `LANCZOS` |
+
+Use the uppercase names from the row of the selected `mode`. Names from the other row (e.g. `BILINEAR` with `default`) and lowercase names are not accepted.
+
+The target size can also be given with `size` instead of `width` and `height`:
+
+```json
+{"resize": {"mode": "torchvision", "size": 256, "interpolation": "BILINEAR"}}
+```
 
 **centercrop**  
 
@@ -512,8 +530,10 @@ Crops the central region of the input image.
 Rearranges tensor dimensions.  
 
 ```json
-{"transpose": {"axis": [0, 2, 3, 1]}}
+{"transpose": {"axis": [2, 0, 1]}}
 ```
+
+`default_loader` images are HWC, so `[2, 0, 1]` converts them to CHW for an NCHW model. If the transpose comes after `expandDim`, use `[0, 3, 1, 2]` instead.
 
 **expandDim**  
 
@@ -525,7 +545,7 @@ Adds a new dimension at the specified axis.
 
 **normalize**  
 
-Normalizes input data by mean and standard deviation. This operation may be integrated into the NPU graph during compilation (see [NPU Integration](#appendix-preprocessing-operations-reference) above).  
+Normalizes input data by mean and standard deviation. This operation may be integrated into the NPU graph during compilation (see the **Automatic Preprocessing Optimization** note above).  
 
 ```json
 {"normalize": {"mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]}}
@@ -533,7 +553,7 @@ Normalizes input data by mean and standard deviation. This operation may be inte
 
 **mul, add, subtract, div**  
 
-Arithmetic operations on input data. The `subtract` and `div` operations may be integrated into the NPU graph during compilation (see [NPU Integration](#appendix-preprocessing-operations-reference) above).  
+Arithmetic operations on input data. The `subtract` and `div` operations may be integrated into the NPU graph during compilation (see the **Automatic Preprocessing Optimization** note above).  
 
 ```json
 {"mul": {"x": 255}}
@@ -546,7 +566,7 @@ Arithmetic operations on input data. The `subtract` and `div` operations may be 
 
 ## Appendix: Custom Loader (Legacy)
 
-!!! warning "Deprecation Notice"
+!!! warning "Deprecation Notice"  
     The Custom Loader approach is **deprecated**. For new projects, use the **Python Wheel Package Usage** section in [Execution of DX-COM](02_06_Execution_of_DX-COM.md) instead, which provides more flexibility and better integration with Python workflows.
 
 For legacy projects that still require Custom Loader, download the [Custom Dataloader Guide](http://cs.deepx.ai/_deepx_fae_archive/docs/Custom_Dataloader_Guide_241204.zip) for detailed instructions.  

@@ -20,6 +20,8 @@
 │   │   └── SKILL.md                   ← /dx-agent-compiler-compile skill
 │   ├── dx-agent-compiler-validate/
 │   │   └── SKILL.md                   ← /dx-agent-compiler-validate skill
+│   ├── dx-agent-compiler-pre-optimize/
+│   │   └── SKILL.md                   ← /dx-agent-compiler-pre-optimize skill
 │   ├── dx-agent-brainstorm/
 │   │   └── SKILL.md                   ← Process skill
 │   ├── dx-agent-tdd/
@@ -32,11 +34,15 @@
 ├── toolsets/
 │   ├── dxcom-api.md                   ← Python API 레퍼런스 (dx_com.compile)
 │   ├── dxcom-cli.md                   ← CLI 레퍼런스 (dxcom)
-│   └── config-schema.md              ← JSON config 스키마 레퍼런스
+│   ├── config-schema.md               ← JSON config 스키마 레퍼런스
+│   ├── ultralytics-deepx-export.md    ← Ultralytics YOLO format=deepx export
+│   ├── ultralytics-train-eval.md      ← Ultralytics 재학습 및 평가
+│   └── paddlepaddle-deepx.md          ← DeepX용 PaddleOCR / PaddlePaddle
 ├── memory/
 │   ├── MEMORY.md                      ← 메모리 인덱스 및 업데이트 프로토콜
 │   └── common_pitfalls.md             ← 도메인 태깅된 pitfalls
 └── scripts/
+    ├── pre_optimize_find_heads.py     ← pre_optimize head 탐색 + 검증 스크립트
     └── validate_framework.py          ← 프레임워크 검증 스크립트
 ```
 
@@ -55,6 +61,9 @@
 | DX-COM Python API | `toolsets/dxcom-api.md` | `dx_com.compile()` 시그니처, 파라미터, 코드 예제 |
 | DX-COM CLI | `toolsets/dxcom-cli.md` | `dxcom` 커맨드라인 옵션 및 호출 패턴 |
 | Config Schema | `toolsets/config-schema.md` | JSON config 구조, 자동 추론 규칙 |
+| Ultralytics DeepX Export | `toolsets/ultralytics-deepx-export.md` | Ultralytics YOLO detection 모델의 one-shot `format=deepx` export |
+| Ultralytics Train & Eval | `toolsets/ultralytics-train-eval.md` | Ultralytics 모델 재학습, mAP 및 FPS 평가 |
+| PaddlePaddle on DeepX | `toolsets/paddlepaddle-deepx.md` | PaddleOCR / PaddlePaddle 모델 변환 및 앱 |
 
 ## Memory
 
@@ -70,6 +79,7 @@
 | /dx-agent-compiler-convert | `skills/dx-agent-compiler-convert/SKILL.md` | "convert", "export", "PT to ONNX" |
 | /dx-agent-compiler-compile | `skills/dx-agent-compiler-compile/SKILL.md` | "compile", "ONNX to DXNN", "quantize" |
 | /dx-agent-compiler-validate | `skills/dx-agent-compiler-validate/SKILL.md` | "validate", "verify", "check output" |
+| /dx-agent-compiler-pre-optimize | `skills/dx-agent-compiler-pre-optimize/SKILL.md` | "pre_optimize", "head tensor names", "ppu to pre_optimize" |
 | /dx-agent-brainstorm | `skills/dx-agent-brainstorm/SKILL.md` | "brainstorm", "plan", "design" (process skill) |
 | /dx-agent-tdd | `skills/dx-agent-tdd/SKILL.md` | "TDD", "validation", "incremental" (process skill) |
 | /dx-agent-verify | `skills/dx-agent-verify/SKILL.md` | "completion", "verify", "evidence" (process skill) |
@@ -85,6 +95,7 @@
 
 | Script | 목적 |
 |---|---|
+| `scripts/pre_optimize_find_heads.py` | YOLO/RTMDet head Conv 이름을 찾아 검증된 `pre_optimize` 블록 출력 |
 | `scripts/validate_framework.py` | .deepx/ 구조, 상호 참조, 도메인 태그 검증 |
 
 ## Context Routing Table
@@ -97,6 +108,7 @@
 | **config, JSON, schema** | `toolsets/config-schema.md` |
 | **calibration, quantization, INT8** | `instructions/compilation-workflow.md`, `toolsets/config-schema.md` |
 | **PPU, YOLO, detection** | `toolsets/config-schema.md`, `instructions/compilation-workflow.md` |
+| **pre_optimize, head tensor names, ppu to pre_optimize** | `skills/dx-agent-compiler-pre-optimize/SKILL.md`, `toolsets/config-schema.md` |
 | **validate, verify, check** | `skills/dx-agent-compiler-validate/SKILL.md` |
 | **error, fail, bug** | `memory/common_pitfalls.md` |
 | **Brainstorm, plan, design** | `skills/dx-agent-brainstorm/SKILL.md` |
@@ -120,14 +132,14 @@
 ## Key Facts
 
 - **Compiler**: DX-COM — ONNX를 DEEPX NPU용 .dxnn으로 컴파일
-- **Inspector**: DX-TRON v2.0.1 — 시각적 .dxnn 검사 (AppImage / 웹)
+- **Inspector**: Compilation Summary Report — `dxcom --export_html`가 self-contained `<model>_summary.html` 파일을 생성
 - **Batch size**: 1이어야 함. Dynamic shapes는 지원하지 않음.
 - **ONNX opset**: 11-21 지원
-- **OS**: Debian Linux (Ubuntu 20.04 / 22.04 / 24.04), x86_64
-- **Python**: 3.8 - 3.12
+- **OS**: Ubuntu 20.04 / 22.04 / 24.04 / 26.04; Fedora 42–45, RHEL 9–10, CentOS Stream 9–10 (x86_64, glibc ≥ 2.31)
+- **Python**: 3.8 - 3.14
 - **Hardware targets**: DX-M1 (`dx_m1`)
-- **Quantization**: EMA 또는 MinMax calibration을 통한 INT8
-- **PPU types**: Type 0 (anchor-based: YOLOv3/v4/v5/v7), Type 1 (anchor-free: YOLOX, YOLOv8-v12)
+- **Quantization**: EMA, MinMax 또는 IQR calibration을 통한 INT8 (opt-in: Q-PRO, `qmaster` 기반 QAT — `toolsets/qat.md` 참고)
+- **PPU types**: Type 0 (anchor-based: YOLOv3/v4/v5/v7), Type 1 (anchor-free: YOLOX, YOLOv8-v12); Type 2는 deprecated — `pre_optimize` 사용
 - **Compilation flow**: ONNX + config.json + calibration data → .dxnn
 - **두 가지 인터페이스**: CLI (`dxcom`)와 Python API (`dx_com.compile()`)
 
@@ -144,3 +156,7 @@
 Codex CLI는 여기서 Copilot 스타일 `@mention` wrapper나 OpenCode slash-command
 adapter를 사용하지 않습니다. `AGENTS.md`를 시작점으로 삼고, 작업별 grounding이
 필요하면 canonical `.deepx/agents/*.md`와 `.deepx/skills/*/SKILL.md`를 직접 읽습니다.
+
+## CI Drift Gate
+
+이 repo는 `subrepo-gate` CI job(`.github/workflows/dx-agent-dev-subrepo-gate-{ghes,cloud}.yml`)으로 검사됩니다. 실행 내용, 로컬 재현, red일 때 수정 방법: [`docs/ci-subrepo-gate-KO.md`](docs/ci-subrepo-gate-KO.md).

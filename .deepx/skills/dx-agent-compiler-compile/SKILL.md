@@ -6,7 +6,7 @@ description: ONNX to DXNN compilation workflow for dx-compiler
 # /dx-agent-compiler-compile — ONNX to DXNN Compilation Skill
 
 > Step-by-step workflow for compiling ONNX models to .dxnn format
-> using DEEPX DX-COM (v2.2.1).
+> using DEEPX DX-COM (v2.5.0).
 
 ## MANDATORY OUTPUT REQUIREMENTS — READ FIRST
 
@@ -44,7 +44,7 @@ description: ONNX to DXNN compilation workflow for dx-compiler
 ## Prerequisites Checklist
 
 - [ ] ONNX model validated (opset 11-21, batch=1, static shapes)
-- [ ] DX-COM installed (`dxcom --help` works)
+- [ ] DX-COM installed (`dxcom --version` works)
 - [ ] dx-runtime sanity check passed (`bash dx-runtime/scripts/sanity_check.sh --dx_rt`)
   - If FAIL after install.sh:
     - **Compiler-only task** (compilation without dx_app/dx_stream work): inform user of the
@@ -182,14 +182,40 @@ instructions. The user expects actual compilation output (`.dxnn`), not a recipe
    input_shape = [d.dim_value for d in model.graph.input[0].type.tensor_type.shape.dim]
    ```
 
-2. Determine preprocessing params:
-   - YOLO models: `mean=[0.0, 0.0, 0.0]`, `std=[1.0, 1.0, 1.0]`
-   - ImageNet models: `mean=[0.485, 0.456, 0.406]`, `std=[0.229, 0.224, 0.225]`
-   - Custom: ask user
+2. Determine preprocessing params (RGB input scaled to `[0, 1]`, then normalized) and set
+   `model_family` for the step 3 code:
+   - YOLO models (`model_family = "yolo"`): `mean=[0.0, 0.0, 0.0]`, `std=[1.0, 1.0, 1.0]` (no `normalize` step needed)
+   - ImageNet models (`model_family = "imagenet"`): `mean=[0.485, 0.456, 0.406]`, `std=[0.229, 0.224, 0.225]`
+   - Custom: ask the user for `mean` and `std`, and set them directly instead of using `NORMALIZE`
 
-3. Write config.json to working directory:
+3. Write config.json to working directory. `default_loader` reads images as HWC/BGR/uint8,
+   so an NCHW input needs a `transpose` before the final `expandDim` (R24 in `toolsets/config-schema.md`):
    ```python
    import json
+   NORMALIZE = {  # step 2
+       "yolo": ([0.0, 0.0, 0.0], [1.0, 1.0, 1.0]),
+       "imagenet": ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+   }
+   mean, std = NORMALIZE[model_family]
+   if input_shape[1] == 3:    # NCHW [1, 3, H, W] — most PyTorch / Ultralytics exports
+       h, w, nchw = input_shape[2], input_shape[3], True
+   elif input_shape[3] == 3:  # NHWC [1, H, W, 3]
+       h, w, nchw = input_shape[1], input_shape[2], False
+   else:  # 1- or 4-channel or non-image input: this chain does not apply
+       raise ValueError(f"input shape {input_shape} is not a 3-channel image "
+                        "(NCHW [1, 3, H, W] or NHWC [1, H, W, 3]): ask the user for the preprocessing")
+   preprocessings = [
+       {"resize": {"width": w, "height": h}},
+       {"div": {"x": 255}},                    # uint8 0-255 -> 0-1
+       {"convertColor": {"form": "BGR2RGB"}},  # default_loader reads BGR; drop for BGR-trained models
+   ]
+   if (mean, std) != ([0.0, 0.0, 0.0], [1.0, 1.0, 1.0]):
+       preprocessings.append({"normalize": {"mean": mean, "std": std}})
+   if nchw:
+       preprocessings.append({"transpose": {"axis": [2, 0, 1]}})  # HWC -> CHW
+   # Always end with expandDim: an NHWC graph that starts with Transpose(0,3,1,2)
+   # (e.g. tf2onnx exports) fails to compile without it; harmless for NCHW models.
+   preprocessings.append({"expandDim": {"axis": 0}})
    config = {
        "inputs": {input_name: input_shape},
        "calibration_method": "ema",
@@ -197,11 +223,8 @@ instructions. The user expects actual compilation output (`.dxnn`), not a recipe
        "default_loader": {
            "dataset_path": "./calibration_dataset",
            "file_extensions": ["jpeg", "png", "jpg"],
-           "preprocessings": [
-               {"resize": {"width": input_shape[3], "height": input_shape[2]}},
-               {"normalize": {"mean": [0.0, 0.0, 0.0], "std": [1.0, 1.0, 1.0]}}
-           ]
-       }
+           "preprocessings": preprocessings,
+       },
    }
    with open(f"{WORK_DIR}/config.json", "w") as f:
        json.dump(config, f, indent=2)
@@ -217,25 +240,29 @@ instructions. The user expects actual compilation output (`.dxnn`), not a recipe
    > is **no PPU**. If PPU was not discussed, do NOT add this section.
 
    **Auto-detect PPU eligibility**:
-   - Model name matches detection families: YOLO*, SSD, NanoDet, DAMOYOLO, EfficientDet
+   - Model name matches a PPU-supported YOLO family: YOLOv3–v12, YOLOX (other detection heads are not supported)
    - ONNX output shape suggests detection head (e.g., `[1, 84, 8400]` or `[1, 300, 6]`)
 
    **PPU type determination**:
-   | Model Family | PPU Type | Anchors |
+   | Model Family | PPU Type | `layer` config |
    |---|---|---|
-   | YOLOv3, YOLOv4, YOLOv5, YOLOv7 | 0 (anchor-based) | Required — must match training config |
-   | YOLOX, YOLOv8-v12, SSD, NanoDet | 1 (anchor-free) | Not required |
-   | YOLO26 | **PPU not supported** | N/A — NMS-free native; use end2end=True |
+   | YOLOv3, YOLOv4, YOLOv5, YOLOv7 | 0 (anchor-based) | Dict: detection-head Conv node → `{"num_anchors": N}` |
+   | YOLOX, YOLOv8-v12 | 1 (anchor-free) | List of `{"bbox", "cls_conf"}` (YOLOX adds `obj_conf`) |
+   | YOLO26 | **PPU not supported** | N/A — NMS-free native; use end2end=True (opt-in `pre_optimize` exists, see `toolsets/config-schema.md`) |
+
+   For YOLOv8+ / YOLO26 / RTMDet, the alternative is a `pre_optimize` block (TopK moved
+   into the model): build it with `/dx-agent-compiler-pre-optimize`. Never put `ppu` and
+   `pre_optimize` in the same config.
 
    ```python
-   # Anchor-free (YOLOv8+): type 1
-   # Anchor-based (YOLOv3-v7): type 0
+   # Anchor-free (YOLOv8+): type 1. Node names are placeholders — read them from the ONNX graph.
+   # Anchor-based (YOLOv3-v7): type 0 with "activation": "Sigmoid" and a {Conv: {"num_anchors": 3}} dict.
+   # There is no iou_thres / max_det key — NMS runs on the host.
    config["ppu"] = {
        "type": 1,
        "conf_thres": 0.25,
-       "iou_thres": 0.45,
        "num_classes": 80,
-       "max_det": 300
+       "layer": [{"bbox": "Mul_441", "cls_conf": "Sigmoid_442"}],
    }
    ```
 
@@ -268,6 +295,10 @@ instructions. The user expects actual compilation output (`.dxnn`), not a recipe
 
 ## Phase 4: Compile with DX-COM
 
+> **QAT (Q-Master)**: if — and only if — the user explicitly requested QAT, the Phase 2 config
+> gains a `qmaster` block and Phase 4 needs a CUDA GPU, a `fast_run` smoke test first, and
+> background execution (long runtime). Never combine with Q-PRO. See `.deepx/toolsets/qat.md`.
+
 **Gate**: .dxnn file produced without errors.
 
 **CLI method** (run from working directory):
@@ -278,7 +309,8 @@ dxcom \
   -c config.json \
   -o ./ \
   --opt_level 1 \
-  --gen_log
+  --gen_log \
+  --export_html
 ```
 
 **Python API method**:
@@ -297,10 +329,12 @@ dx_com.compile(
     config=f"{WORK_DIR}/config.json",
     opt_level=1,
     gen_log=True,
+    export_html=True,
 )
 ```
 
-**For enhanced quantization** (higher accuracy, slower):
+**For enhanced quantization** (opt-in only — higher accuracy, slower). For automatic
+Q-PRO pass `use_q_pro=True` instead of `enhanced_scheme` (never both):
 ```python
 dx_com.compile(
     model=f"{WORK_DIR}/model.onnx",
@@ -308,6 +342,7 @@ dx_com.compile(
     config=f"{WORK_DIR}/config.json",
     enhanced_scheme={"DXQ-P3": {"num_samples": 1024}},
     gen_log=True,
+    export_html=True,
 )
 ```
 
@@ -327,9 +362,9 @@ dx_com.compile(
    # Expected: model.dxnn, config.json, calibration_dataset (symlink), compiler.log
    ```
 
-2. Inspect with DX-TRON:
+2. Open the HTML summary report (compile with `--export_html`):
    ```bash
-   dx-tron --web --port 8080 "${WORK_DIR}/model.dxnn"
+   ls "${WORK_DIR}"/*_summary.html
    ```
 
 3. Review compiler.log for warnings:
@@ -337,7 +372,7 @@ dx_com.compile(
    grep -i "warning\|error\|unsupported" "${WORK_DIR}/compiler.log"
    ```
 
-**Validation gate**: .dxnn exists. No errors in log. DX-TRON loads model.
+**Validation gate**: .dxnn exists. No errors in log. `*_summary.html` generated.
 
 ## Phase 5.5: Generate Mandatory Artifacts
 
@@ -599,14 +634,16 @@ The report should include:
 - Compilation statistics (NPU/CPU subgraphs, time)
 - Quantization method and calibration details
 - **Verification result: PASS/FAIL (from verify.py)** — MANDATORY field
-- Next steps: validation with DX-TRON, deployment to dx_app
+- Next steps: validation via the HTML summary report, deployment to dx_app
 
 ## Error Recovery
 
 | Error | Recovery |
 |---|---|
 | Input name mismatch | Inspect ONNX model input name; update config.json |
-| Unsupported operator | Try `--aggressive_partitioning` to offload to CPU |
-| OOM on calibration | Reduce `calibration_num` or use CPU (`quantization_device: null`) |
+| Unsupported operator | Check the op against the supported-operator list (`source/docs/03_Building_Models.md`) and replace or simplify it; `--aggressive_partitioning` maximizes NPU operations, it does not offload to CPU |
+| OOM on calibration | Reduce `calibration_num` or quantize on CPU (`--use_gpu False`, Python `use_gpu=False`) |
 | PPU config error | Verify type matches model architecture (0=anchor, 1=anchor-free) |
+| QAT: `mutually exclusive` / `no longer accepted by compile()` | `qmaster` combined with Q-PRO, or removed `qat_*` args used | Remove Q-PRO or `qmaster`; use `qmaster=QMasterConfig(...)` (see `qat.md`) |
+| QAT: CUDA OOM / `nan` loss | `batch_size` too large / `freeze_bn_after=0` | Lower `batch_size`, raise `gradient_accumulation_steps`; keep `freeze_bn_after` null |
 | Compilation timeout | Reduce model complexity or contact DEEPX support |

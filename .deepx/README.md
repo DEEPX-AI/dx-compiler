@@ -1,6 +1,6 @@
 # .deepx/ — dx-compiler Agent-Driven Knowledge
 
-> Agent-Driven infrastructure for the DEEPX DXNN Compiler (DX-COM v2.2.1).
+> Agent-Driven infrastructure for the DEEPX DXNN Compiler (DX-COM v2.5.0).
 > Enables AI coding agents to automate ONNX → DXNN model compilation workflows
 > targeting DEEPX NPU hardware (DX-M1).
 
@@ -20,6 +20,8 @@
 │   │   └── SKILL.md                   ← /dx-agent-compiler-compile skill
 │   ├── dx-agent-compiler-validate/
 │   │   └── SKILL.md                   ← /dx-agent-compiler-validate skill
+│   ├── dx-agent-compiler-pre-optimize/
+│   │   └── SKILL.md                   ← /dx-agent-compiler-pre-optimize skill
 │   ├── dx-agent-brainstorm/
 │   │   └── SKILL.md                   ← Process skill
 │   ├── dx-agent-tdd/
@@ -32,11 +34,15 @@
 ├── toolsets/
 │   ├── dxcom-api.md                   ← Python API reference (dx_com.compile)
 │   ├── dxcom-cli.md                   ← CLI reference (dxcom)
-│   └── config-schema.md              ← JSON config schema reference
+│   ├── config-schema.md               ← JSON config schema reference
+│   ├── ultralytics-deepx-export.md    ← Ultralytics YOLO format=deepx export
+│   ├── ultralytics-train-eval.md      ← Ultralytics retraining and evaluation
+│   └── paddlepaddle-deepx.md          ← PaddleOCR / PaddlePaddle on DeepX
 ├── memory/
 │   ├── MEMORY.md                      ← Memory index & update protocol
 │   └── common_pitfalls.md             ← Domain-tagged pitfalls
 └── scripts/
+    ├── pre_optimize_find_heads.py     ← pre_optimize head finder + verifier
     └── validate_framework.py          ← Framework validation script
 ```
 
@@ -55,6 +61,9 @@
 | DX-COM Python API | `toolsets/dxcom-api.md` | `dx_com.compile()` signature, parameters, code examples |
 | DX-COM CLI | `toolsets/dxcom-cli.md` | `dxcom` command-line options and invocation patterns |
 | Config Schema | `toolsets/config-schema.md` | JSON config structure, auto-inference rules |
+| Ultralytics DeepX Export | `toolsets/ultralytics-deepx-export.md` | One-shot `format=deepx` export for Ultralytics YOLO detection models |
+| Ultralytics Train & Eval | `toolsets/ultralytics-train-eval.md` | Retraining, mAP and FPS evaluation for Ultralytics models |
+| PaddlePaddle on DeepX | `toolsets/paddlepaddle-deepx.md` | PaddleOCR / PaddlePaddle model conversion and apps |
 
 ## Memory
 
@@ -70,6 +79,7 @@
 | /dx-agent-compiler-convert | `skills/dx-agent-compiler-convert/SKILL.md` | "convert", "export", "PT to ONNX" |
 | /dx-agent-compiler-compile | `skills/dx-agent-compiler-compile/SKILL.md` | "compile", "ONNX to DXNN", "quantize" |
 | /dx-agent-compiler-validate | `skills/dx-agent-compiler-validate/SKILL.md` | "validate", "verify", "check output" |
+| /dx-agent-compiler-pre-optimize | `skills/dx-agent-compiler-pre-optimize/SKILL.md` | "pre_optimize", "head tensor names", "ppu to pre_optimize" |
 | /dx-agent-brainstorm | `skills/dx-agent-brainstorm/SKILL.md` | "brainstorm", "plan", "design" (process skill) |
 | /dx-agent-tdd | `skills/dx-agent-tdd/SKILL.md` | "TDD", "validation", "incremental" (process skill) |
 | /dx-agent-verify | `skills/dx-agent-verify/SKILL.md` | "completion", "verify", "evidence" (process skill) |
@@ -85,6 +95,7 @@
 
 | Script | Purpose |
 |---|---|
+| `scripts/pre_optimize_find_heads.py` | Finds YOLO/RTMDet head Conv names and prints a verified `pre_optimize` block |
 | `scripts/validate_framework.py` | Validates .deepx/ structure, cross-references, domain tags |
 
 ## Context Routing Table
@@ -97,6 +108,7 @@
 | **config, JSON, schema** | `toolsets/config-schema.md` |
 | **calibration, quantization, INT8** | `instructions/compilation-workflow.md`, `toolsets/config-schema.md` |
 | **PPU, YOLO, detection** | `toolsets/config-schema.md`, `instructions/compilation-workflow.md` |
+| **pre_optimize, head tensor names, ppu to pre_optimize** | `skills/dx-agent-compiler-pre-optimize/SKILL.md`, `toolsets/config-schema.md` |
 | **validate, verify, check** | `skills/dx-agent-compiler-validate/SKILL.md` |
 | **error, fail, bug** | `memory/common_pitfalls.md` |
 | **Brainstorm, plan, design** | `skills/dx-agent-brainstorm/SKILL.md` |
@@ -119,15 +131,15 @@
 
 ## Key Facts
 
-- **Compiler**: DX-COM v2.2.1 — compiles ONNX to .dxnn for DEEPX NPU
-- **Inspector**: DX-TRON v2.0.1 — visual .dxnn inspection (AppImage / web)
+- **Compiler**: DX-COM v2.5.0 — compiles ONNX to .dxnn for DEEPX NPU
+- **Inspector**: Compilation Summary Report — `dxcom --export_html` writes a self-contained `<model>_summary.html`
 - **Batch size**: Must be 1. Dynamic shapes not supported.
 - **ONNX opset**: 11-21 supported
-- **OS**: Debian Linux (Ubuntu 20.04 / 22.04 / 24.04), x86_64
-- **Python**: 3.8 - 3.12
+- **OS**: Ubuntu 20.04 / 22.04 / 24.04 / 26.04; Fedora 42–45, RHEL 9–10, CentOS Stream 9–10 (x86_64, glibc ≥ 2.31)
+- **Python**: 3.8 - 3.14
 - **Hardware targets**: DX-M1 (`dx_m1`)
-- **Quantization**: INT8 via EMA or MinMax calibration
-- **PPU types**: Type 0 (anchor-based: YOLOv3/v4/v5/v7), Type 1 (anchor-free: YOLOX, YOLOv8-v12)
+- **Quantization**: INT8 via EMA, MinMax, or IQR calibration (opt-in: Q-PRO, and QAT via `qmaster` — see `toolsets/qat.md`)
+- **PPU types**: Type 0 (anchor-based: YOLOv3/v4/v5/v7), Type 1 (anchor-free: YOLOX, YOLOv8-v12); Type 2 is deprecated — use `pre_optimize`
 - **Compilation flow**: ONNX + config.json + calibration data → .dxnn
 - **Two interfaces**: CLI (`dxcom`) and Python API (`dx_com.compile()`)
 
@@ -144,3 +156,7 @@ This compiler knowledge base is consumed by five AI coding tools:
 Codex CLI does not use Copilot-style `@mention` wrappers or OpenCode slash-command
 adapters here. It starts from `AGENTS.md`, then reads canonical `.deepx/agents/*.md`
 and `.deepx/skills/*/SKILL.md` files directly when it needs task-specific grounding.
+
+## CI Drift Gate
+
+This repo is checked by the `subrepo-gate` CI job (`.github/workflows/dx-agent-dev-subrepo-gate-{ghes,cloud}.yml`). What it runs, how to reproduce it locally and how to fix a red gate: [`docs/ci-subrepo-gate.md`](docs/ci-subrepo-gate.md).
