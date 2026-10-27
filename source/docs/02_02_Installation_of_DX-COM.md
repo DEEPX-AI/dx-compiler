@@ -10,7 +10,7 @@ This section provides instructions for installing **DX-COM** on supported Linux 
 Before installing **DX-COM**, ensure the following libraries are installed.
 
 - OpenGL runtime support for graphical operations
-    - Debian/Ubuntu: `libgl1-mesa-glx`
+    - Debian/Ubuntu: `libgl1`
     - Fedora/RHEL/CentOS: `mesa-libGL`
 - Core utility library used by many GNOME and GTK applications
     - Debian/Ubuntu: `libglib2.0-0`
@@ -21,7 +21,7 @@ Run the command that matches your distribution to install the required libraries
 
 **Debian / Ubuntu**
 ```bash
-sudo apt-get install -y --no-install-recommends libgl1-mesa-glx libglib2.0-0 make
+sudo apt-get install -y --no-install-recommends libgl1 libglib2.0-0 make
 ```
 
 **Fedora**

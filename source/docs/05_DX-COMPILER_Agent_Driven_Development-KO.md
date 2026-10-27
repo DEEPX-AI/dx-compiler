@@ -309,7 +309,7 @@ PPU를 활성화하면, 에이전트가 모델 계열에 따라 PPU 타입을 �
 모든 컴파일 산출물은 기본적으로 `dx-agent-dev/<session_id>/`에 저장됩니다.
 각 컴파일 세션이 자체 완결적이고 재현 가능하도록 합니다.
 
-**세션 ID 형식**: `YYYYMMDD-HHMMSS_<agent>_<model>_<task>` — `<agent>`는 `claude`, `codex`, `copilot`, `cursor`, `opencode` 중 하나
+**세션 ID 형식**: `YYYYMMDD-HHMMSS_<agent>_<coding_model>_<target_model>_<task>` — `<agent>`는 `claude`, `codex`, `copilot`, `cursor`, `opencode` 중 하나, `<coding_model>`은 agent가 사용한 모델(예: `opus46`, `sonnet46`, `gpt55`), `<target_model>`은 컴파일할 모델(예: `yolo26n`)
 
 | 출력 유형 | 경로 | 조건 |
 |---|---|---|

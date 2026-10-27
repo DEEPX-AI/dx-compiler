@@ -451,11 +451,11 @@ self-contained.
 > and re-compile from scratch. Do NOT run `ls dx-agent-dev/` or check for
 > existing `.onnx`/`.dxnn` files from past runs.
 
-**Session ID format**: `YYYYMMDD-HHMMSS_<agent>_<model>_<task>` (local timezone)
+**Session ID format**: `YYYYMMDD-HHMMSS_<agent>_<coding_model>_<target_model>_<task>` (local timezone)
 
 Examples:
-- `20260403-143022_yolo26x_pt_to_dxnn`
-- `20260403-143022_resnet50_onnx_to_dxnn`
+- `20260403-143022_claude_opus46_yolo26x_compile`
+- `20260403-143022_cursor_gpt55_resnet50_compile`
 
 **Working directory structure**:
 ```

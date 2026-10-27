@@ -10,6 +10,7 @@ This section describes the hardware and software requirements for running **DX-C
      NOTE. Ubuntu 18.04 OS is **NOT** supported.  
 - **glibc:** ≥ 2.31 (matches the `manylinux_2_31_x86_64` wheel platform tag)  
 - **Python:** 3.8, 3.9, 3.10, 3.11, 3.12, 3.13, 3.14  
+- **Output format:** `.dxnn` file format v9. Models in this format require **DX-RT v3.5.0 or later**; DX-RT v3.4.2 and earlier cannot load them.  
 
 !!! note "NOTE"  
     To check your glibc version, run `ldd --version` in the terminal.  

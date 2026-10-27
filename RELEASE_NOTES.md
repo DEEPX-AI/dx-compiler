@@ -17,6 +17,7 @@ Here are the **DX-Compiler v2.5.0** Release Notes.
 
 ### 1. Changed
 
+-   **`.dxnn` File Format v9**: DX-COM v2.5.0 outputs `.dxnn` file format v9 only. Loading these models requires **DX-RT v3.5.0 or later**; DX-RT v3.4.2 and earlier cannot load them. See [System Requirements of DX-COM](source/docs/02_01_System_Requirements_of_DX-COM.md).
 -   **Python Entry Point Signature**: `dx_com.compile()` now accepts keyword arguments (`**kwargs`). Invoke it with keyword arguments as documented in [Execution of DX-COM](source/docs/02_06_Execution_of_DX-COM.md).
 -   **`quantization_device` Deprecated**: The JSON `quantization_device` field and the Python `quantization_device` argument are deprecated and ignored — DX-COM prints a `UserWarning` and selects the quantization device with `--use_gpu` / `use_gpu` (default `True`) and the `CUDA_VISIBLE_DEVICES` environment variable. Remove the field from existing configs.
 -   **QAT Parameters Restructured**: The Python arguments `quantization_mode`, `qat_config`, `qat_skip_training`, and `qat_resume_from_checkpoint` are **replaced by a single `qmaster` argument** that takes a `QMasterConfig` object (import it from `dx_com`). The former `qat_*` arguments are no longer honored from Python code. Triggering QAT from a JSON `qmaster` block is unchanged — QAT is still auto-selected.
