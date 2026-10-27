@@ -10,9 +10,10 @@ DX-Compiler Version
 
 #### Changed
 
--   **Python Entry Point Signature**: `dx_com.compile()` now takes keyword arguments (`**kwargs`); call it with keyword arguments as documented in [Execution of DX-COM](02_06_Execution_of_DX-COM.md).
+-   **`.dxnn` File Format v9**: DX-COM v2.5.0 outputs `.dxnn` file format v9 only. Loading these models requires **DX-RT v3.5.0 or later**; DX-RT v3.4.2 and earlier cannot load them. See [System Requirements of DX-COM](02_01_System_Requirements_of_DX-COM.md).
+-   **Python Entry Point Signature**: `dx_com.compile()` now accepts keyword arguments (`**kwargs`); call it with keyword arguments as documented in [Execution of DX-COM](02_06_Execution_of_DX-COM.md).
 -   **`quantization_device` Deprecated**: The JSON `quantization_device` field and the Python `quantization_device` argument are deprecated and ignored — DX-COM prints a `UserWarning` and selects the quantization device with `--use_gpu` / `use_gpu` (default `True`) and the `CUDA_VISIBLE_DEVICES` environment variable. Remove the field from existing configs.
--   **QAT Parameters Restructured**: The Python arguments `quantization_mode`, `qat_config`, `qat_skip_training`, and `qat_resume_from_checkpoint` are **replaced by a single `qmaster` argument** that accepts a `QMasterConfig` object (import from `dx_com`). The old `qat_*` arguments are no longer honored from Python code. Triggering QAT from a JSON `qmaster` block is unchanged — QAT is still auto-selected.
+-   **QAT Parameters Restructured**: The Python arguments `quantization_mode`, `qat_config`, `qat_skip_training`, and `qat_resume_from_checkpoint` are **replaced by a single `qmaster` argument** that takes a `QMasterConfig` object (import it from `dx_com`). The old `qat_*` arguments are no longer honored from Python code. Triggering QAT from a JSON `qmaster` block is unchanged — QAT is still auto-selected.
 -   Removed DX-TRON support: `--target=dx_tron` is no longer accepted by `install.sh` or `uninstall.sh`, and the `run_dxtron_web.sh` / `run_dxtron_appimage.sh` launcher scripts were deleted. Valid targets are now `dx_com` and `all`; in `uninstall.sh` both now do the same work.
 -   `compiler.properties` keeps only `COM_VERSION`; the DX-TRON version and download URL properties were removed.
 -   Removing an installed `dxtron` DEB package is now manual: `sudo apt-get remove dxtron`.

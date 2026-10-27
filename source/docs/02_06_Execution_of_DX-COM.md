@@ -780,7 +780,7 @@ The following error types may occur during the compilation process using either 
 | 9  | RamSizeError | The system does not meet the minimum RAM requirements |
 | 10 | DiskSizeError | Available disk space is insufficient for compilation |
 | 11 | NotsupportedPaddingError | Padding configuration is unsupported. <br> Examples: asymmetric padding in width and height |
-| 12 | RequiredLibraryError | Missing essential system libraries. <br> Examples: `libgl1-mesa-glx` is not installed |
+| 12 | RequiredLibraryError | Missing essential system libraries. <br> Examples: `libGL.so.1` cannot be loaded (on Debian/Ubuntu, install `libgl1`) |
 | 13 | DataNotFoundError | No valid input data found in the specified dataset path. <br> Examples: empty folder, wrong file extensions |
 | 14 | OnnxFileNotFound | The ONNX model file cannot be found or does not exist at the specified location |
 
