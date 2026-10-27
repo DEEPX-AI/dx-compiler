@@ -693,7 +693,7 @@ Throughput on DEEPX DX-M1 with an ARM Cortex-A53 host CPU:
 Measured with:
 
 ```bash
-DXRT_DYNAMIC_CPU_THREAD=ON run_model -m <model_path> -l 1000 --use-ort
+DXRT_DYNAMIC_CPU_THREAD=ON dxrun -m <model_path> -l 1000 --use-ort
 ```
 
 End-to-end throughput improves because CPU post-processing is no longer the bottleneck on CPU-constrained hosts.

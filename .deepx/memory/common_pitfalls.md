@@ -196,12 +196,12 @@ current directory, various `output/` paths, or project root.
 
 **Fix**:
 - Always create a session working directory: `dx-agent-dev/<session_id>/`
-- Session ID format: `YYYYMMDD-HHMMSS_<agent>_<model>_<task>` (local timezone)
+- Session ID format: `YYYYMMDD-HHMMSS_<agent>_<coding_model>_<target_model>_<task>` (local timezone)
 - Save ALL artifacts (ONNX, config.json, .dxnn, compiler.log) to this directory
 - At the end, generate a report listing all files with sizes
 - Example:
   ```bash
-  SESSION_ID="$(date +%Y%m%d-%H%M%S)_yolo26x_pt_to_dxnn"  # local timezone (NOT UTC)
+  SESSION_ID="$(date +%Y%m%d-%H%M%S)_claude_opus46_yolo26x_compile"  # local timezone (NOT UTC)
   WORK_DIR="dx-agent-dev/${SESSION_ID}"
   mkdir -p "${WORK_DIR}"
    # All subsequent operations use ${WORK_DIR}/
