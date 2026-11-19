@@ -9,7 +9,7 @@
 #   DX_BIN_DIR=<dir>      where the dxcom launcher was linked (default: ~/.local/bin)
 #
 # Left alone on purpose, because this installer is not their only owner: the uv
-# binary in ~/.local/bin, and the libgl1-mesa-dev / libglib2.0-0 system packages.
+# binary in ~/.local/bin, and the libgl1 / libglib2.0-0 system packages.
 # Both are reported at the end so they can be removed by hand if wanted.
 set -eu
 
@@ -73,7 +73,7 @@ main() {
     if [ -n "$_uv" ]; then
         log "uv is still installed at $_uv — left in place, since it is a general-purpose tool"
     fi
-    log "System packages libgl1-mesa-dev and libglib2.0-0 were left installed; other software may need them"
+    log "System packages libgl1 and libglib2.0-0 were left installed; other software may need them"
 }
 
 main "$@"

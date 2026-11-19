@@ -754,8 +754,8 @@ os_arch_check() {
     local os_check_error_message=""
     local arch_check_error_message=""
 
-    local os_check_hint_message="For other OS versions, please refer to the manual installation guide at https://github.com/DEEPX-AI/dx-compiler/blob/main/source/docs/02_01_System_Requirements_of_DX-COM.md"
-    local arch_check_hint_message="For other architectures, please refer to the manual installation guide at https://github.com/DEEPX-AI/dx-compiler/blob/main/source/docs/02_01_System_Requirements_of_DX-COM.md"
+    local os_check_hint_message="For other OS versions, please refer to the manual installation guide at https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_01_System_Requirements_of_DX-COM/"
+    local arch_check_hint_message="For other architectures, please refer to the manual installation guide at https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_01_System_Requirements_of_DX-COM/"
 
     if [ "$target" == "dx_com" ]; then
         os_names="ubuntu fedora rhel centos"
