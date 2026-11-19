@@ -64,22 +64,22 @@ case "$OS_ID" in
         if [ "$UBUNTU_VERSION" = "24.04" ] || [ "$UBUNTU_VERSION" = "26.04" ]; then
             # libfuse2 is safe (needed for AppImages), but 'fuse' package must be avoided
             sudo $APT_ENV apt-get install -y --no-install-recommends \
-                libgl1-mesa-dev libglib2.0-0 make \
+                libgl1 libglib2.0-0 make \
                 libfuse2 \
                 libncurses-dev || { echo "ERROR: Failed to install version-specific packages"; exit 1; }
         elif [ "$UBUNTU_VERSION" = "22.04" ]; then
             sudo $APT_ENV apt-get install -y --no-install-recommends \
-                libgl1-mesa-dev libglib2.0-0 make \
+                libgl1 libglib2.0-0 make \
                 libfuse2 libappindicator3-1 libgconf-2-4 \
                 libncurses5-dev libncursesw5-dev || { echo "ERROR: Failed to install version-specific packages"; exit 1; }
         elif [ "$UBUNTU_VERSION" = "20.04" ]; then
             sudo $APT_ENV apt-get install -y --no-install-recommends \
-                libgl1-mesa-dev libgl1-mesa-glx libglib2.0-0 make \
+                libgl1 libgl1-mesa-glx libglib2.0-0 make \
                 libfuse2 libappindicator1 libgconf-2-4 \
                 libncurses5-dev libncursesw5-dev || { echo "ERROR: Failed to install version-specific packages"; exit 1; }
         elif [ "$OS_ID" = "debian" ]; then
             sudo $APT_ENV apt-get install -y --no-install-recommends \
-                libgl1-mesa-dev libglib2.0-0 make \
+                libgl1 libglib2.0-0 make \
                 libfuse2 \
                 libncurses-dev || { echo "ERROR: Failed to install version-specific packages"; exit 1; }
         else

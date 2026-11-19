@@ -61,4 +61,4 @@ def test_tells_an_unprivileged_user_which_packages_to_install(run_script, stub_b
     r = run_script(SCRIPT, hide=["sudo"])
     assert r.returncode != 0
     assert "need root" in r.stderr
-    assert "libgl1-mesa-dev" in r.stderr and "libglib2.0-0" in r.stderr
+    assert "libgl1" in r.stderr and "libglib2.0-0" in r.stderr

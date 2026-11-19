@@ -83,7 +83,7 @@ main() {
     # system libraries. The repo's install_prerequisites.sh apt-installs these; pip
     # cannot, so without them dxcom crashes on import with
     # "libxcb.so.1: cannot open shared object file".
-    PREREQ="libgl1-mesa-dev libglib2.0-0"
+    PREREQ="libgl1 libglib2.0-0"
     SUDO=""
     if [ "$(id -u)" -ne 0 ]; then
         command -v sudo >/dev/null 2>&1 \

@@ -1,152 +1,151 @@
-# DEEPX DX-Compiler
+<div align="center">
 
-## DXNN® - DEEPX NPU SDK (DX-AS: DEEPX All-Suite)
+# DX-Compiler
 
-**DX-AS (DEEPX All-Suite)** is an integrated environment of frameworks and tools that enables inference and compilation of AI models using DEEPX devices. Users can build the integrated environment by installing individual tools, but DX-AS maintains optimal compatibility by aligning the versions of the individual tools.
+**Compile ONNX models into NPU-ready `.dxnn` binaries for DEEPX NPUs.**
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./source/img/dxnn_sdk_illustration-dark.png">
-  <img src="./source/img/dxnn_sdk_illustration.png" alt="DXNN SDK Full Architecture">
-</picture>
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./source/img/dxnn_sdk_illustration_simple-dark.png">
-  <img src="./source/img/dxnn_sdk_illustration_simple.png" alt="DXNN SDK Simple Architecture">
-</picture>
+[![Release](https://img.shields.io/github/v/release/DEEPX-AI/dx-compiler)](https://github.com/DEEPX-AI/dx-compiler/releases)
+[![Docs](https://img.shields.io/badge/docs-Tech%20Docs-blue)](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/Quick_Start/)
 
----
+</div>
 
-## [AI Model Compile Environment](https://github.com/DEEPX-AI/dx-compiler) (Compiler Platform)
+<div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="./source/img/dxnn_sdk_illustration_simple-dark.png">
+    <img src="./source/img/dxnn_sdk_illustration_simple.png" width="600" alt="DXNN SDK architecture">
+  </picture>
+</div>
 
-**Purpose**  
-  - Must be installed on the Host machine that will perform the compilation (converting) of ONNX models to our proprietary DXNN (DEEPX format).  
+DX-Compiler provides **DX-COM**, the compiler of the DXNN® SDK. It quantizes an ONNX model to INT8 and
+compiles it into a `.dxnn` file that DX-RT runs on any DEEPX NPU. It is the host-side part of
+[DX-AllSuite](https://github.com/DEEPX-AI/dx-all-suite), which keeps the compiler and runtime versions aligned.
 
-**Core Components**
-  - DX-COM: Converts ONNX models into highly optimized, NPU-ready binaries.
+- **CLI and Python API** — `dxcom` for single-input models, `dx_com.compile()` for multi-input models and automated pipelines.
+- **Accuracy recovery with Q-Master** — quantization-aware training from the same config when post-training quantization is not enough.
+- **Compilation Summary Report** — `--export_html` writes a self-contained HTML report of the compiled model.
 
-**Flexibility & Support**
-  - OS: Compatible with Ubuntu 20.04, 22.04, 24.04, 26.04 (Debian-based), Fedora 42-45, Red Hat Enterprise Linux 9-10, and CentOS Stream 9-10
-  - Architecture: Supports x86_64 only
+## What You Need
 
-**Easy Installation**
-  - Our single script automates the full setup process
-  - All DX-Compiler components are ready to use upon completion.
+| | |
+|---|---|
+| **Arch** | x86_64 only |
+| **OS** | Ubuntu 20.04 / 22.04 / 24.04 / 26.04 LTS, Fedora 42–45, RHEL 9–10, CentOS Stream 9–10 |
+| **Memory** | 16 GB RAM or more, 8 GB free disk |
+| **Python** | 3.8–3.14 |
+| **GPU** | Optional. A CUDA GPU speeds up quantization and is required for Q-Master |
+| **DX-RT** | v3.5.0 or later to run `.dxnn` files from this release |
 
----
+## Quick Start
 
-## Quick Guide (Install and Run)
+Install DX-COM without cloning the repository (Ubuntu, needs `sudo`):
 
-DX-Compiler provides scripts for local installation, as well as scripts for building Docker images and running containers.
-
-### One-Line Installation
-Install the DX-Compiler (`dx-com`) directly from PyPI, without cloning the repository:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DEEPX-AI/dx-compiler/main/oneline-install.sh | sh
+dxcom --version
 ```
-This creates a dedicated virtualenv, installs the `dx-com` package and its dependencies into
-it, and links that package's `dxcom` command-line launcher onto your `PATH`, so you can run it
-without activating anything:
+
+The installer creates a virtualenv at `~/deepx/venv-dx-compiler` and links `dxcom` into `~/.local/bin`.
+The first install downloads several GB (`torch`, `onnxruntime`). On Fedora, RHEL or CentOS Stream, clone the
+repository and run `./install.sh` instead (see [Compile the Sample Models](#compile-the-sample-models)).
+
+Then compile a model:
+
 ```bash
-dxcom --help
+dxcom -m model.onnx -c config.json -o output/      # → output/model.dxnn
 ```
+
+The config describes the input shape, calibration images and preprocessing — see
+[JSON File Configuration](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_05_JSON_File_Configuration/).
+
+### Compile the Sample Models
+
+Clone the repository to get the sample models and calibration data:
+
+```bash
+git clone https://github.com/DEEPX-AI/dx-compiler.git
+cd dx-compiler
+./install.sh                                       # also downloads the sample models and calibration data
+./example/3-compile_sample_models.sh               # → dx_com/output/*.dxnn
+```
+
+## Compile with Python
+
+Activate the virtualenv that holds `dx_com` first (one-line install path shown; a clone install prints its own path):
+
+```bash
+source ~/deepx/venv-dx-compiler/bin/activate
+```
+
+```python
+import dx_com
+dx_com.compile(model="model.onnx", output_dir="output/", config="config.json")
+```
+
+Use the Python API for multi-input models (with a torch DataLoader) and automated pipelines →
+[Execution of DX-COM](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_06_Execution_of_DX-COM/)
+
+<details>
+<summary><b>One-Line Install Options, System-Wide Install, Uninstall</b></summary>
+
+Options (environment variables):
 
 - `DX_VERSION=X.Y.Z` — pin the `dx-com` release (default: newest on PyPI)
 - `DX_INSTALL_DIR=<dir>` — install root (default: `~/deepx`, venv at `~/deepx/venv-dx-compiler`)
 - `DX_BIN_DIR=<dir>` — where the `dxcom` launcher is linked (default: `~/.local/bin`)
 - `DX_NO_UV=1` — install with pip instead of [uv](https://docs.astral.sh/uv/)
-- `UV_PIN=X.Y.Z` — the uv release to bootstrap (pinned by default, so a run never
-  pulls an unreviewed version)
+- `UV_PIN=X.Y.Z` — the uv release to bootstrap (pinned by default, so a run never pulls an unreviewed version)
 
-Packages are installed with **uv**, which resolves and downloads wheels considerably faster
-than pip — worth having when the dependency set includes `torch` and the CUDA runtime. uv is
-used if already present, and otherwise fetched as a standalone binary into `~/.local/bin`; it
-is never installed through `pip`, because Debian and Ubuntu mark their system Python PEP 668
-externally-managed. If uv cannot be obtained, the installer falls back to pip — both paths
-install the same packages into the same venv.
+Packages are installed with **uv**, which is much faster than pip for `torch` and the CUDA runtime. uv is
+used if present, otherwise fetched as a standalone binary into `~/.local/bin` — never through `pip`, because
+Debian and Ubuntu mark the system Python as externally managed (PEP 668). If uv cannot be obtained, the
+installer falls back to pip; both install the same packages into the same venv.
 
-For a system-wide install on a shared machine, point both at system paths and run as root:
+The installer apt-installs `libgl1` and `libglib2.0-0`, which `opencv-python` (a `dx-com`
+dependency) needs to import, so run it as root or with `sudo` available.
+
+System-wide install on a shared machine:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DEEPX-AI/dx-compiler/main/oneline-install.sh \
   | sudo DX_INSTALL_DIR=/opt/deepx DX_BIN_DIR=/usr/local/bin sh
 ```
 
-Requirements: Debian or Ubuntu, Python 3.8–3.14, and the ability to install system packages.
-The installer apt-installs `libgl1-mesa-dev` and `libglib2.0-0` — `dx-com` pulls in
-`opencv-python`, whose `cv2` extension links against those X/GL libraries and fails to import
-without them — so run it as root or with `sudo` available. The Python dependency set includes
-`torch` and `onnxruntime`, so a first install downloads several GB.
+Uninstall — pass the same `DX_INSTALL_DIR` / `DX_BIN_DIR` you installed with:
 
-#### Uninstalling
-
-Remove what the one-liner installed — the virtualenv and the `dxcom` launcher:
 ```bash
 curl -fsSL https://raw.githubusercontent.com/DEEPX-AI/dx-compiler/main/oneline-uninstall.sh | sh
 ```
 
-Pass the same `DX_INSTALL_DIR` / `DX_BIN_DIR` you installed with, otherwise it looks in the
-default location and finds nothing. For the system-wide install shown above:
-```bash
-curl -fsSL https://raw.githubusercontent.com/DEEPX-AI/dx-compiler/main/oneline-uninstall.sh \
-  | sudo DX_INSTALL_DIR=/opt/deepx DX_BIN_DIR=/usr/local/bin sh
-```
+The uninstaller removes the `dxcom` launcher only while it still points into the venv being deleted, so
+another install's `dxcom` is never touched. `uv` and the `libgl1` / `libglib2.0-0` packages are
+left in place and listed at the end. In a clone, `./uninstall.sh` removes both one-line and clone-based installs.
 
-It removes the `dxcom` launcher only while that launcher still points into the virtualenv
-being deleted, so a `dxcom` belonging to another install is never touched. `uv` and the
-`libgl1-mesa-dev` / `libglib2.0-0` system packages are deliberately left in place — other
-software may depend on them — and are reported at the end so you can remove them yourself.
+</details>
 
-If you have the repository checked out, `./uninstall.sh` removes a one-line install as well
-as a clone-based one, so you do not need to remember which way it was installed.
+<details>
+<summary><b>Clone-Based Install Options (<code>install.sh</code>)</b></summary>
 
-For the full repository clone instead — needed for the sample data and the Docker route —
-see Local Installation and Docker Installation below.
-
-### Local Installation
-For detailed instructions on setting up a local environment for DX-Compiler, please refer to this [LINK](https://github.com/DEEPX-AI/dx-all-suite/blob/main/docs/source/02_Setting_Up_Environment.md).
-
-### Faster Installation with uv
-
-`install.sh` installs Python packages with [uv](https://docs.astral.sh/uv/) when uv is already available, and with pip otherwise. Nothing extra is required:
+`install.sh` uses uv when it is available and pip otherwise. Pass `--uv=true` to install uv first if it is
+missing, or `--uv=false` to force pip:
 
 ```bash
-./install.sh
+./install.sh --target=dx_com --uv=true
+./install.sh --target=dx_com --uv=false
 ```
 
-Pass `--uv=true` to install uv first if it is missing, or `--uv=false` to force the pip path:
+All options: `./install.sh --help`. Details → [Installation of DX-COM](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_02_Installation_of_DX-COM/)
 
-```bash
-./install.sh --uv=true
-./install.sh --uv=false
-```
+For Docker, see [Setting Up Environment](https://developer.deepx.ai/tech-docs/DX-AllSuite/Setting_Up_Environment/).
 
-See [Installation of DX-COM](source/docs/02_02_Installation_of_DX-COM.md) for details.
+</details>
 
-### Docker Installation
-For detailed instructions on setting up a Docker environment for DX-Compiler, please refer to this [LINK](https://github.com/DEEPX-AI/dx-all-suite/blob/main/docs/source/02_Setting_Up_Environment.md)
+## Documentation & Support
 
+- Guides, configuration and API reference: **[DX-COM Tech Docs](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/Quick_Start/)** · [Release Notes](./RELEASE_NOTES.md)
+- For technical questions, please ask in the DEEPX Developer Community: https://community.deepx.ai/c/support/5
 
-### Run Your First NPU Model
-For detailed instructions on running your first NPU model with DX-Compiler, please refer to the link below. [LINK](https://github.com/DEEPX-AI/dx-all-suite/blob/main/docs/source/03_Running_Your_First_NPU_Model.md)
+## License
 
----
+See [LICENSE](./LICENSE) for terms of use.
 
-## Create User Manual
-
-### Install Python Dependencies
-
-To install the necessary Python packages, run the following command:
-
-```bash
-pip install "mkdocs<2" mkdocs-material pymdown-extensions mkdocs-with-pdf weasyprint==65.1
-```
-
-### Generate Documentation (HTML and PDF)
-
-To generate the user guide as both HTML and PDF files, execute the following command:
-
-```bash
-mkdocs build
-```
-
-This will create:
-- **HTML documentation** in the `docs/` folder - open `docs/index.html` in your web browser
-- **PDF file**: `DEEPX_DX-COM_UM_[version]_[release_date].pdf` in the root directory
+Copyright © DEEPX Co., Ltd.
