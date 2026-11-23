@@ -338,7 +338,7 @@ is ambiguous, prefer absolute paths (e.g., `os.path.abspath("...")`).
 
 When `default_loader` cannot express the input (multi-input models, non-image data, or
 custom preprocessing), provide a custom `torch.utils.data.DataLoader` instead.
-Follow the SDK pattern from `source/docs/02_10_Common_Use_Cases.md`:
+Follow the SDK pattern from [Common Use Cases](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_10_Common_Use_Cases/):
 
 ```python
 # compile.py — custom DataLoader following SDK pattern

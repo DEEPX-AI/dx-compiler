@@ -297,7 +297,7 @@ The optimized model still needs calibration input: pass exactly one of `dataload
 Signature: `dx_com.pre_optimize(model: onnx.ModelProto, passes: dict[str, dict]) -> onnx.ModelProto`.
 Raises `KeyError` (unknown or old pass name, missing required key) and `ValueError`
 (unresolvable tensor name in `layers`, or invalid `task`). Pass fields and the other
-passes: `config-schema.md` → pre_optimize and `source/docs/02_09_Pre_Optimize_API.md`.
+passes: `config-schema.md` → pre_optimize and [Pre-Optimize API](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_09_Pre_Optimize_API/).
 
 ### Partial Compilation
 
@@ -363,7 +363,7 @@ dx_com.compile(
 )
 ```
 
-Full workflow: `source/docs/02_07_Quantization_Tuning_Workflow.md`.
+Full workflow: [Quantization Tuning Workflow](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_07_Quantization_Tuning_Workflow/).
 
 ### Loading ONNX Model Directly
 
@@ -391,7 +391,7 @@ dx_com.compile(
 
 ## Exceptions
 
-DX-COM error types listed in the user manual (`source/docs/02_06_Execution_of_DX-COM.md`
+DX-COM error types listed in the user manual ([Execution of DX-COM](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_06_Execution_of_DX-COM/)
 → Common Errors and Troubleshooting):
 
 | Error | Typical cause |

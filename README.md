@@ -11,8 +11,8 @@
 
 <div align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="./source/img/dxnn_sdk_illustration_simple-dark.png">
-    <img src="./source/img/dxnn_sdk_illustration_simple.png" width="600" alt="DXNN SDK architecture">
+    <source media="(prefers-color-scheme: dark)" srcset="./img/dxnn_sdk_illustration_simple-dark.png">
+    <img src="./img/dxnn_sdk_illustration_simple.png" width="600" alt="DXNN SDK architecture">
   </picture>
 </div>
 
