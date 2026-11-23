@@ -22,11 +22,12 @@ Before classifying or routing any task:
 
 1. Read `.github/copilot-instructions.md` for this level's global context (MANDATORY)
 2. Read `.deepx/memory/common_pitfalls.md` (always)
-3. Read `source/docs/` SDK official guide documents for API and feature reference (MANDATORY):
-   - `02_05_JSON_File_Configuration.md` — config.json schema and all options
-   - `02_10_Common_Use_Cases.md` — calibration patterns, DataLoader examples
-   - `02_06_Execution_of_DX-COM.md` — dxcom CLI and Python API reference
-   - Other files as needed for the specific task
+3. Read the DX-COM user manual on https://developer.deepx.ai/tech-docs for API and feature
+   reference (MANDATORY):
+   - [JSON File Configuration](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_05_JSON_File_Configuration/) — config.json schema and all options
+   - [Common Use Cases](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_10_Common_Use_Cases/) — calibration patterns, DataLoader examples
+   - [Execution of DX-COM](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_06_Execution_of_DX-COM/) — dxcom CLI and Python API reference
+   - Other pages as needed for the specific task
 4. Read `.deepx/toolsets/config-schema.md` (if writing config.json)
 5. Read `.deepx/toolsets/dxcom-cli.md` or `.deepx/toolsets/dxcom-api.md` (if running dxcom)
 

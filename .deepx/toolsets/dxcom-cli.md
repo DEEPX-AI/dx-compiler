@@ -168,7 +168,7 @@ dxcom \
 ```
 
 Use `--use_q_pro` instead of `--recalibration_method` to run automatic Q-PRO on resume.
-Full diagnose → resume loop: `source/docs/02_07_Quantization_Tuning_Workflow.md`.
+Full diagnose → resume loop: [Quantization Tuning Workflow](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_07_Quantization_Tuning_Workflow/).
 
 ## Output
 

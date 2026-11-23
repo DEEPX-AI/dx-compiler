@@ -641,7 +641,7 @@ The report should include:
 | Error | Recovery |
 |---|---|
 | Input name mismatch | Inspect ONNX model input name; update config.json |
-| Unsupported operator | Check the op against the supported-operator list (`source/docs/03_Building_Models.md`) and replace or simplify it; `--aggressive_partitioning` maximizes NPU operations, it does not offload to CPU |
+| Unsupported operator | Check the op against the supported-operator list ([Supported ONNX Operators](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/Building_Models/)) and replace or simplify it; `--aggressive_partitioning` maximizes NPU operations, it does not offload to CPU |
 | OOM on calibration | Reduce `calibration_num` or quantize on CPU (`--use_gpu False`, Python `use_gpu=False`) |
 | PPU config error | Verify type matches model architecture (0=anchor, 1=anchor-free) |
 | QAT: `mutually exclusive` / `no longer accepted by compile()` | `qmaster` combined with Q-PRO, or removed `qat_*` args used | Remove Q-PRO or `qmaster`; use `qmaster=QMasterConfig(...)` (see `qat.md`) |

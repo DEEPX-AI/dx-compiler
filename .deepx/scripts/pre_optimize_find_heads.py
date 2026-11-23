@@ -27,7 +27,7 @@ TASKS = {"detect": "base", "segment": "seg", "pose": "pose"}
 HEAD_CONSUMERS = {"Concat", "Reshape", "Transpose", "Shape"}  # no activation after a head Conv
 STRIDES = (8, 16, 32, 64)
 MASK_CH = 32
-DEFAULT_TOPK = {DFL: 300, NO_DFL: 300, RTM: 512}  # pass defaults in source/docs/02_09_Pre_Optimize_API.md
+DEFAULT_TOPK = {DFL: 300, NO_DFL: 300, RTM: 512}  # pass defaults: https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_09_Pre_Optimize_API/
 PPU_HINT = ("pre_optimize supports YOLOv8/v9/v11/v12/v13 (DFL heads), YOLO26 (no-DFL heads) and "
             "MMDetection RTMDet. Anchor-based YOLOv3/v5/v7 (3x(5+C)-channel heads) -> PPU type 0; "
             "YOLOX (objectness head) -> PPU type 1.")

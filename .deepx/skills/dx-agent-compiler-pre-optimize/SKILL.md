@@ -7,7 +7,7 @@ description: "Use when a user asks about pre_optimize or dx_com.pre_optimize(), 
 
 > Produce a verified `pre_optimize` config for a YOLO / RTMDet ONNX with one script
 > run instead of tracing head Conv names by hand. This skill and the script are all you
-> need for that. Read `source/docs/02_09_Pre_Optimize_API.md` only for questions the
+> need for that. Read [Pre-Optimize API](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_09_Pre_Optimize_API/) only for questions the
 > skill does not answer. A complete answer is the verified JSON plus the three host-side
 > lines of Phase 3.
 
@@ -127,7 +127,7 @@ any items the user listed.
 | `WARNING:` | Pass it on to the user |
 
 Never force `--pass` onto a model the script rejects. If the script cannot run, use the
-"Identifying Conv Head Tensor Names" section of `source/docs/02_09_Pre_Optimize_API.md`.
+"Identifying Conv Head Tensor Names" section of [Pre-Optimize API](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_09_Pre_Optimize_API/).
 
 ## Pitfalls (dx_com 2.5.0)
 

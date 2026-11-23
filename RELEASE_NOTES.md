@@ -17,8 +17,8 @@ Here are the **DX-Compiler v2.5.0** Release Notes.
 
 ### 1. Changed
 
--   **`.dxnn` File Format v9**: DX-COM v2.5.0 outputs `.dxnn` file format v9 only. Loading these models requires **DX-RT v3.5.0 or later**; DX-RT v3.4.2 and earlier cannot load them. See [System Requirements of DX-COM](source/docs/02_01_System_Requirements_of_DX-COM.md).
--   **Python Entry Point Signature**: `dx_com.compile()` now accepts keyword arguments (`**kwargs`). Invoke it with keyword arguments as documented in [Execution of DX-COM](source/docs/02_06_Execution_of_DX-COM.md).
+-   **`.dxnn` File Format v9**: DX-COM v2.5.0 outputs `.dxnn` file format v9 only. Loading these models requires **DX-RT v3.5.0 or later**; DX-RT v3.4.2 and earlier cannot load them. See [System Requirements of DX-COM](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_01_System_Requirements_of_DX-COM/).
+-   **Python Entry Point Signature**: `dx_com.compile()` now accepts keyword arguments (`**kwargs`). Invoke it with keyword arguments as documented in [Execution of DX-COM](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_06_Execution_of_DX-COM/).
 -   **`quantization_device` Deprecated**: The JSON `quantization_device` field and the Python `quantization_device` argument are deprecated and ignored — DX-COM prints a `UserWarning` and selects the quantization device with `--use_gpu` / `use_gpu` (default `True`) and the `CUDA_VISIBLE_DEVICES` environment variable. Remove the field from existing configs.
 -   **QAT Parameters Restructured**: The Python arguments `quantization_mode`, `qat_config`, `qat_skip_training`, and `qat_resume_from_checkpoint` are **replaced by a single `qmaster` argument** that takes a `QMasterConfig` object (import it from `dx_com`). The former `qat_*` arguments are no longer honored from Python code. Triggering QAT from a JSON `qmaster` block is unchanged — QAT is still auto-selected.
 -   **`pre_optimize` Pass Renaming (Breaking)**: `yolo_postprocess` → `yolo_dfl_postprocess` and `yolo26_postprocess` → `yolo_no_dfl_postprocess`. The previous pass names are no longer accepted and raise an error.
@@ -32,9 +32,9 @@ Here are the **DX-Compiler v2.5.0** Release Notes.
 -   **`QMasterConfig`**: Public QAT configuration object exported from the top-level `dx_com` package.
 -   **New `pre_optimize` Tasks**: The `task` key (`base` / `seg` / `pose`) adds pose (keypoint) and segmentation post-processing support.
 -   **`rtmdet_postprocess` Pass**: RTMDet detection post-processing.
--   **`Gather` 2-D Indices**: The `Gather` operator now supports a 2-D `indices` tensor (previously limited to 0-D/1-D). See [Supported ONNX Operators](source/docs/03_Building_Models.md).
--   **`Einsum` Operator**: Two-input `Einsum` equations that reduce to a (batched) matrix multiplication (e.g., `ij,jk->ik`, `bij,bjk->bik`) are now supported. See [Supported ONNX Operators](source/docs/03_Building_Models.md).
--   **3D Convolution Support**: `Conv` and `ConvTranspose` with a 5D input (3 spatial dimensions) are now supported on the NPU (previously CPU-only), subject to constraints such as `group=1`, no dilation, and a compile-time constant weight. See [Supported ONNX Operators](source/docs/03_Building_Models.md) for the full constraints.
+-   **`Gather` 2-D Indices**: The `Gather` operator now supports a 2-D `indices` tensor (previously limited to 0-D/1-D). See [Supported ONNX Operators](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/Building_Models/).
+-   **`Einsum` Operator**: Two-input `Einsum` equations that reduce to a (batched) matrix multiplication (e.g., `ij,jk->ik`, `bij,bjk->bik`) are now supported. See [Supported ONNX Operators](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/Building_Models/).
+-   **3D Convolution Support**: `Conv` and `ConvTranspose` with a 5D input (3 spatial dimensions) are now supported on the NPU (previously CPU-only), subject to constraints such as `group=1`, no dilation, and a compile-time constant weight. See [Supported ONNX Operators](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/Building_Models/) for the full constraints.
 
 ### Installer
 
@@ -137,7 +137,7 @@ Here are the **DX-Compiler v2.4.0** Release Notes.
 -   **QXNN Resume (Re-quantization without Recompile)**: Added a checkpoint-based **QXNN resume** flow available from both the `dxcom` CLI and the Python API. Once a model has been compiled, users can re-run quantization with different settings (e.g., a different calibration method) without repeating the earlier compile phases, dramatically shortening the iteration loop when tuning quantization quality.
 -   **Quantization Diagnosis Report (HTML)**: Added an HTML report that visualizes per-region quantization quality, flags high-severity regions, and includes ready-to-paste compile snippets to retry compilation with recommended settings. Enabled via the new `quant_diagnosis` option, available from both the `dxcom` CLI and `dx_com.compile()`.
 -   **Interactive HTML Graph Viewer (replaces DX-TRON)**: DX-COM now produces a standalone HTML viewer for inspecting compiled models, including parameter shapes, CPU/NPU partition reasons, and cross-subgraph connections. This replaces the DX-TRON workflow (see Deprecation Notice above).
--   **`dx_com.pre_optimize()` API**: Added a new top-level `dx_com.pre_optimize()` API for applying ONNX-level pre-processing transforms before compilation, with built-in support for **YOLO post-processing** integration (detection and segmentation modes). See the [Pre-Optimize API](source/docs/02_09_Pre_Optimize_API.md) chapter of the user manual.
+-   **`dx_com.pre_optimize()` API**: Added a new top-level `dx_com.pre_optimize()` API for applying ONNX-level pre-processing transforms before compilation, with built-in support for **YOLO post-processing** integration (detection and segmentation modes). See the [Pre-Optimize API](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_09_Pre_Optimize_API/) chapter of the user manual.
 -   **Ubuntu 26.04 Validation**: DX-COM is now validated on **Ubuntu 26.04**, in addition to the previously supported Linux distributions.
 -   **DEEPX Agent-Driven Development (`dx-agent-dev`) — Beta**: Compile models with a natural-language prompt. An AI coding agent drives DX-COM to turn ONNX/`.pt` (including Ultralytics `format=deepx`) into a deployable `.dxnn`, with ONNX-vs-DXNN numerical verification. (Beta — behavior may change.)
 

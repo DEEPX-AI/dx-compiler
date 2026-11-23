@@ -1,7 +1,7 @@
 # Q-Master (QAT) Reference
 
 > Agent reference for Quantization-Aware Training in DX-COM (v2.5.0).
-> User-facing manual: `source/docs/02_08_Quantization_Aware_Training.md`.
+> User-facing manual: [Quantization Aware Training](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_08_Quantization_Aware_Training/).
 > **Q-Master** is DEEPX's product name for its QAT feature. Both terms refer to the same feature.
 
 ## When to Use — and When NOT to

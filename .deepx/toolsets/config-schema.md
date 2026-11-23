@@ -199,7 +199,7 @@ Array of preprocessing operations applied in order (one operation key per item):
 
 Less common registry operations (`resize2`, `resize3`, `resize_tv`, `centercrop2`,
 `squeeze`, `slice`, `dtype`, `pil_2_cv`) are listed in
-`source/docs/02_06_Execution_of_DX-COM.md` (DataLoader mapping table).
+[Execution of DX-COM](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_06_Execution_of_DX-COM/) (DataLoader mapping table).
 
 `resize` width and height should match the spatial dimensions of `inputs` shape.
 
@@ -431,7 +431,7 @@ YOLO pass fields:
   --verify` (skill `/dx-agent-compiler-pre-optimize`). dx_com silently ignores misspelled
   keys, so only `--verify` catches a wrong block.
 - Full RTMDet example, seg/pose examples, and migration from PPU type 2:
-  `source/docs/02_09_Pre_Optimize_API.md`.
+  [Pre-Optimize API](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_09_Pre_Optimize_API/).
 
 ## Auto-Inference Rules for Agents
 
