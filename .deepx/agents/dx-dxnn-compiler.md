@@ -1,7 +1,7 @@
 ---
 name: dx-dxnn-compiler
 description: >
-  Compiles ONNX models to .dxnn format using DEEPX DX-COM (v2.5.0).
+  Compiles ONNX models to .dxnn format using DEEPX DX-COM (v2.5.1).
   Handles config.json generation, calibration data preparation,
   PPU configuration for YOLO models, and output validation via the HTML summary report.
 capabilities:

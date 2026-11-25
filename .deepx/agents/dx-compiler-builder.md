@@ -428,7 +428,7 @@ For full pipeline, route sequentially:
 
 | Component | Version | Purpose |
 |---|---|---|
-| DX-COM | v2.5.0 | ONNX → DXNN compiler |
+| DX-COM | v2.5.1 | ONNX → DXNN compiler |
 | Summary report (`--export_html`) | built into DX-COM | .dxnn visual inspection |
 | ONNX | opset 11-21 | Intermediate representation |
 | Python | 3.8-3.14 | Runtime environment |

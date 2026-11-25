@@ -1,6 +1,6 @@
 # .deepx/ — dx-compiler Agent-Driven Knowledge
 
-> Agent-Driven infrastructure for the DEEPX DXNN Compiler (DX-COM v2.5.0).
+> Agent-Driven infrastructure for the DEEPX DXNN Compiler (DX-COM v2.5.1).
 > Enables AI coding agents to automate ONNX → DXNN model compilation workflows
 > targeting DEEPX NPU hardware (DX-M1).
 
@@ -131,7 +131,7 @@
 
 ## Key Facts
 
-- **Compiler**: DX-COM v2.5.0 — compiles ONNX to .dxnn for DEEPX NPU
+- **Compiler**: DX-COM v2.5.1 — compiles ONNX to .dxnn for DEEPX NPU
 - **Inspector**: Compilation Summary Report — `dxcom --export_html` writes a self-contained `<model>_summary.html`
 - **Batch size**: Must be 1. Dynamic shapes not supported.
 - **ONNX opset**: 11-21 supported

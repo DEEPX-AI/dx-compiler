@@ -1,8 +1,8 @@
 # DX-COM Python API Reference
 
-> Complete reference for the `dx_com.compile()` Python API (DX-COM v2.5.0).
+> Complete reference for the `dx_com.compile()` Python API (DX-COM v2.5.1).
 
-<!-- VERIFIED against source/docs/02_02_Installation_of_DX-COM.md, 02_06_Execution_of_DX-COM.md, 02_07_Quantization_Tuning_Workflow.md and 02_09_Pre_Optimize_API.md (v2.5.0) -->
+<!-- VERIFIED against source/docs/02_02_Installation_of_DX-COM.md, 02_06_Execution_of_DX-COM.md, 02_07_Quantization_Tuning_Workflow.md and 02_09_Pre_Optimize_API.md (v2.5.1) -->
 
 ## Installation
 
@@ -72,6 +72,7 @@ def compile(
     use_q_pro: bool = False,
     enhanced_scheme: Optional[Dict] = None,
     ppu_config: Optional[PPUConfig] = None,
+    pre_optimize: Optional[Union[List[Dict], Dict]] = None,  # v2.5.1
     qmaster: Optional[QMasterConfig] = None,  # opt-in QAT (Q-Master), v2.5.0
     gen_log: bool = False,
     float64_calibration: bool = False,
@@ -94,7 +95,7 @@ def compile(
 | `calibration_method` | `str` | `"ema"` | `"ema"`, `"minmax"`, or `"iqr"` |
 | `calibration_num` | `int` | `100` | Number of calibration samples |
 | `quantization_device` | — | — | **Deprecated in v2.5.0 — ignored** with a `UserWarning`. Do not pass it; use `use_gpu` and `CUDA_VISIBLE_DEVICES` |
-| `use_gpu` | `bool` | `True` | **(v2.5.0)** `True`=GPU when available (otherwise CPU), `False`=force CPU. Select a specific GPU with `CUDA_VISIBLE_DEVICES`. Pass only `True`/`False` — `None` or a string makes `compile()` fall back to its legacy path, which skips a JSON `pre_optimize` block and ignores `verbose` |
+| `use_gpu` | `bool` | `True` | **(v2.5.0)** `True`=GPU when available (otherwise CPU), `False`=force CPU. Select a specific GPU with `CUDA_VISIBLE_DEVICES`. Pass only `True`/`False` — `None` or a string is not rejected, but `compile()` then runs without `pre_optimize` (JSON block and, in v2.5.1, the `pre_optimize=` argument) and ignores `verbose`; the console shows a `falling back to legacy` warning |
 | `opt_level` | `int` | `1` | Optimization level: 0 (minimal) or 1 (full) |
 | `aggressive_partitioning` | `bool` | `False` | **(Experimental)** Maximize NPU operations |
 | `input_nodes` | `List[str]` | `None` | Partial compilation: input node names (ONNX operator node names) |
@@ -102,14 +103,16 @@ def compile(
 | `use_q_pro` | `bool` | `False` | Automatic Q-PRO pipeline (ONNX compile path; also allowed with `checkpoint`). Mutually exclusive with `enhanced_scheme` |
 | `enhanced_scheme` | `Dict` | `None` | Manual Q-PRO scheme (`"DXQ-P0"`–`"DXQ-P5"`). Not supported for multi-input models. Also usable with `checkpoint` (the CLI flag `--enhanced_scheme` is resume-only; normal CLI compiles set it in the JSON) |
 | `ppu_config` | `PPUConfig` | `None` | PPU configuration object — Python equivalent of the JSON `ppu` section. `None` = PPU disabled |
+| `pre_optimize` | `List[Dict]` or `Dict` | `None` | **(v2.5.1)** Pre-optimize passes — keyword equivalent of the JSON `pre_optimize` block. A list of single-key `{pass_name: config}` dicts or one `{pass_name: config}` dict; other types raise `InvalidValueError`; a list with non-single-key items falls back to legacy and compiles **without** `pre_optimize` (exit 0). Passing it at all — even `None` or `[]` — overrides the JSON `pre_optimize` block (no passes, no warning); omit it to keep the JSON block. Opt-in only; mutually exclusive with `ppu_config` / JSON `ppu` (`ConfigInputError`, unless a legacy fallback happens first) |
 | `qmaster` | `QMasterConfig` | `None` | Opt-in Quantization-Aware Training (Q-Master, v2.5.0). Use ONLY when the user explicitly requests QAT. Mutually exclusive with `use_q_pro`/`enhanced_scheme`. See `qat.md` |
 | `gen_log` | `bool` | `False` | Generate compiler.log |
 | `float64_calibration` | `bool` | `False` | float64 calibration for cross-CPU determinism |
 | `export_html` | `bool` | `False` | Generate the Compilation Summary Report `<model_name>_summary.html` in `output_dir` |
 | `verbose` | `bool` | `False` | **(v2.5.0)** Expand masked error messages |
 
-**Advanced parameters** — documented outside the signature above; confirm with
-`help(dx_com.compile)`:
+**Advanced parameters** — documented outside the signature above. Do not rely on
+`help(dx_com.compile)`: the released wheel has no docstrings and its signature shows
+only `(**kwargs)`. The source of truth is the manual's Optional Parameters section:
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
@@ -142,7 +145,7 @@ Other pairs that must not be combined:
 | `use_q_pro` ↔ `enhanced_scheme` | Automatic vs manual Q-PRO — set only one |
 | `qmaster` ↔ `use_q_pro`/`enhanced_scheme` | QAT and Q-PRO re-quantization are mutually exclusive (`EnhancementSchemeError`) |
 | `checkpoint` ↔ `model` | Resume mode re-quantizes an existing `.qxnn` |
-| JSON `ppu` ↔ JSON `pre_optimize` | Both rewrite detection post-processing — see `config-schema.md` |
+| `ppu_config` / JSON `ppu` ↔ `pre_optimize` / JSON `pre_optimize` | Both rewrite detection post-processing — set only one. Behavior per combination: `config-schema.md` → pre_optimize |
 
 ## Code Examples
 
@@ -298,6 +301,37 @@ Signature: `dx_com.pre_optimize(model: onnx.ModelProto, passes: dict[str, dict])
 Raises `KeyError` (unknown or old pass name, missing required key) and `ValueError`
 (unresolvable tensor name in `layers`, or invalid `task`). Pass fields and the other
 passes: `config-schema.md` → pre_optimize and [Pre-Optimize API](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_09_Pre_Optimize_API/).
+
+### Post-Processing Optimization via `compile(pre_optimize=...)` (v2.5.1)
+
+<!-- VERIFIED against the dx_com 2.5.1 cp311 release wheel and the 2.5.0 cp312 wheel (live runs, YOLOv8n 160x160) -->
+
+From v2.5.1, `compile()` takes the passes directly — no `dx_com.pre_optimize()` call and
+no JSON `pre_optimize` block. Same opt-in rule as above. The argument takes the JSON form
+(list of single-key dicts) or the `pre_optimize()` form (one dict):
+
+```python
+dx_com.compile(
+    model="yolov8n.onnx",
+    output_dir="output/",
+    dataloader=dataloader,  # or config="config.json" without "pre_optimize"/"ppu" blocks
+    pre_optimize=[{"yolo_dfl_postprocess": {
+        "task": "base",
+        "layers": [...],    # same entries as the pre_optimize() example above
+        "num_classes": 80,
+        "topk": 300,
+    }}],
+)
+```
+
+- **NEVER** pass `pre_optimize=` on DX-COM 2.5.0 or older: 2.5.0 accepts it without an error
+  and ignores it, so the model compiles without the passes. On 2.5.0 use the JSON block or
+  `dx_com.pre_optimize()`.
+- **NEVER** combine it with `ppu_config=` or a config whose JSON has a `ppu` block:
+  `ConfigInputError` before compilation starts — unless a legacy fallback happens first
+  (malformed `pre_optimize` list, non-bool `use_gpu`), in which case it compiles with `ppu` only.
+- When the config file also has a `pre_optimize` block, the keyword wins and the JSON
+  block is ignored. Do not supply both.
 
 ### Partial Compilation
 
