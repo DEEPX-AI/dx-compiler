@@ -1,8 +1,8 @@
 # JSON Config Schema Reference
 
-> Complete config.json schema for DX-COM v2.5.0 compilation.
+> Complete config.json schema for DX-COM v2.5.1 compilation.
 
-<!-- VERIFIED against source/docs/02_05_JSON_File_Configuration.md, 02_06_Execution_of_DX-COM.md and 02_09_Pre_Optimize_API.md (v2.5.0) -->
+<!-- VERIFIED against source/docs/02_05_JSON_File_Configuration.md, 02_06_Execution_of_DX-COM.md and 02_09_Pre_Optimize_API.md (v2.5.0); the pre_optimize section was re-verified against the v2.5.1 wheel -->
 
 ## Parameter Quick Reference
 
@@ -375,7 +375,25 @@ before compilation (`dx_com.compile()` runs the passes automatically). The Pytho
 equivalent `dx_com.pre_optimize()` takes a **dict** `{pass_name: config}` instead — see
 `dxcom-api.md`. It is the recommended replacement for the deprecated PPU type 2 and is
 **mutually exclusive with `ppu`**. The JSON block is documented from v2.5.0;
-`dx_com.pre_optimize()` exists since v2.4.0 (with the pre-v2.5.0 pass names).
+`dx_com.pre_optimize()` exists since v2.4.0 (with the pre-v2.5.0 pass names). From v2.5.1
+the same list can be passed as `dx_com.compile(pre_optimize=...)` instead of the JSON
+block (the keyword wins if both are given) — see `dxcom-api.md`.
+
+<!-- VERIFIED against the dx_com 2.5.1 cp311 release wheel and the 2.5.0 cp312 wheel (live runs, YOLOv8n 160x160) -->
+
+What happens when `ppu` and `pre_optimize` are both supplied:
+
+| `pre_optimize` from | `ppu` from | v2.5.0 | v2.5.1 |
+|---|---|---|---|
+| JSON block | JSON block | Not rejected: compiles with `ppu` only, `pre_optimize` dropped (exit 0), or fails later with an unrelated error such as `SurgeonGraphVerificationError`. Console: `falling back to legacy: ValueError: config 'pre_optimize' and 'ppu' are mutually exclusive …` | Same as v2.5.0 |
+| JSON block | `ppu_config=` | Fails during compilation: `RuntimeError: Unknown error occurred during compilation` | `ConfigInputError: ppu_config and pre_optimize are mutually exclusive. Set only one.` before compilation |
+| `pre_optimize=` | JSON `ppu` or `ppu_config=` | `pre_optimize=` is ignored (no such argument) | `ConfigInputError` (same message) before compilation |
+
+**NEVER** rely on DX-COM to reject a config file that has both blocks: remove `ppu`
+before adding `pre_optimize`. `pre_optimize=None` / `pre_optimize=[]` apply no passes and do not conflict, but they still
+override the JSON `pre_optimize` block (silently, no passes run) — omit the argument to keep the JSON block.
+The `ConfigInputError` rows assume every other argument is valid: a malformed `pre_optimize` list or a
+non-bool `use_gpu` makes DX-COM fall back to the legacy path, which compiles with `ppu` only and no error.
 
 | Pass | Target models | Tasks | Output |
 |---|---|---|---|

@@ -81,10 +81,23 @@ passes = json.load(open("pre_optimize.json"))["pre_optimize"][0]
 model = dx_com.pre_optimize(onnx.load("model.onnx"), passes=passes)
 ```
 
+`compile()` keyword (dx_com 2.5.1 and later; 2.5.0 ignores it without an error):
+
+```python
+import json, dx_com
+block = json.load(open("pre_optimize.json"))["pre_optimize"]  # the list itself
+# config.json must NOT contain a "pre_optimize" or "ppu" block
+dx_com.compile(model="model.onnx", config="config.json", output_dir=out, pre_optimize=block)
+```
+
+Use one of the three: config block, `dx_com.pre_optimize()`, or `pre_optimize=`.
+
 **Validation gate**: `pre_optimize` is a list of single-key `{pass: cfg}` dicts, and the
-config has no `ppu` key. After a compile with the config block, the console (stderr) shows
-`[pre_optimize] applying pass '<pass>' from config`. A `falling back to legacy` line instead
-means the block was dropped (see Pitfalls). compiler.log records neither line.
+config has no `ppu` key. After a compile with the config block or the `pre_optimize=`
+keyword, the console (stderr) shows
+`[pre_optimize] applying pass '<pass>' from config`.
+A `falling back to legacy` line instead means the block was dropped (see Pitfalls).
+compiler.log records neither line.
 
 ## Phase 3: Report
 
@@ -129,21 +142,27 @@ any items the user listed.
 Never force `--pass` onto a model the script rejects. If the script cannot run, use the
 "Identifying Conv Head Tensor Names" section of [Pre-Optimize API](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_09_Pre_Optimize_API/).
 
-## Pitfalls (dx_com 2.5.0)
+## Pitfalls (dx_com 2.5.0 and 2.5.1)
 
 - Unknown or misspelled keys are silently ignored, and a wrong pass or `num_classes` can
   still convert. Only `--verify` catches these.
-- Never put `ppu` and `pre_optimize` in one config. 2.5.0 does not reject it: the conflict shows
+- Never put `ppu` and `pre_optimize` in one config. 2.5.0 and 2.5.1 do not reject it: the conflict shows
   up only as a console line (`falling back to legacy: ValueError: config 'pre_optimize' and 'ppu' are
   mutually exclusive`), and the compile continues with `ppu` alone (`pre_optimize` is dropped) or
   fails later with an unrelated error such as `SurgeonGraphVerificationError`. Treat that error as
   a symptom of the conflict and remove one block instead of debugging it. The Phase 2 `--config`
-  merge drops `ppu` from the config for you.
+  merge drops `ppu` from the config for you. In 2.5.1, a combination that goes through a keyword
+  (`pre_optimize=` with `ppu_config=` or a JSON `ppu` block, or `ppu_config=` with a JSON
+  `pre_optimize` block) raises `ConfigInputError: ppu_config and pre_optimize are mutually
+  exclusive. Set only one.` before compilation.
 - A `pre_optimize` block that is not a list of single-key `{pass: cfg}` dicts is dropped the same
   way: the console line `falling back to legacy: ValueError: config 'pre_optimize' must be a list …`
   (or `each 'pre_optimize' list item must be a single …`), exit 0, and a model without
   `pre_optimize`. Errors inside a pass, such as a renamed pass, `input_height` / `input_width`
   or `Cannot find shapes`, do stop the compile (exit 1).
+- In 2.5.1, passing `pre_optimize=` to `compile()` at all — even `None` or `[]` — overrides the JSON
+  `pre_optimize` block: no passes run and nothing is logged. Never forward a `None` default from a
+  wrapper; omit the argument when the JSON block should apply.
 - The old pass names `yolo_postprocess` / `yolo26_postprocess` raise a rename error.
 - Dynamic input H/W, or `input_height` / `input_width` keys, raise `ValueError`.
 - `Cannot find shapes for bbox=…` means a name is not a tensor of this graph: a typo, or

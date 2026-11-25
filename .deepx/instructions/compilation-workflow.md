@@ -1,6 +1,6 @@
 # Compilation Workflow — End-to-End Reference
 
-> Complete PT → ONNX → DXNN pipeline reference for DEEPX DX-COM v2.5.0.
+> Complete PT → ONNX → DXNN pipeline reference for DEEPX DX-COM v2.5.1.
 > Covers calibration best practices, quantization strategies, and PPU configuration.
 
 ## Pipeline Overview

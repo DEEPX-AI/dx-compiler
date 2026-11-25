@@ -1,8 +1,8 @@
 # DX-COM CLI Reference
 
-> Command-line reference for `dxcom` (DX-COM v2.5.0).
+> Command-line reference for `dxcom` (DX-COM v2.5.1).
 
-<!-- VERIFIED against source/docs/02_02_Installation_of_DX-COM.md, 02_06_Execution_of_DX-COM.md and 02_07_Quantization_Tuning_Workflow.md (v2.5.0) -->
+<!-- VERIFIED against source/docs/02_02_Installation_of_DX-COM.md, 02_06_Execution_of_DX-COM.md and 02_07_Quantization_Tuning_Workflow.md (v2.5.1) -->
 
 ## Installation
 

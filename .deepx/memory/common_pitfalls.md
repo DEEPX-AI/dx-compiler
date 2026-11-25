@@ -853,7 +853,7 @@ fabricated compiler flags, destroying download URLs and credentials.
 
 **Actual `compiler.properties` schema** (key=value format, sourced as bash):
 ```properties
-COM_VERSION=2.5.0
+COM_VERSION=2.5.1
 ```
 Since v2.5.0 the file holds only `COM_VERSION`: the per-Python download URLs were
 dropped in v2.4.0 (dx-com now installs from PyPI) and the `TRON_*` keys (DX-TRON version

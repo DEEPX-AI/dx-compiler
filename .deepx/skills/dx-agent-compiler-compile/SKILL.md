@@ -6,7 +6,7 @@ description: ONNX to DXNN compilation workflow for dx-compiler
 # /dx-agent-compiler-compile — ONNX to DXNN Compilation Skill
 
 > Step-by-step workflow for compiling ONNX models to .dxnn format
-> using DEEPX DX-COM (v2.5.0).
+> using DEEPX DX-COM (v2.5.1).
 
 ## MANDATORY OUTPUT REQUIREMENTS — READ FIRST
 

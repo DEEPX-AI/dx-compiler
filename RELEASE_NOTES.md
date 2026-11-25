@@ -1,5 +1,36 @@
 # RELEASE_NOTES
 
+## DX-Compiler v2.5.1 / 2026-11-27
+
+-   DX-COM: v2.5.1
+
+----------
+
+Here are the **DX-Compiler v2.5.1** Release Notes. This is a DX-COM hotfix release.
+
+### DX-COM (v2.5.1)
+
+### 1. Changed
+
+-   **`ppu` and `pre_optimize` Conflict Rejected for Keyword Arguments**: Combining `pre_optimize` and `ppu` through a keyword argument now raises `ConfigInputError` before compilation starts. This covers the new `pre_optimize` argument with `ppu_config` or with a JSON `ppu` block, and `ppu_config` with a JSON `pre_optimize` block. Supply only one of the two. A config file that contains both a `ppu` block and a `pre_optimize` block is still not rejected: as in v2.5.0, DX-COM compiles with `ppu` and ignores `pre_optimize`, or fails later with an unrelated error. The `ConfigInputError` is raised only when every other argument is valid; if DX-COM falls back to its legacy compile path first, the compile runs with `ppu` only. See [Combining with `ppu`](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_09_Pre_Optimize_API/#combining-with-ppu) for every combination.
+
+### 2. Fixed
+
+-   **CLIP-Family Model Accuracy**: Fixed a large accuracy drop after compilation in some CLIP-family models, where a few extremely large activations set the INT8 range of a whole tensor. DX-COM now restructures the affected parts of the graph automatically; no configuration change is needed, and the floating-point output of the model is unchanged. Affected models include the CLIP ResNet-50 text encoder (OpenAI) and CLIP ViT-B/16 (MetaCLIP). The same restructuring also applies to other ViT-based models, such as ViT-Tiny/16, ViT-Base/16, DEIMv2 DINOv3-S and Depth-Anything-V2. No accuracy gain was measured on those models, and their NPU latency can increase: about +0.8% per restructured MLP on ViT-B models, about +2.3% on ViT-L/14, and about +8.5% on Depth-Anything-V2 ViT-L.
+
+### 3. Added
+
+-   **`pre_optimize` Keyword Argument**: `dx_com.compile()` accepts [Pre-Optimize](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_09_Pre_Optimize_API/) passes through the new `pre_optimize` keyword argument, so a JSON `pre_optimize` block is no longer required. It takes a list of single-key `{pass_name: config}` dicts (the JSON block form) or a `{pass_name: config}` dict (the `dx_com.pre_optimize()` form). When both the argument and a JSON `pre_optimize` block are given, the argument is used. See [Execution of DX-COM](https://developer.deepx.ai/tech-docs/DXNN-SDK/DX-COM/02_06_Execution_of_DX-COM/).
+
+### Documentation
+
+### 1. Changed
+
+-   **`ppu` and `pre_optimize` Combinations**: The *Pre-Optimize API* and *Common Use Cases* pages now state what DX-COM does for each combination of `ppu` and `pre_optimize`.
+-   **Advanced `compile()` Parameters**: *Execution of DX-COM* no longer refers to `help(dx_com.compile)`, which does not list parameters for the installed package. The advanced parameters are described under *Optional Parameters*.
+
+----------
+
 ## DX-Compiler v2.5.0 / 2026-10-23
 
 -   DX-COM: v2.5.0
