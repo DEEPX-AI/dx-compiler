@@ -72,7 +72,7 @@ mkdir -p "${DOWNLOAD_CACHE_DIR}"
 
 # -----------------------------------------------------------------------------
 # Helper: download a single file
-#   $1 : source path relative to BASE_URL  (e.g. modelzoo/onnx/YOLOV5S-1.onnx)
+#   $1 : source path relative to BASE_URL  (e.g. modelzoo/onnx/YOLOXS-1.onnx)
 #   $2 : output file path
 # Returns 0 on success, 1 on failure.
 # -----------------------------------------------------------------------------
@@ -101,7 +101,7 @@ download_file() {
 # -----------------------------------------------------------------------------
 # Download models
 # -----------------------------------------------------------------------------
-MODEL_NAME_LIST=("YOLOV5S-1" "YOLOV5S_Face-1" "MobileNetV2-1")
+MODEL_NAME_LIST=("YOLOXS-1" "ulfgfd-RFB-320-1" "MobileNetV2-1")
 EXT_LIST=("onnx" "json")
 
 DOWNLOAD_SUCCESS=()

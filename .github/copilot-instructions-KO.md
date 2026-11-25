@@ -190,7 +190,7 @@ cd dx-compiler
 ./example/3-compile_sample_models.sh       # 모든 샘플 모델을 .dxnn으로 컴파일
 ```
 
-샘플 모델: YOLOV5S-1, YOLOV5S_Face-1, MobileNetV2-1.
+샘플 모델: YOLOXS-1, ulfgfd-RFB-320-1, MobileNetV2-1.
 다운로드된 JSON 설정은 새 모델용 config.json을 생성할 때
 정규 참조로 사용됩니다 — 유사한 모델 유형의 샘플 JSON을 읽으세요.
 

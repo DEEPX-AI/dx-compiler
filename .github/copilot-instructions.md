@@ -192,7 +192,7 @@ cd dx-compiler
 ./example/3-compile_sample_models.sh       # Compile all sample models to .dxnn
 ```
 
-Sample models: YOLOV5S-1, YOLOV5S_Face-1, MobileNetV2-1.
+Sample models: YOLOXS-1, ulfgfd-RFB-320-1, MobileNetV2-1.
 The downloaded JSON configs serve as canonical references when generating
 config.json for new models — read a sample JSON of a similar model type.
 

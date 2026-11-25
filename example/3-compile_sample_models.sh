@@ -38,7 +38,7 @@ OUTPUT_DIR="${COMPILER_DIR}/dx_com/output"
 PROJECT_NAME="dx-compiler"
 
 # List of sample models to compile
-MODEL_NAME_LIST=("YOLOV5S-1" "YOLOV5S_Face-1" "MobileNetV2-1")
+MODEL_NAME_LIST=("YOLOXS-1" "ulfgfd-RFB-320-1" "MobileNetV2-1")
 
 # Arrays to track results
 COMPILE_SUCCESS=()
