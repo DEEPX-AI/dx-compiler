@@ -448,25 +448,25 @@ cd dx-compiler
 ```
 
 Downloads 3 sample models from `https://sdk.deepx.ai/`:
-- `YOLOV5S-1` — YOLOv5s object detection
-- `YOLOV5S_Face-1` — YOLOv5s face detection
+- `YOLOXS-1` — YOLOX-s object detection
+- `ulfgfd-RFB-320-1` — Ultra-Light-Fast-Generic-Face-Detector (RFB, 320x240) face detection
 - `MobileNetV2-1` — MobileNetV2 classification
 
 Output structure:
 ```
 dx-compiler/dx_com/sample_models/
 ├── onnx/
-│   ├── YOLOV5S-1.onnx
-│   ├── YOLOV5S_Face-1.onnx
+│   ├── YOLOXS-1.onnx
+│   ├── ulfgfd-RFB-320-1.onnx
 │   └── MobileNetV2-1.onnx
 └── json/
-    ├── YOLOV5S-1.json
-    ├── YOLOV5S_Face-1.json
+    ├── YOLOXS-1.json
+    ├── ulfgfd-RFB-320-1.json
     └── MobileNetV2-1.json
 ```
 
 The JSON files contain pre-built config.json for each model (input shapes,
-preprocessing, calibration settings, PPU config where applicable).
+preprocessing and calibration settings). None of them uses PPU.
 
 ### Step 2: Download Calibration Dataset
 

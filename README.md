@@ -68,6 +68,10 @@ cd dx-compiler
 ./example/3-compile_sample_models.sh               # → dx_com/output/*.dxnn
 ```
 
+The sample models (YOLOX-s, Ultra-Light-Fast-Generic-Face-Detector RFB-320, MobileNetV2) and the
+100 calibration images (COCO 2017, CC BY 2.0) are third-party material with their own licenses —
+see [example/SAMPLE_LICENSES.md](./example/SAMPLE_LICENSES.md).
+
 ## Compile with Python
 
 Activate the virtualenv that holds `dx_com` first (one-line install path shown; a clone install prints its own path):

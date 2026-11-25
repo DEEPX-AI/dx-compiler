@@ -133,7 +133,7 @@ echo ""
 # -----------------------------------------------------------------------------
 echo "[Step 3] Patching dataset_path in JSON config files..."
 
-MODEL_NAME_LIST=("YOLOV5S-1" "YOLOV5S_Face-1" "MobileNetV2-1")
+MODEL_NAME_LIST=("YOLOXS-1" "ulfgfd-RFB-320-1" "MobileNetV2-1")
 PATCH_SUCCESS=0
 PATCH_SKIP=0
 PATCH_WARN=0

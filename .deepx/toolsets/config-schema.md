@@ -190,7 +190,7 @@ Array of preprocessing operations applied in order (one operation key per item):
 | Operation | Example | Notes |
 |---|---|---|
 | `convertColor` | `{"convertColor": {"form": "BGR2RGB"}}` | Case-sensitive; never fused onto the NPU; `*2GRAY` outputs `(H, W, 1)`. `form`: `RGB2BGR`, `BGR2RGB`, `RGB2GRAY`, `BGR2GRAY`, `RGB2YCrCb`, `BGR2YCrCb`, `RGB2YUV`, `BGR2YUV`, `RGB2HSV`, `BGR2HSV`, `RGB2LAB`, `BGR2LAB` |
-| `resize` | `{"resize": {"width": 640, "height": 640}}` | Optional `mode` + `interpolation`: `default` (OpenCV: `LINEAR`, `NEAREST`, `CUBIC`, `AREA`, `LANCZOS4`) or `torchvision` (PIL: `BILINEAR`, `NEAREST`, `BICUBIC`, `LANCZOS`) — uppercase names from the same `mode` only. `size` may replace `width`/`height` |
+| `resize` | `{"resize": {"width": 640, "height": 640}}` | Optional `mode` + `interpolation`: `default` (OpenCV: `LINEAR`, `NEAREST`, `CUBIC`, `AREA`, `LANCZOS4`) or `torchvision` (PIL: `BILINEAR`, `NEAREST`, `BICUBIC`, `LANCZOS`) — uppercase names from the same `mode` only. `size` may replace `width`/`height`. `pad` (OpenCV names) letterboxes: keeps the aspect ratio and pads to the target size; `pad_location` `EDGE` (centered) or `BACK` (right/bottom), `pad_value` scalar or per channel (default `0`) — e.g. `{"resize": {"mode": "pad", "size": 640, "pad_location": "EDGE", "pad_value": [114, 114, 114]}}` |
 | `centercrop` | `{"centercrop": {"width": 224, "height": 224}}` | Crop the central region |
 | `transpose` | `{"transpose": {"axis": [2, 0, 1]}}` | Rearrange tensor dimensions |
 | `expandDim` | `{"expandDim": {"axis": 0}}` | Add a dimension at `axis` |

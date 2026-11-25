@@ -672,7 +672,7 @@ use the `example/` scripts in order:
 ./example/3-compile_sample_models.sh
 ```
 
-**Available sample models**: YOLOV5S-1, YOLOV5S_Face-1, MobileNetV2-1
+**Available sample models**: YOLOXS-1, ulfgfd-RFB-320-1, MobileNetV2-1
 
 **Output paths**:
 - ONNX models: `dx_com/sample_models/onnx/{MODEL}.onnx`
@@ -682,4 +682,7 @@ use the `example/` scripts in order:
 
 The sample JSON configs are canonical references for config.json generation.
 When generating config.json for a new model, read a sample JSON of a similar
-model type (e.g., read `YOLOV5S-1.json` when compiling a YOLO model).
+model type (e.g., read `YOLOXS-1.json` when compiling a YOLOX model), but keep
+the preprocessing the model was trained with: YOLOXS-1 takes BGR 0-255 input with
+letterbox padding, while Ultralytics YOLO models (YOLOv5/v8/v11) need `convertColor`
+BGR2RGB and `div` 255.
